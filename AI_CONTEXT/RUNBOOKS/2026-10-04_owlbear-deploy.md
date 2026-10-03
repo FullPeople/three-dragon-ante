@@ -43,3 +43,11 @@
 - F 盘空间不足引起首轮 overlay 写资产失败；本轮失败产物未删除，已移到 U 的专属失败目录保存。当前大产物与隔离集成源改放 U。自动审批拒绝过清理动作，理由“blocked by policy”；未继续尝试删除其他内容。
 
 这些均不是双账号真实枭熊房间验收，真实验收仍待浏览器连接组件恢复。线上发布尚未执行，原服务/静态入口未切换。
+
+## 冻结源复审与缓存入口兼容
+
+- 运行时冻结源 `cbcbb1aff268d214a72eee78e3496734a2589f24`，gpt-6.1-sol 独立复审通过；审计声明限定源码与本地证据，不证明部署或真实枭熊。
+- Suite 最终 overlay 使用冻结 TDA 源和现场对应 b48783c 宿主，dev/stable 各 963 文件散列通过；实际 WorkbenchPanel → panel-sdk → panel-rpc → 本地 WS/SQLite 桥 10/10，包含 compact、私牌、全能边界、刷新与稳定旧局优先。证据 `U:/CodexWork/2026-10-04/three-dragon-suite-bridge-final-cbcbb1a/run-cHglFv/result.json`；产物 `U:/CodexWork/2026-10-04/three-dragon-suite-overlay-final-cbcbb1a/`。仅夹具身份，未冒充真实账号。
+- 查证旧生产独立扩展源 dfc4f4d 的后台仍打开 `index.html?instance=<UUID>&mode=full/compact`。新网站 index 只在嵌入 iframe 且具备该签名时同源跳到 table，完整保留查询与 hash；普通网站/邀请仍保持原入口。补丁独立审计无必改，生产构建入口专项 6/6：`.local-evidence/site-entry/run-BWBitj/result.json`，牌桌目标被拦截，仅证明跳转。
+- 本地预览已接本地权威服务，`TDA_ORIGIN=http://127.0.0.1:4173`，独立数据库 `.local-data/preview-20261004.sqlite`；代理 health 200。没有写 `.env` 文件或连接生产房间。
+- 最新 typecheck/build 通过，原服务再次 2/2；原浏览器与 fx3d 冻结回归正在完成。缓存补丁冻结后重新生成 source archive，Suite 牌桌输出不包含 site 入口，仍须核对新清单来源。
