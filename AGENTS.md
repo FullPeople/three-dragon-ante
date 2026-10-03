@@ -1,3 +1,15 @@
+# 三龙牌 Three-Dragon Ante · 项目入口（Codex）
+
+> 🧭 **跨 AI 通用工作流**：通用纪律见全局 `~/.codex/AGENTS.md`（自动加载）。
+> 冷启动先读 `AI_CONTEXT/INDEX.md`，再读 `AI_CONTEXT/GOAL.md`。规约与 `CLAUDE.md` 一致。
+>
+> 独立运行网站为核心、枭熊扩展为次要适配的三龙牌网页实现。2026-10-03 起表现层破坏性重构（分支 `rebuild/presentation`）；规则 / 协议 / 控制器 / 服务端不动。
+> 最高边界：规则纯函数；投影不泄私牌；卡图不改不删；不用 AI 美术；产物零外部请求；push / 合并 / 部署前经用户确认。
+>
+> 下面是 2026-10-03 拆分建仓时的上游约束原文，仍然有效（其中“不修改游戏运行源码”一条已被本次重构明确推翻，见 `AI_CONTEXT/GOAL.md`）。
+
+---
+
 # Three-Dragon Ante
 
 Read README.md, docs/EXTRACTION.md and docs/STATUS.md first. SOURCE.json pins the
