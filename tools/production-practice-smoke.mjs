@@ -60,7 +60,9 @@ try {
     await page.waitForFunction(() => document.querySelector('.tda-shell')?.getAttribute('data-pending-action') === 'false', null, { timeout: 10000 });
     assert.equal(await page.evaluate(id => document.querySelector(`[data-card="${id}"]`)?.getAttribute('data-zone'), cardId), 'ante');
     pass(`${name} ante is committed through the real action path`);
-    // 机器人跟注、翻注、进入出牌阶段
+    // 机器人跟注、翻注、付前注：付款期间必须真的有金币精灵在飞（奖池锚点是 0×0，曾经让所有金币飞行静默跳过）
+    await page.waitForFunction(() => document.querySelectorAll('.tda-coin-fly').length > 0, null, { timeout: 30000 });
+    pass(`${name} coins visibly fly during the ante payment`);
     await page.waitForFunction(() => ['play', 'choice'].includes(document.querySelector('.tda-shell')?.getAttribute('data-phase') || ''), null, { timeout: 30000 });
     pass(`${name} reveal completes and play phase begins`);
     // 轮到自己时出牌：机器人的能力说明要人点击任意处关闭，自己的能力选择要人确认；这里像玩家一样推进，直到有合法手牌可打
@@ -109,14 +111,17 @@ try {
       await page.mouse.move(cb.x + cb.width / 2, cb.y + cb.height / 2); await page.mouse.down();
       for (let i = 1; i <= 10; i++) { await page.mouse.move(cb.x + (ante.x + ante.width / 2 - cb.x) * i / 10, cb.y + (ante.y + ante.height / 2 - cb.y) * i / 10); await page.waitForTimeout(20); }
       assert.equal(await page.locator('.tda-pointer').count(), 1, 'pointer arrow shows while dragging');
+      // 数这张牌在桌面层挂了几次：回执延迟时不能回到手牌再飞第二次
+      await page.evaluate(id => { window.__entries = 0; const obs = new MutationObserver(ms => { for (const m of ms) for (const n of m.addedNodes) if (n.nodeType === 1 && n.getAttribute?.('data-card') === id && n.getAttribute('data-layer') === 'table') window.__entries++; }); obs.observe(document.querySelector('.tda-plane'), { childList: true, subtree: true }); window.__obs = obs; }, id);
       await page.mouse.up();
       await page.waitForTimeout(2500);
-      const state = await page.evaluate(id => { const n = document.querySelector(`[data-card="${id}"]`); const r = n?.getBoundingClientRect(); return { zone: n?.getAttribute('data-zone'), cls: n?.className, pending: document.querySelector('.tda-shell')?.getAttribute('data-pending-action'), cx: r ? r.left + r.width / 2 : -1, cy: r ? r.top + r.height / 2 : -1 }; }, id);
+      const state = await page.evaluate(id => { window.__obs?.disconnect(); const n = document.querySelector(`[data-card="${id}"]`); const r = n?.getBoundingClientRect(); return { zone: n?.getAttribute('data-zone'), cls: n?.className, pending: document.querySelector('.tda-shell')?.getAttribute('data-pending-action'), cx: r ? r.left + r.width / 2 : -1, cy: r ? r.top + r.height / 2 : -1, entries: window.__entries }; }, id);
       assert.equal(state.zone, 'ante', `card committed with ${delay}ms receipt`);
       const after = await page.locator('[data-drop-zone="ante"][data-drop-seat="you"]').boundingBox();
       assert.ok(state.cx > after.x && state.cx < after.x + after.width && state.cy > after.y && state.cy < after.y + after.height, `card rests inside the ante slot after a ${delay}ms receipt`);
       assert.equal(state.pending, 'false');
       assert.ok(!/is-entering|is-dropping|is-flying|is-pending/.test(state.cls), `no stuck animation class with ${delay}ms receipt: ${state.cls}`);
+      assert.ok(state.entries <= 1, `the card entered the table once, not twice (${state.entries}) with ${delay}ms receipt`);
       pass(`${name} drag commits an ante with a ${delay}ms receipt and the card settles`);
     }
     await page.goto(origin + base + 'index.html');

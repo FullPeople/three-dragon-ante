@@ -135,7 +135,8 @@ export function TableScene({ state, controller, onFx, onOrientation, onLand }: T
               <div className="tda-plate tda-stakes-plate"><span>{t("stakes", state.lang)}</span><span className="tda-num tda-stakes-amount">{stakesShown}</span></div>
               <div className="tda-coins-anchor tda-coins-anchor--pile" data-pile="stakes"><CoinStack amount={stakesShown} big /></div>
             </div>
-            {holeShown > 0 ? <div className="tda-hole" style={{ left: center.hole.x, top: center.hole.y }}><div className="tda-plate tda-hole-plate"><span>{t("hole", state.lang)}</span><span className="tda-num">{holeShown}</span></div><div className="tda-coins-anchor tda-coins-anchor--pile" data-pile="hole"><CoinStack amount={holeShown} /></div></div> : null}
+            {/* 偿债池为 0 也保留（淡显）：第一笔偿债的金币需要一个落点，总额也要时刻可见 */}
+            <div className={`tda-hole${holeShown > 0 ? "" : " is-empty"}`} style={{ left: center.hole.x, top: center.hole.y }}><div className="tda-plate tda-hole-plate"><span>{t("hole", state.lang)}</span><span className="tda-num">{holeShown}</span></div><div className="tda-coins-anchor tda-coins-anchor--pile" data-pile="hole"><CoinStack amount={holeShown} /></div></div>
             {seats.map(placement => { const seat = game.seats.find(s => s.id === placement.id)!; return <SeatBlock key={placement.id} seat={seat} placement={placement} game={game} selfSeatId={own?.selfSeatId ?? null} lang={state.lang}
               legalZone={legalZone} dragOver={drag?.cardId ? drag.overZone : null} targetSeatId={targetSeatId} waiting={waitingIds.has(placement.id)} gold={hold?.seats[seat.id] ?? seat.gold} tally={seatTally.get(seat.id)} onZoneClick={zone => controller.placeSelected(zone)} />; })}
             <CardLayer state={state} controller={controller} orientation={orientation} layer="table" placements={placements} seats={seats} known={known} onCardPointerDown={onCardPointerDown} onCardLand={onCardLand} />

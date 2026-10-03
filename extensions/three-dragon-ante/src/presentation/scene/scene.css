@@ -32,6 +32,7 @@
 .tda-pile { position: absolute; width: 156px; height: 263px; border: 1px solid rgba(239, 227, 200, .2); border-radius: 10px; }
 .tda-pile--discard { cursor: pointer; pointer-events: auto; }
 /* 奖池 / 偿债池：铭牌在上，金币堆在铭牌正下方（锚点是一个 0×0 的点，堆以它为中心） */
+.tda-hole.is-empty { opacity: .5; }
 .tda-stakes, .tda-hole { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 0; transform-style: preserve-3d; }
 .tda-stakes .tda-coins-anchor, .tda-hole .tda-coins-anchor { position: relative; width: 0; height: 0; margin-top: 46px; }
 .tda-stakes-plate { font-size: 22px; gap: 14px; } .tda-stakes-amount { font-size: 30px; }
@@ -40,7 +41,8 @@
 /* 座位 */
 .tda-seat { position: absolute; inset: 0; pointer-events: none; transform-style: preserve-3d; }
 .tda-seat-plate { position: absolute; transform: translate(-50%, -50%) translateZ(26px) rotate(var(--rot, 0deg)); font-size: 20px; white-space: nowrap; }
-.tda-seat--self .tda-seat-plate { transform: translate(0, -50%) translateZ(26px); }
+.tda-seat--self .tda-seat-plate { transform: translate(0, -50%) translateZ(26px); max-width: 160px; box-sizing: border-box; }
+.tda-seat-plate > span:first-child { max-width: 6.5em; overflow: hidden; text-overflow: ellipsis; }
 .tda-seat.is-active .tda-seat-plate { background-color: #e8c86a; }
 .tda-seat-hand { font-family: var(--font-body); font-size: 14px; font-weight: 700; padding: 0 6px; border-radius: 2px; background: rgba(27, 20, 15, .18); }
 .tda-seat-leader { color: #5a1f1a; margin-right: 2px; } .tda-seat-gold { font-size: 22px; } .tda-seat-debt { color: #5a1f1a; font-weight: 700; }
@@ -138,8 +140,9 @@
 .tda-ghost .tda-card-flip { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform 300ms var(--ease-flight); }
 .tda-ghost.is-face-down .tda-card-flip { transform: rotateY(180deg); }
 /* 被偷的牌背：前伸 + 抖动 */
-@keyframes tda-tug { 0% { translate: 0 0; } 25% { translate: 0 -22px; } 35% { translate: -3px -22px; } 45% { translate: 3px -24px; } 55% { translate: -3px -22px; } 65% { translate: 3px -24px; } 100% { translate: 0 -26px; } }
-.tda-card.is-tugged { animation: tda-tug 620ms ease-in-out both; }
+/* 前伸由位姿沿座位朝向给出；这里只做方向无关的抖动 */
+@keyframes tda-tug { 0%, 100% { rotate: 0deg; } 30% { rotate: -3deg; } 45% { rotate: 3deg; } 60% { rotate: -3deg; } 75% { rotate: 2deg; } }
+.tda-card.is-tugged { animation: tda-tug 620ms ease-in-out both; transition: transform 200ms var(--ease-out); }
 
 /* 特效画布与拖动影子 */
 .tda-fx { position: absolute; inset: 0; pointer-events: none; z-index: 50; }

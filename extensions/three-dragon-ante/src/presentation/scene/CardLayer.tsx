@@ -43,10 +43,11 @@ export function CardLayer({ state, controller, orientation, layer, placements, s
     if (target !== layer) return [];
     const previous = known.current.get(placement.key);
     let enterFrom: Pose | undefined, dropIn = false, dropFaceDown = false, arriving = false;
+    const justArrived = !!placement.seatId && state.show.arrived.includes(placement.seatId) && placement.zone === "hand";
     if (layer === "hand") {
-      if (!previous || previous.layer !== "hand") { enterFrom = { x: 0, y: 320, rot: 0, scale: 0.85, z: 0 }; arriving = true; }
+      if (!justArrived && (!previous || previous.layer !== "hand")) { enterFrom = { x: 0, y: 320, rot: 0, scale: 0.85, z: 0 }; arriving = true; }
     } else if (previous?.layer === "hand") { enterFrom = handShadowPose(orientation, previous.pose); dropIn = true; }
-    else if (!previous) {
+    else if (!previous && !justArrived) {
       const seat = placement.seatId ? seats.find(s => s.id === placement.seatId) : undefined;
       const fromSeat = seat && !seat.self;
       if (cardId && state.show.fromDeck.includes(cardId)) { enterFrom = { x: center.deck.x, y: center.deck.y, rot: 0, scale: 1, z: 30 }; dropIn = true; dropFaceDown = true; }
@@ -62,6 +63,7 @@ export function CardLayer({ state, controller, orientation, layer, placements, s
       if (gesture && (gesture.hover === placement.order || gesture.selected.includes(placement.order))) { lifted = true; pose = { ...pose, y: pose.y - 18, z: pose.z + 15 }; }
     }
     const tugged = !!state.show.tug && placement.zone === "hand" && placement.seatId === state.show.tug.seatId && placement.order === state.show.tug.index;
+    if (tugged) { const seat = seats.find(s => s.id === placement.seatId); if (seat) pose = { ...pose, x: pose.x + seat.inward.x * 22, y: pose.y + seat.inward.y * 22, z: pose.z + 8 }; }
     const dragging = !!cardId && state.drag?.cardId === cardId;
     if (isOwnHand && dragging) pose = { ...pose, y: pose.y - 70, rot: 0, scale: pose.scale * 1.04 };
     else if (isOwnHand && cardId && (state.selected.includes(cardId) || state.keyboardHeld && state.keyboardCard === cardId)) pose = { ...pose, y: pose.y - 36 };
@@ -82,5 +84,7 @@ export function CardLayer({ state, controller, orientation, layer, placements, s
       onHover={cardId ? id => { if (isOwnHand) controller.hover(id); else controller.inspect(id, false); } : undefined}
       onLand={onCardLand} />];
   });
-  return <>{nodes}</>;
+  // 桌面层按 key 排序：一张牌换区（手牌 → 前注 → 弃牌堆）时在兄弟节点里的次序不变，React 不会移动 DOM 节点，正在进行的过渡不会被打断；前后遮挡由 translateZ 决定。
+  // 手牌扇面保持手牌顺序：立板是平的，层叠靠 DOM 次序。
+  return <>{layer === "table" ? nodes.sort((a, b) => String(a.key).localeCompare(String(b.key))) : nodes}</>;
 }

@@ -25,7 +25,7 @@ function Ghost({ ghost }: { ghost: GhostCard }) {
       { transform: transformOf(to), offset: 1 },
     ], { duration: ghost.duration, delay: ghost.delay, fill: "both", easing: "linear" });
     let flipTimer: ReturnType<typeof setTimeout> | undefined;
-    if (ghost.flip) flipTimer = setTimeout(() => el.classList.toggle("is-face-down"), ghost.delay + ghost.duration * 0.55);
+    if (ghost.flip && ghost.cardId) flipTimer = setTimeout(() => el.classList.toggle("is-face-down"), ghost.delay + ghost.duration * 0.55);
     return () => { anim.cancel(); if (flipTimer) clearTimeout(flipTimer); };
   }, [ghost.key]);
   return <div ref={ref} className={`tda-ghost${ghost.faceDown ? " is-face-down" : ""}`} data-ghost={ghost.key} aria-hidden="true" style={{ transform: transformOf(ghost.from) }}>

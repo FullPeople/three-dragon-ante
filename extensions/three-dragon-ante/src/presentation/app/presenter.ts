@@ -114,41 +114,63 @@ export function powerSegment(events: readonly PublicEvent[], cue: PowerCue): Pub
 
 /** 卡牌转移：公共事件 + 两帧公开计数差 → 一张一张的幽灵牌（抽牌从牌库、偷牌从被偷者手里、取前注从前注区、弃手牌到弃牌堆、时间龙从弃牌堆）。
  *  只用公共信息：对手手牌永远是牌背；本家拿到的牌在幽灵落地后才由手牌层显示。 */
-export function cardMoves(previous: TableView, next: TableView, events: readonly PublicEvent[], orientation: "landscape" | "portrait"): { ghosts: GhostCard[]; tug: { seatId: string; index: number } | null } {
-  const pg = previous.game, ng = next.game; if (!pg || !ng) return { ghosts: [], tug: null };
+export function cardMoves(previous: TableView, next: TableView, events: readonly PublicEvent[], orientation: "landscape" | "portrait"): { ghosts: GhostCard[]; tug: { seatId: string; index: number } | null; arrived: string[] } {
+  const pg = previous.game, ng = next.game; if (!pg || !ng) return { ghosts: [], tug: null, arrived: [] };
   const selfId = "selfSeatId" in ng ? (ng as SeatView).selfSeatId : null;
   const seats = seatPlacements(ng, selfId, orientation), center = CENTER[orientation];
   const placements = cardPlacements(pg, orientation);
   const handOf = (seatId: string): Pose => { const seat = seats.find(s => s.id === seatId)!; return seat.self ? handShadowPose(orientation, fanPose(0, 1, orientation)) : { x: seat.hand.x, y: seat.hand.y, rot: seat.rot, scale: 0.5, z: 30 }; };
   const deck: Pose = { x: center.deck.x, y: center.deck.y, rot: 0, scale: 1, z: 20 }, discard: Pose = { x: center.discard.x, y: center.discard.y, rot: 4, scale: 1, z: 20 };
   const ghosts: GhostCard[] = []; let tug: { seatId: string; index: number } | null = null;
-  const inflow = new Map<string, number>(); // 已由事件解释的进牌数
-  let t = 0; const push = (g: Omit<GhostCard, "delay" | "duration" | "key">, ms = 520) => { ghosts.push({ key: `g${ghosts.length}`, delay: t, duration: ms, ...g }); t += 110; };
+  const inflow = new Map<string, number>(), outflow = new Map<string, number>(); // 已由事件解释的进牌 / 出牌数
+  const bump = (m: Map<string, number>, id: string, n = 1) => m.set(id, (m.get(id) ?? 0) + n);
+  const stamp = `${ng.id}:${ng.revision}`;
+  let t = 0; const push = (g: Omit<GhostCard, "delay" | "duration" | "key">, ms = 520) => { ghosts.push({ key: `${stamp}:g${ghosts.length}`, delay: t, duration: ms, ...g }); t += 110; };
+  const played = events.find(e => e.code === "CARD_PLAYED" && e.seatId);
+  const buy = events.find(e => e.code === "BUY_PRICE" && e.seatId);
   for (const e of events) {
     if (e.code === "CARD_TRANSFERRED" && e.seatId && e.targetSeatId) {
-      const victim = pg.seats.find(s => s.id === e.seatId); if (victim && e.seatId !== selfId) tug = { seatId: e.seatId, index: Math.floor(Math.min(victim.handCount, 10) / 2) };
+      // 被偷的是最后一张牌背（它正是下一帧消失的那张）
+      const victim = pg.seats.find(s => s.id === e.seatId); if (victim && e.seatId !== selfId) tug = { seatId: e.seatId, index: Math.max(0, Math.min(victim.handCount, 10) - 1) };
       push({ cardId: e.cardIds?.[0], from: handOf(e.seatId), to: handOf(e.targetSeatId), faceDown: !e.cardIds?.[0], flip: !!e.cardIds?.[0] }, 700);
-      inflow.set(e.targetSeatId, (inflow.get(e.targetSeatId) ?? 0) + 1);
+      bump(inflow, e.targetSeatId); bump(outflow, e.seatId);
     } else if (e.code === "DISCARD_RECLAIMED" && e.seatId) {
       const n = Math.min(6, e.cardIds?.length ?? e.amount ?? 0);
       for (let i = 0; i < n; i++) push({ cardId: e.cardIds?.[i], from: discard, to: handOf(e.seatId), faceDown: false }, 480);
-      inflow.set(e.seatId, (inflow.get(e.seatId) ?? 0) + n);
+      bump(inflow, e.seatId, n);
+    } else if (e.code === "BUY_PRICE" && e.cardIds?.length) {
+      // 买牌的"价格牌"：牌库顶翻到弃牌堆（公开 id）
+      for (const id of e.cardIds) push({ cardId: id, from: deck, to: discard, faceDown: true, flip: true }, 480);
     }
   }
   // 前注区的牌被拿进手牌（青铜龙 / 同点牌阵奖励）
   for (const card of pg.ante) if (!ng.ante.some(c => c.id === card.id) && !ng.discard.some(c => c.id === card.id) && !ng.seats.some(s => s.flight.some(f => f.cardId === card.id))) {
-    const from = placements.find(p => p.cardId === card.id)?.pose; const taker = ng.seats.find(s => s.handCount > (pg.seats.find(p => p.id === s.id)?.handCount ?? 0) + (inflow.get(s.id) ?? 0));
-    if (from && taker) { push({ cardId: card.id, from, to: handOf(taker.id), faceDown: false }, 560); inflow.set(taker.id, (inflow.get(taker.id) ?? 0) + 1); }
+    const from = placements.find(p => p.cardId === card.id)?.pose; const taker = ng.seats.find(s => s.handCount > (pg.seats.find(p => p.id === s.id)?.handCount ?? 0) + (inflow.get(s.id) ?? 0) - (outflow.get(s.id) ?? 0) - (played?.seatId === s.id ? 1 : 0));
+    if (from && taker) { push({ cardId: card.id, from, to: handOf(taker.id), faceDown: false }, 560); bump(inflow, taker.id); }
   }
-  // 弃手牌（狗头人）：手牌减少且弃牌堆增加
-  const discarded = ng.discard.length - pg.discard.length;
-  // 其余的手牌增加 = 从牌库抽的；一张一张飞
+  // 弃牌堆的增加里，被替换 / 被屠龙者弃掉 / 翻注全并列 / 结算收牌的都不是"弃手牌"；价格牌已单独解释
+  const priceCount = events.filter(e => e.code === "BUY_PRICE").reduce((n, e) => n + (e.cardIds?.length ?? 0), 0);
+  const unexplained = !events.some(e => e.code === "FLIGHT_REPLACED" || e.code === "DRAGON_REMOVED" || e.code === "ANTE_ALL_TIED" || e.code === "GAMBIT_SCORED");
+  const discardDelta = unexplained ? Math.max(0, ng.discard.length - pg.discard.length - priceCount) : 0;
+  const deckDelta = Math.max(0, pg.deckCount - ng.deckCount - priceCount);
+  let drawn = 0;
   for (const s of ng.seats) {
-    const before = pg.seats.find(p => p.id === s.id)?.handCount ?? 0, delta = s.handCount - before - (inflow.get(s.id) ?? 0);
-    if (delta < 0 && discarded > 0) for (let i = 0; i < Math.min(4, -delta); i++) push({ from: handOf(s.id), to: discard, faceDown: s.id !== selfId }, 460);
-    for (let i = 0; i < Math.min(5, delta); i++) push({ from: deck, to: handOf(s.id), faceDown: true, flip: s.id === selfId }, 520);
+    const before = pg.seats.find(p => p.id === s.id)?.handCount ?? 0;
+    // 打出的那张不是"弃牌"，也不抵消抽牌；被偷走 / 交出的那张已由幽灵牌解释
+    const delta = s.handCount - before + (played?.seatId === s.id ? 1 : 0) + (outflow.get(s.id) ?? 0) - (inflow.get(s.id) ?? 0);
+    if (delta < 0 && discardDelta > 0) for (let i = 0; i < Math.min(4, -delta, discardDelta); i++) push({ from: handOf(s.id), to: discard, faceDown: s.id !== selfId }, 460);
+    for (let i = 0; i < Math.min(6, delta); i++) push({ from: deck, to: handOf(s.id), faceDown: true }, 520);
+    drawn += Math.max(0, delta);
   }
-  return { ghosts, tug };
+  // 手牌数不变却既抽了牌又弃了牌（狗头人"弃 N 抽 N"、买牌后弃到上限）：牌库多出的减少量 = 这家先弃后抽的张数，归到买牌 / 刚做选择的那家
+  const extra = Math.min(deckDelta - drawn, discardDelta);
+  const who = buy?.seatId ?? pg.choice?.seatId ?? null;
+  if (extra > 0 && who) {
+    for (let i = 0; i < Math.min(4, extra); i++) push({ from: handOf(who), to: discard, faceDown: who !== selfId }, 460);
+    for (let i = 0; i < Math.min(4, extra); i++) push({ from: deck, to: handOf(who), faceDown: true }, 520);
+  }
+  const arrived = [...new Set(ghosts.filter(g => g.to !== discard).flatMap(g => ng.seats.filter(s => handOf(s.id).x === g.to.x && handOf(s.id).y === g.to.y).map(s => s.id)))];
+  return { ghosts, tug, arrived };
 }
 
 type GoldHold = { seats: Record<string, number>; stakes: number; hole: number };
@@ -201,16 +223,24 @@ export function createPresenter(store: Store, controller: Controller, hooks: Pre
       hooks.sound("coin", flow.key); await flight(endpoint(flow.fromSeatId), endpoint(flow.toSeatId), flow.amount, 620); if (gen !== generation) return; bookFlow(flow.fromSeatId, flow.toSeatId, flow.amount);
     }
   }
-  /** 卡牌转移动画：先让被偷的牌背前伸抖动，再放幽灵牌一张张飞；全部落地后才显示新帧 */
-  async function transfers(previous: TableView, view: TableView, events: readonly PublicEvent[], gen: number) {
-    const { ghosts, tug } = cardMoves(previous, view, events, store.get().orientation);
-    if (!ghosts.length) return;
-    if (tug) { show({ tug }); hooks.sound("draw", `${view.game?.id}:${view.game?.revision}:tug`); await beat(620); if (gen !== generation) return; show({ tug: null }); }
-    show({ ghosts }); for (const g of ghosts) hooks.sound("draw", `${view.game?.id}:${view.game?.revision}:${g.key}`);
-    const total = Math.max(...ghosts.map(g => g.delay + g.duration)) + 60;
-    await beat(total); if (gen !== generation) return;
-    show({ ghosts: [] });
+  /** 卡牌转移动画：先让被偷的牌背前伸抖动，再放幽灵牌一张张飞；全部落地后才显示新帧。
+   *  没有幽灵牌时**同步返回**（不让出事件循环）：否则待确认的牌会在中间帧回到手牌再飞一次。
+   *  接收方的新节点在下一帧直接到位（arrived），不再播自己的进场动画。 */
+  function transfers(previous: TableView, view: TableView, events: readonly PublicEvent[], gen: number): Promise<void> | null {
+    const { ghosts, tug, arrived } = cardMoves(previous, view, events, store.get().orientation);
+    if (!ghosts.length) return null;
+    return (async () => {
+      const wasBusy = store.get().busy; setBusy(true);
+      if (tug) { show({ tug }); hooks.sound("draw", `${view.game?.id}:${view.game?.revision}:tug`); await beat(620); if (gen !== generation) return; show({ tug: null }); }
+      show({ ghosts, arrived }); for (const g of ghosts) hooks.sound("draw", `${view.game?.id}:${view.game?.revision}:${g.key}`);
+      const total = Math.max(...ghosts.map(g => g.delay + g.duration)) + 60;
+      await beat(total); if (gen !== generation) return;
+      show({ ghosts: [] });
+      if (!wasBusy) setBusy(false);
+    })();
   }
+  /** 刚到位的新节点显示完一帧后，解除"免进场"标记 */
+  async function settleArrivals(gen: number) { if (!store.get().show.arrived.length) return; await beat(80); if (gen !== generation) return; show({ arrived: [] }); }
 
   async function runReveal(item: QueueItem, gen: number) {
     const reveal = item.pres.reveal!;
@@ -341,8 +371,8 @@ export function createPresenter(store: Store, controller: Controller, hooks: Pre
             if (ctx) { await powerScript(cue, powerSegment(events, cue), ctx); } else await beat(200);
             if (gen !== generation) return;
             // 卡牌转移（抽 / 偷 / 取前注）在特效之后、显示新帧之前，一张一张飞
-            if (i === pres.powers.length - 1) { await transfers(previous, view, events, gen); if (gen !== generation) return; }
-            if (i === pres.powers.length - 1 && landing && !settlement) display(view);
+            if (i === pres.powers.length - 1) { const moving = transfers(previous, view, events, gen); if (moving) { await moving; if (gen !== generation) return; } }
+            if (i === pres.powers.length - 1 && landing && !settlement) { display(view); await settleArrivals(gen); if (gen !== generation) return; }
             hooks.sound("power-impact", cue.key);
             await beat(260); if (gen !== generation) return;
             // 能力需要某家选择：特效停在该家区域（持续粒子 + 标记），释放 busy 让面板出现；选择结算后在下一帧播收尾
@@ -356,8 +386,19 @@ export function createPresenter(store: Store, controller: Controller, hooks: Pre
           await goldArcs(pres.gold, gen); if (gen !== generation) return;
           await beat(); if (gen !== generation) return;
           show({ resolvingSeatId: null });
-        } else if (pres.gold.length) { holdGold(previous); await transfers(previous, shown, events, gen); if (gen !== generation) return; display(shown); await beat(SETTLE_MS); if (gen !== generation) return; await goldArcs(pres.gold, gen); if (gen !== generation) return; await beat(); if (gen !== generation) return; }
-        else { await transfers(previous, shown, events, gen); if (gen !== generation) return; display(shown); if (played && (pres.rounds.length || pres.formations.length)) { await beat(SETTLE_MS); if (gen !== generation) return; } }
+        } else if (pres.gold.length) {
+          holdGold(previous);
+          const moving = transfers(previous, shown, events, gen); if (moving) { await moving; if (gen !== generation) return; }
+          display(shown); await settleArrivals(gen); if (gen !== generation) return;
+          // 只有金币流、没有出牌的帧（例如选完"付 5 金"）不必等落牌那么久
+          await beat(played ? SETTLE_MS : BEAT_MS); if (gen !== generation) return;
+          await goldArcs(pres.gold, gen); if (gen !== generation) return; await beat(); if (gen !== generation) return;
+        } else {
+          // 没有幽灵牌时 display 必须同步发生（不能先 await）：否则待确认的牌会在中间帧回到手牌再飞一次
+          const moving = transfers(previous, shown, events, gen); if (moving) { await moving; if (gen !== generation) return; }
+          display(shown); await settleArrivals(gen); if (gen !== generation) return;
+          if (played && (pres.rounds.length || pres.formations.length)) { await beat(SETTLE_MS); if (gen !== generation) return; }
+        }
         for (const cue of pres.formations) {
           holdGold(previous);
           const p = cue.cardIds.map(cardPoint).find(Boolean);

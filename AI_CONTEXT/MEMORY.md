@@ -26,11 +26,14 @@
 - **第二轮纠错（2026-10-03 晚）**：用户看过演示后九条纠错已实施；独立审计（Opus）第一轮"不通过"，三高六中已整改；复审"有条件通过"，条件已满足，**终裁通过**（runbook `RUNBOOKS/2026-10-03_presentation-round2.md` §5–§6）：等待时序重排 + 拼点 + 特殊牌阵说明层、手牌 / 指向器 / 两段落牌 + 尘土、每牌特效脚本 + 传说法阵、场地层、桌形随人数、拍桌、酒馆背景、选择面板瓦片、措辞统一"前注"。遗留：持续效果的循环音效素材。
 - **第三轮纠错（2026-10-03 深夜）**：十一条已实施（runbook `RUNBOOKS/2026-10-03_presentation-round3.md`）：金币 DOM 精灵飞行 + 厚堆、奖池锚点；能力等待选择的 `powerHold`；座位朝向通用旋转 + 布局重叠检查进自测（2–6 人 × 横竖屏零重叠）；天空盒针孔重投影；炉石式三段放牌；幽灵牌转移系统（抽 / 偷 / 取前注 / 弃）；Kenney 贴图粒子渲染器替换全部几何图元；拍桌连拍 + 各座位独立。遗留：真实手掌照片素材待批、独立审计待做。
 - **第四轮纠错（同夜）**：六条已实施（runbook round3 §5）：行动栏定高（排版跳动根因）；赤铜龙替换链"说明 → 替换落桌 → 新牌说明"（`applyReplacements` + `show.fromDeck`，自测 14）；竖屏对手一律左右侧边；金币飞行修复（`centerOf` 接受 0×0 锚点）+ 原作沙漏形龙金；删掉所有区域圆角矩形脉冲改为针对牌 / 手牌 / 金币堆；本地对战接入全能模式与编辑器。手掌素材：rawpixel / purepng 有人机验证，待用户挑图。
+- **第三轮审计整改（同夜）**：Opus 审计 `9d071ec..5e4edda` 不通过（H1 回执后重飞、ASSETS 登记、M1 幽灵牌计数、M2 布局检查器盲点、M3 朝向、L1–L13）；全部整改见 runbook round3 §6：`transfers()` 同步 + 桌面层按 key 排序、事件优先的 `cardMoves`、检查器全量入检 + 布局修正（本家点数铭牌到牌阵右端、≥5 张收紧、竖屏本家整行）、偿债池常驻。冒烟 20/20、自测 15/15、布局 0、400 局模拟归零。复审已发起。用户 2026-10-03 授权"修复完之后推送"，已 push。
 - **阶段 / 里程碑**：阶段 0–7 全部完成（评估、留痕、骨架、2.5D 场景、HUD、时序、材质与音效、枭熊页切换、删旧与测试重建、独立审计两轮 + 整改）；审计终裁"修好 N1 且多次稳定后判通过"，已满足。**push 待用户确认**。详见 `RUNBOOKS/2026-10-03_presentation-rebuild-kickoff.md` §7–§16。
 - **运行态**：本机 `D:\my_code\three-dragon-ante`，分支 `rebuild/presentation`，基线 `eb74f62`（main）。未 push。线上入口未动。`index.html` = 独立网站；`table.html` = 枭熊牌桌页（已挂新表现层）；`src/modules/threeDragonAnte` 旧稳定频道仍是旧 UI。
-- **验证基线（第二轮纠错 + 审计整改后）**：typecheck / build 通过；`npm test` 8/8（含 presentation-selftest 13 项：隐私、待确认、落地帧、时序、清场、单选切换、拼点标记、付款去重、桌形、手牌层、结算帧、全并列翻注、拍桌节流 / 事件段）；`test:server` 2/2；`test:browser` 18/18 连跑 3 次（含真实拖拽 + 回执延迟 60 / 300 ms）；`test:server-browser` 4/4；全部本机 Edge。
+- **验证基线（第三轮审计整改后）**：typecheck / build 通过；`npm test` 8/8（含 presentation-selftest 15 项：隐私、待确认、落地帧、时序、清场、单选切换、拼点标记、付款去重、桌形、手牌层、结算帧、全并列翻注、布局、拍桌节流 / 事件段、赤铜龙链）；`test:server` 2/2；`test:browser` 20/20（含真实拖拽 + 回执延迟 60 / 300 ms 下只进场一次、前注付款金币可见飞行）；`test:server-browser` 4/4；`layout-report` 0；全部本机 Edge。
 - **风险提醒**：① 真实枭熊房间与实体手机未验证；② vendor CSS 约 500 kB（fontsource 的全部 unicode-range 子集声明），可做字体子集化；③ 依赖漏洞（Vite / ws）未升级，另立任务；④ 枭熊紧凑弹窗只按 CSS 断点适配，未在真实弹窗尺寸下截图。
-- **锚点坑（2026-10-03）**：`centerOf` 把 0×0 的锚点当 null，奖池 / 偿债池的金币锚点正是 0×0，于是所有进出奖池的金币飞行都静默跳过——零尺寸锚点要按位置算。
+- **锚点坑（2026-10-03）**：`centerOf` 把 0×0 的锚点当 null，而奖池 / 偿债池 **和每个座位** 的金币锚点都是 0×0（`.tda-coins-anchor` 宽高为 0），于是第三轮提交时所有金币飞行都静默跳过、黑龙抓奖池退化成闪光——零尺寸锚点要按位置算。
+- **React 换区坑（2026-10-03）**：同 key 的卡牌节点换区（手牌→前注→弃牌堆）后在 `cardPlacements` 里的兄弟次序变了，React 会用 insertBefore 移动 DOM 节点，正在进行的 CSS 过渡被取消（看起来像重飞 / 瞬移）；桌面层 `CardLayer` 按 key 排序，遮挡交给 translateZ。
+- **幽灵牌计数原则（2026-10-03）**：事件优先（CARD_TRANSFERRED 进 / 出、DISCARD_RECLAIMED、BUY_PRICE 价格牌），两帧差只补事件没解释的部分；牌库多出的减少量 = 先弃后抽，归买牌方 / 刚选择的那家；改 `cardMoves` 后用 400 局引擎模拟核对（runbook round3 §6.1 M1 行有口径）。
 - **布局铁律（2026-10-03）**：改任何锚点 / 区域尺寸后必须跑 `presentation-selftest` 第 13 项（`layout-check.ts`：有向矩形 SAT 重叠 + 桌面内检查），或 `node .local-evidence/layout-report.mjs` 看明细；竖屏 1100 宽放不下 5 个标准对手块，4 人以上分两排并随缩放收紧。
 - **CSS 坑（2026-10-03）**：同一特异度的后出现规则覆盖前面的修饰类（`.tda-coins-anchor--pile` 输给了后面的 `.tda-coins-anchor`），需要用父选择器提高特异度。
 - **行尾坑（2026-10-03）**：仓库 .gitattributes 是 `* -text`（按字节入库，原有文件多为 CRLF）；用 Python 以 LF 写文件会把 CRLF 改成 LF、让 diff 膨胀；数回车要按字节（tr -cd 回车再 wc -c），Git Bash 的 grep -c 数回车得到的是行数。

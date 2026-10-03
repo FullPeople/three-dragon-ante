@@ -29,7 +29,7 @@ interface Anchor extends Point { edge: Edge; rot: number; scale?: number }
 const OPPONENT_ANCHORS: Record<Orientation, Record<number, Anchor[]>> = {
   landscape: {
     1: [{ x: 900, y: 200, edge: "top", rot: 180 }],
-    2: [{ x: 520, y: 280, edge: "round", rot: 150 }, { x: 1280, y: 280, edge: "round", rot: -150 }],
+    2: [{ x: 490, y: 265, edge: "round", rot: 150 }, { x: 1310, y: 265, edge: "round", rot: -150 }],
     3: [{ x: 300, y: 560, edge: "left", rot: 90 }, { x: 900, y: 200, edge: "top", rot: 180 }, { x: 1500, y: 560, edge: "right", rot: -90 }],
     4: [{ x: 300, y: 640, edge: "left", rot: 90 }, { x: 620, y: 190, edge: "top", rot: 180 }, { x: 1180, y: 190, edge: "top", rot: 180 }, { x: 1500, y: 640, edge: "right", rot: -90 }],
     5: [{ x: 300, y: 790, edge: "left", rot: 90, scale: 0.72 }, { x: 300, y: 300, edge: "left", rot: 90, scale: 0.72 }, { x: 900, y: 190, edge: "top", rot: 180 }, { x: 1500, y: 300, edge: "right", rot: -90, scale: 0.72 }, { x: 1500, y: 790, edge: "right", rot: -90, scale: 0.72 }],
@@ -94,8 +94,17 @@ export function seatPlacements(view: PublicView, selfSeatId: string | null, orie
     if (self || (selfSeatId === null && index === 0)) {
       const a = center.self, f = facing(0);
       // 圆桌：铭牌在左；方桌（4 人以上）左下有侧边座位，铭牌改到左下、扇面之外
-      const plate = orientation === "landscape" ? (shape === "square" ? { x: a.x + 380, y: a.y + 190 } : { x: a.x - 600, y: a.y - 24 }) : { x: a.x - 470, y: a.y - 24 };
-      return { id: seat.id, self, index, scale: 1, edge: "bottom", rot: 0, dir: f.dir, inward: f.inward, plateRot: 0, anchor: a, plate, ribbon: { x: plate.x, y: plate.y + 44 },
+      // 本家铭牌是左对齐的（translate(0,-50%)）：圆桌放左侧；方桌左下有侧席，放右下扇面之外；竖屏放左上角、前注槽上方
+      if (orientation === "portrait") {
+        // 竖屏：本家一整行从左到右「铭牌 | 前注 | 金币 | 牌阵 | 点数」。铭牌靠左（透视下平面底边比屏幕宽，x<40 会被切掉）；左侧对手的牌阵是往下伸的，放前注上方会被压到
+        const plate = { x: 40, y: a.y };
+        return { id: seat.id, self, index, scale: 1, edge: "bottom", rot: 0, dir: f.dir, inward: f.inward, plateRot: 0, anchor: a, plate, ribbon: { x: plate.x, y: plate.y + 44 },
+          ante: pose(a.x - 240, a.y, 1), coins: { x: a.x - 90, y: a.y }, flight: { x: a.x + 26, y: a.y }, hand: center.fan, flightStep: 82 };
+      }
+      // 方桌：右下有侧席、正下方是手牌扇面，铭牌放前注槽左上角——左侧席的标签列（x≤471）与牌库（x≥642）之间，铭牌限宽 160
+      const plate = shape === "square" ? { x: a.x - 424, y: a.y - 190 } : { x: a.x - 600, y: a.y - 24 };
+      const ribbon = shape === "square" ? { x: plate.x, y: plate.y + 40 } : { x: plate.x, y: plate.y + 44 };
+      return { id: seat.id, self, index, scale: 1, edge: "bottom", rot: 0, dir: f.dir, inward: f.inward, plateRot: 0, anchor: a, plate, ribbon,
         ante: pose(a.x - 300, a.y, 1), coins: { x: a.x - 160, y: a.y }, flight: { x: a.x - 20, y: a.y }, hand: center.fan, flightStep: 82 };
     }
     const a = anchors[Math.min(anchors.length - 1, order - 1)] ?? { x: center.stakes.x, y: 190, edge: "top" as Edge, rot: 180 };
@@ -149,9 +158,12 @@ export function handShadowPose(orientation: Orientation, pose: Pose): Pose {
   return { x: center.fan.x + pose.x, y: center.fan.y - 120 + pose.y * 0.4, rot: 0, scale: 1.05, z: 20 };
 }
 
+/** 牌阵步进：超过 4 张（加赛）时收紧到 4 张的总长度，不往邻座伸 */
+export const flightStepFor = (seat: Pick<SeatPlacement, "flightStep">, count: number) => count > 4 ? seat.flightStep * 3 / (count - 1) : seat.flightStep;
 /** 牌阵第 i 张的位姿（沿座位 dir 排列，随座位旋转）。 */
-export function flightPose(seat: SeatPlacement, i: number, z = 2): Pose {
-  return { x: seat.flight.x + seat.dir.x * i * seat.flightStep, y: seat.flight.y + seat.dir.y * i * seat.flightStep, rot: seat.rot, scale: seat.scale, z: z + i };
+export function flightPose(seat: SeatPlacement, i: number, z = 2, count = i + 1): Pose {
+  const step = flightStepFor(seat, count);
+  return { x: seat.flight.x + seat.dir.x * i * step, y: seat.flight.y + seat.dir.y * i * step, rot: seat.rot, scale: seat.scale, z: z + i };
 }
 
 /** 每张可见卡一个位置。只有真实可见的物理位置才产生节点；`revealed` 列表不重复渲染。 */
@@ -183,7 +195,7 @@ export function cardPlacements(view: PublicView | SeatView | OmniscientView, ori
       const cardId = known?.id ?? own?.id;
       result.push({ layer: "table", key: cardId ?? `ante:${seat.id}`, cardId, card: known, zone: "ante", seatId: seat.id, pose: { ...seat.ante, z: 2 }, faceDown: true, order: 0 });
     }
-    value.flight.forEach((entry, i) => result.push({ layer: "table", key: entry.cardId, cardId: entry.cardId, card: entry.card, zone: "flight", seatId: seat.id, pose: flightPose(seat, i), faceDown: false, order: i, wild: entry.wild, rider: entry.rider }));
+    value.flight.forEach((entry, i) => result.push({ layer: "table", key: entry.cardId, cardId: entry.cardId, card: entry.card, zone: "flight", seatId: seat.id, pose: flightPose(seat, i, 2, value.flight.length), faceDown: false, order: i, wild: entry.wild, rider: entry.rider }));
   }
   if (view.deckCount > 0) result.push({ layer: "table", key: "deck", card: null, zone: "deck", pose: pose(center.deck.x, center.deck.y, 1, 0, 1), faceDown: true, order: 0 });
   const top = view.discard[view.discard.length - 1];
@@ -210,7 +222,7 @@ export function pendingPose(view: PublicView | SeatView | OmniscientView, orient
   const seat = seatPlacements(view, selfId, orientation).find(s => s.self); if (!seat) return null;
   if (pending.zone === "ante") return { ...seat.ante, y: seat.ante.y - 10, z: 60 };
   const flightCount = view.seats.find(s => s.id === selfId)?.flight.filter(f => f.cardId !== pending.cardId).length ?? 0;
-  const p = flightPose(seat, flightCount, 60);
+  const p = flightPose(seat, flightCount, 60, flightCount + 1);
   return { ...p, y: p.y - 10, z: 60 };
 }
 

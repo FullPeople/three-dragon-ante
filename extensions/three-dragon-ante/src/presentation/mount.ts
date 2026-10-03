@@ -115,7 +115,7 @@ export function mountTableUI(root: HTMLElement, deps: TableUIDeps): TableUISurfa
       if (value === null) { store.set(s => { const next = { ...s.gestures }; delete next[seatId]; return { gestures: next }; }); return; }
       const gesture = readHandGesture(value); if (!gesture || seatId === own?.selfSeatId) return;
       const old = store.get().gestures[seatId]; if (old && gesture.sequence <= old.sequence) return;
-      if (gesture.slap) { const again = performance.now() < (slapResting.get(seatId) ?? 0); slapResting.set(seatId, performance.now() + 1200); fx?.shake(again ? 300 : 600); audio.play("slap", `slap:${seatId}:${gesture.sequence}`); const plate = root.querySelector<HTMLElement>(`[data-seat-plate="${CSS.escape(seatId)}"]`); if (plate && fx) { const r = plate.getBoundingClientRect(); void fx.slap({ x: r.left + r.width / 2 + 90, y: r.top + r.height / 2 }, again); } }
+      if (gesture.slap) { const again = performance.now() < (slapResting.get(seatId) ?? 0); slapResting.set(seatId, performance.now() + 1200); fx?.shake(again ? 300 : 600); audio.play("slap", `slap:${seatId}:${gesture.sequence}`); const plate = root.querySelector<HTMLElement>(`[data-seat-plate="${CSS.escape(seatId)}"]`); if (plate && fx) { const r = plate.getBoundingClientRect(); const seat = plate.closest<HTMLElement>(".tda-seat"); const rot = Number(seat?.style.getPropertyValue("--seat-rot").replace("deg", "")) || 0; void fx.slap({ x: r.left + r.width / 2 + Math.cos(rot * Math.PI / 180) * 90, y: r.top + r.height / 2 + Math.sin(rot * Math.PI / 180) * 90 }, again); } }
       store.set(s => ({ gestures: { ...s.gestures, [seatId]: gesture } }));
       const timer = gestureTimers.get(seatId); if (timer) clearTimeout(timer);
       gestureTimers.set(seatId, setTimeout(() => { if (!destroyed) store.set(s => { const next = { ...s.gestures }; delete next[seatId]; return { gestures: next }; }); }, 30000));
@@ -127,7 +127,7 @@ export function mountTableUI(root: HTMLElement, deps: TableUIDeps): TableUISurfa
     presentationBusy: () => store.get().busy,
     getAnchor(zone) {
       const own = privateGame(store.get().view);
-      const selector = zone === "hand" ? `[data-card="${own?.hand[0] ? CSS.escape(own.hand[0].id) : "-"}"]` : zone === "stakes" ? `[data-pile="stakes"]` : `[data-drop-zone="${zone === "ownAnte" ? "ante" : "flight"}"][data-drop-seat="${own ? CSS.escape(own.selfSeatId) : "-"}"]`;
+      const selector = zone === "hand" ? `[data-card="${own?.hand[0] ? CSS.escape(own.hand[0].id) : "-"}"]` : zone === "stakes" ? `.tda-stakes-plate` : `[data-drop-zone="${zone === "ownAnte" ? "ante" : "flight"}"][data-drop-seat="${own ? CSS.escape(own.selfSeatId) : "-"}"]`;
       return root.querySelector(selector)?.getBoundingClientRect() ?? null;
     },
     suspend() { store.set({ suspended: true, drag: null, keyboardHeld: false }); presenter.clear(); audio.suspend(); },

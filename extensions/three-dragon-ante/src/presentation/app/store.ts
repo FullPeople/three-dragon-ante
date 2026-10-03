@@ -35,6 +35,8 @@ export interface ShowState {
   tug: { seatId: string; index: number } | null;
   /** 刚从牌库顶替换上来的牌（赤铜龙 / 术士 / 雏龙 / 诡术师）：新节点从牌库飞入而不是从手牌 */
   fromDeck: string[];
+  /** 幽灵牌刚送到的座位：这一帧新出现的手牌节点直接到位，不再播进场 */
+  arrived: string[];
 }
 export interface GhostCard { key: string; cardId?: string; from: Pose; to: Pose; delay: number; duration: number; faceDown: boolean; flip?: boolean }
 export interface UIState {
@@ -70,7 +72,7 @@ export interface UIState {
   orientation: Orientation;
 }
 
-export const emptyShow = (): ShowState => ({ reveal: null, revealPhase: null, revealTopIds: [], power: null, resolvingSeatId: null, banner: null, score: null, scoring: false, formation: null, tally: null, focusCardId: null, powerHold: null, ghosts: [], tug: null, fromDeck: [] });
+export const emptyShow = (): ShowState => ({ reveal: null, revealPhase: null, revealTopIds: [], power: null, resolvingSeatId: null, banner: null, score: null, scoring: false, formation: null, tally: null, focusCardId: null, powerHold: null, ghosts: [], tug: null, fromDeck: [], arrived: [] });
 
 export interface Store {
   get(): UIState;

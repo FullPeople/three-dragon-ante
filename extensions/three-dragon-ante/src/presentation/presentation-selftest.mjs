@@ -260,7 +260,7 @@ assert.ok(events.some(e => e.code === 'CARD_PLAYED' && e.cardIds?.[0] === ready)
   const initial = { lang: 'zh', hostKind: 'local', mode: 'full', view: view(state), display: null, flow: null, selected: [], hovered: null, keyboardCard: null, keyboardHeld: false, drag: null, pending: null, sending: false, localMessage: '', inspect: null, show: m.emptyShow(), busy: false, soundOn: false, gestures: {}, slowSeatIds: [], suspended: false, helpOpen: false, goldHold: null, knockAt: 0, orientation: 'landscape' };
   const store = m.createStore(initial); let sent = 0; const c = m.createController(store, { send() {}, gesture() { sent++; } });
   c.knock(); const first = store.get().knockAt; c.knock();
-  assert.ok(first > 0 && store.get().knockAt === first && sent === 1, 'second knock within 1.5 s is ignored');
+  assert.ok(first > 0 && store.get().knockAt === first && sent === 1, 'second knock within 350 ms is ignored');
   const evs = [{ code: 'POWER_TRIGGERED', seatId: 'a', cardIds: ['black-3'] }, { code: 'TOOK_STAKES', seatId: 'a', amount: 3 }, { code: 'POWER_TRIGGERED', seatId: 'a', cardIds: ['red-5'] }, { code: 'PAID_PLAYER', seatId: 'b', targetSeatId: 'a', amount: 1 }];
   assert.deepEqual(m.powerSegment(evs, { key: 'g:1:0', cardId: 'black-3', seatId: 'a', family: 'black' }).map(e => e.code), ['TOOK_STAKES']);
   assert.deepEqual(m.powerSegment(evs, { key: 'g:1:2', cardId: 'red-5', seatId: 'a', family: 'red' }).map(e => e.code), ['PAID_PLAYER']);
@@ -273,7 +273,7 @@ assert.ok(events.some(e => e.code === 'CARD_PLAYED' && e.cardIds?.[0] === ready)
   for (const n of [2, 3, 4, 5, 6]) for (const o of ['landscape', 'portrait']) {
     const ids = Array.from({ length: n }, (_, i) => ({ id: i ? 'b' + i : 'you', name: i ? 'B' + i : 'You' }));
     const v = m.projectSeat(m.createGame({ id: 'layout', seats: ids, seed: 1 }), 'you');
-    for (const cards of [3, 4]) for (const ov of m.layoutOverlaps(v, 'you', o, cards)) problems.push(`${n}p ${o} ${cards}: ${ov.a} x ${ov.b}`);
+    for (const cards of [3, 4, 5]) for (const ov of m.layoutOverlaps(v, 'you', o, cards)) problems.push(`${n}p ${o} ${cards}: ${ov.a} x ${ov.b}`);
     for (const id of m.outsideTable(v, 'you', o)) problems.push(`${n}p ${o}: ${id} outside`);
   }
   assert.deepEqual(problems, [], 'layout overlaps / out-of-table');
