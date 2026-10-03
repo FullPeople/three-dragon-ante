@@ -19,7 +19,7 @@ export { card } from ${abs('game/rules/cards.ts')};
 export { cardPlacements, pendingPose, isHeldByPending } from ${abs('presentation/model/layout.ts')};
 export { createStore, emptyShow } from ${abs('presentation/app/store.ts')};
 export { createController } from ${abs('presentation/app/controller.ts')};
-export { createPresenter, landingFrame, settlementFrame, revealFrame, powerSegment, revealTally, scoreTally, SETTLE_MS, BEAT_MS, FOCUS_MS, TALLY_MS, MARK_MS } from ${abs('presentation/app/presenter.ts')};
+export { createPresenter, landingFrame, settlementFrame, revealFrame, applyReplacements, powerSegment, revealTally, scoreTally, SETTLE_MS, BEAT_MS, FOCUS_MS, TALLY_MS, MARK_MS } from ${abs('presentation/app/presenter.ts')};
 export { freshPublicEvents, derivePresentation, formationCues } from ${abs('presentation/model/cues.ts')};
 export { seatPlacements, tableShape } from ${abs('presentation/model/layout.ts')};
 export { layoutOverlaps, outsideTable } from ${abs('presentation/model/layout-check.ts')};`;
@@ -278,6 +278,28 @@ assert.ok(events.some(e => e.code === 'CARD_PLAYED' && e.cardIds?.[0] === ready)
   }
   assert.deepEqual(problems, [], 'layout overlaps / out-of-table');
   pass('layout: every player count and orientation keeps zones apart and on the table');
+}
+
+// --- 14) 赤铜龙替换链：落地帧先只放赤铜龙；第二个能力之前，替换才落到桌上（旧牌进弃牌堆、新牌从牌库来） ---
+{
+  const pv = view(before), g = pv.game, seatId = leader;
+  const copper = 'copper-5', silver = 'silver-7';
+  // 下一帧：赤铜龙已被银龙替换，且银龙能力已让大家抽牌（公开事件链）
+  const nextGame = { ...g, revision: g.revision + 1, seats: g.seats.map(s => s.id === seatId ? { ...s, flight: [...s.flight, { cardId: silver, card: m.card(silver) }], handCount: s.handCount - 1 } : s), discard: [...g.discard, m.card(copper)], events: [...g.events,
+    { code: 'CARD_PLAYED', seatId, cardIds: [copper] }, { code: 'POWER_TRIGGERED', seatId, cardIds: [copper] }, { code: 'FLIGHT_REPLACED', seatId, cardIds: [copper, silver] }, { code: 'POWER_TRIGGERED', seatId, cardIds: [silver] } ] };
+  const nv = view(state, { game: nextGame });
+  const events = m.freshPublicEvents(pv.game, nv.game);
+  const landing = m.landingFrame(pv, nv, events);
+  assert.ok(landing, 'landing frame exists even though the played card was replaced in the same frame');
+  const seatL = landing.game.seats.find(s => s.id === seatId);
+  assert.ok(seatL.flight.some(f => f.cardId === copper) && !seatL.flight.some(f => f.cardId === silver), 'first the copper dragon lands, not its replacement');
+  const r = m.applyReplacements(landing, events, 3); // 到第二个 POWER_TRIGGERED 之前
+  assert.deepEqual(r.fromDeck, [silver], 'the replacement enters from the deck before the second explanation');
+  const seatR = r.frame.game.seats.find(s => s.id === seatId);
+  assert.ok(seatR.flight.some(f => f.cardId === silver) && !seatR.flight.some(f => f.cardId === copper), 'the silver dragon now sits where the copper was');
+  assert.ok(r.frame.game.discard.some(c => c.id === copper), 'the copper dragon went to the discard pile');
+  assert.equal(m.applyReplacements(landing, events, 2).fromDeck.length, 0, 'nothing is replaced before the first power resolves');
+  pass('copper chain: explanation, then replacement lands, then the new card explains');
 }
 
 writeFileSync(join(out, 'result.json'), JSON.stringify({ checks }, null, 2));

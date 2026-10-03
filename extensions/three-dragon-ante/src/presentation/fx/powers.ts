@@ -48,8 +48,9 @@ export async function powerScript(cue: PowerCue, events: readonly PublicEvent[],
     // 索要：光束射向相邻对手，对手区域威压
     case "brass": case "brass-sultan": case "green": case "green-schemer": {
       const ids = targets.length ? targets : others.slice(0, 1);
-      await Promise.all(ids.map(async (id, i) => { const p = ctx.seatPoint(id), r = ctx.seatRect(id); await wait(i * 160); if (p) await fx.beam(source, p, kind, 600); if (r) void fx.pulse(r, kind, 900); }));
-      await wait(500); return;
+      // 索要：光束射向对手的手牌，手牌上爆开（对手要从手里给牌或给钱）
+      await Promise.all(ids.map(async (id, i) => { const h = ctx.handPoint(id) ?? ctx.seatPoint(id); await wait(i * 160); if (h) { await fx.beam(source, h, kind, 600); fx.burst(h, kind, 0.9); } }));
+      await wait(400); return;
     }
     // 青铜：前注区的牌被取走——环在前注区扩散
     case "bronze": case "bronze-warlord": { const n = ctx.pile("stakes"); if (n) { await fx.ring({ x: n.x, y: n.y + 150 }, kind, 180, 800); } if (cue.family === "bronze-warlord") await fx.sigil(source, kind, 120, 1100); return; }
@@ -63,15 +64,15 @@ export async function powerScript(cue: PowerCue, events: readonly PublicEvent[],
     // 白 / 红：对目标座位施加威压；红龙还从目标手牌抽走一张
     case "white": case "red": case "red-destroyer": {
       const ids = targets.length ? targets : others;
-      await Promise.all(ids.map(async id => { const r = ctx.seatRect(id), p = ctx.seatPoint(id); if (p) await fx.beam(source, p, kind, 550); if (r) await fx.pulse(r, kind, cue.family === "red-destroyer" ? 1400 : 1000); }));
-      if (cue.family !== "white") for (const e of seg("CARD_TRANSFERRED")) { const from = e.seatId ? ctx.handPoint(e.seatId) : null; if (from) await fx.beam(from, source, "arcane", 500); }
-      return;
+      // 白龙：光束射向对手的金币堆（它要付钱）；红龙：射向对手的手牌（它要被抽走一张）
+      await Promise.all(ids.map(async id => { const p = cue.family === "white" ? ctx.coinsPoint(id) : ctx.handPoint(id); if (p) { await fx.beam(source, p, kind, 550); fx.burst(p, kind, 1); } }));
+      await wait(300); return;
     }
     case "white-hunter": { await Promise.all(others.map((id, i) => { const p = ctx.coinsPoint(id); return p ? wait(i * 120).then(() => fx.beam(p, source, kind, 600)) : wait(0); })); return; }
     // 龙神：巨大法阵 + 爆发
-    case "bahamut": { await fx.flare(source, kind, 1000); await Promise.all(targets.map((id, i) => { const r = ctx.seatRect(id); return r ? wait(i * 100).then(() => fx.pulse(r, kind, 900)) : wait(0); })); return; }
+    case "bahamut": { await fx.flare(source, kind, 1000); await Promise.all(targets.map((id, i) => { const p = ctx.coinsPoint(id); return p ? wait(i * 100).then(() => fx.beam(source, p, kind, 600)) : wait(0); })); return; }
     case "tiamat": { await fx.flare(source, kind, 1000); return; }
-    case "queen": { await fx.flare(source, kind, 700); await Promise.all(targets.map(async id => { const r = ctx.seatRect(id), h = ctx.handPoint(id); if (r) await fx.pulse(r, kind, 800); if (h) await fx.beam(h, source, "arcane", 500); })); return; }
+    case "queen": { await fx.flare(source, kind, 700); await Promise.all(targets.map(async id => { const c = ctx.coinsPoint(id), h = ctx.handPoint(id); if (c) await fx.beam(source, c, kind, 500); if (h) { await fx.beam(source, h, "arcane", 500); fx.burst(h, "arcane", 0.8); } })); return; }
     // 场地效果：法阵落在源牌上，环境变化由 FieldLayer 持续表现
     case "dracolich": case "druid": case "priest": case "merchant-prince": case "archmage": { await fx.sigil(source, kind, 140, 1500); return; }
     case "dragonrider": case "wyrmpriest": { await fx.ring(source, kind, 80, 600); await fx.sigil(source, kind, 90, 900); return; }

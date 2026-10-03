@@ -1,6 +1,6 @@
 /** 独立网站的本地对战宿主：真实规则引擎 + 机器人对手 + 真实回执。没有 SDK、存储、网络。
  * 从旧 tutorial.ts 抽出，去掉课程体系。机器人只看自己的投影，不偷看任何人的手牌。 */
-import { applyAction, createGame, eligibleActions, projectSeat } from "../../game/rules";
+import { applyAction, applyEdit, createGame, eligibleActions, projectOmniscient, projectSeat } from "../../game/rules";
 import type { GameAction, GameState } from "../../game/rules";
 import { card } from "../../game/rules/cards";
 import type { ActionReceipt, TableView } from "../../game/protocol";
@@ -39,7 +39,7 @@ function botMove(state: GameState, seatId: string, actionId: string): GameAction
 }
 
 export function createLocalMatch(parent: HTMLElement, options: LocalMatchOptions): LocalMatchHandle {
-  let lang = options.language, destroyed = false, suspended = false, generation = 0, serial = 0, presentationHeld = false, botTimer: ReturnType<typeof setTimeout> | undefined;
+  let lang = options.language, destroyed = false, suspended = false, generation = 0, serial = 0, presentationHeld = false, omniscient = false, botTimer: ReturnType<typeof setTimeout> | undefined;
   const opponents = Math.max(1, Math.min(5, Math.round(options.opponents)));
   const seats = () => [{ id: SELF, name: lang === "zh" ? "你" : "You" }, ...BOT_NAMES[lang].slice(0, opponents).map((name, i) => ({ id: `bot${i + 1}`, name }))];
   void seats;
@@ -78,7 +78,8 @@ export function createLocalMatch(parent: HTMLElement, options: LocalMatchOptions
     render();
   }
   function view(): TableView {
-    const projected = projectSeat(game, SELF);
+    // 全能模式：本地对战里本家就是主持，可看全部手牌并用编辑器改桌（和枭熊的主持一样）
+    const projected = omniscient ? projectOmniscient(game, SELF) : projectSeat(game, SELF);
     const names = new Map(seats().map(seat => [seat.id, seat.name]));
     projected.seats.forEach(seat => { seat.name = names.get(seat.id) ?? seat.name; });
     return { actionReceiptVersion: 1, table: { version: 1, id: game.id, hostPlayerId: "local", hostConnectionId: "local", hostName: "local", stage: game.stage === "ended" ? "ended" : "playing", seats: seats().map(seat => ({ playerId: seat.id, seatId: seat.id, name: seat.name })), revision: game.revision }, selfPlayerId: SELF, isHost: true, connected: true, pending: false, game: projected, ...(receipt?.gameId === game.id ? { actionReceipt: receipt } : {}) };
@@ -95,6 +96,8 @@ export function createLocalMatch(parent: HTMLElement, options: LocalMatchOptions
       if (command.type === "newGame") { restart(); return; }
       if (command.type === "close") { options.onClose(); return; }
       if (command.type === "retry" && command.action) { take(command.action, true); return; }
+      if (command.type === "omniscient") { omniscient = command.enabled; render(); return; }
+      if (command.type === "edit") { const next = applyEdit(game, command.edit); if (next) { cancelBot(); game = next; receipt = undefined; } render(); return; }
       render();
     },
   });

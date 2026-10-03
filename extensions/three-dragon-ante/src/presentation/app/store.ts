@@ -33,6 +33,8 @@ export interface ShowState {
   ghosts: GhostCard[];
   /** 被偷的那张牌背：先前伸抖动，再被幽灵牌带走 */
   tug: { seatId: string; index: number } | null;
+  /** 刚从牌库顶替换上来的牌（赤铜龙 / 术士 / 雏龙 / 诡术师）：新节点从牌库飞入而不是从手牌 */
+  fromDeck: string[];
 }
 export interface GhostCard { key: string; cardId?: string; from: Pose; to: Pose; delay: number; duration: number; faceDown: boolean; flip?: boolean }
 export interface UIState {
@@ -68,7 +70,7 @@ export interface UIState {
   orientation: Orientation;
 }
 
-export const emptyShow = (): ShowState => ({ reveal: null, revealPhase: null, revealTopIds: [], power: null, resolvingSeatId: null, banner: null, score: null, scoring: false, formation: null, tally: null, focusCardId: null, powerHold: null, ghosts: [], tug: null });
+export const emptyShow = (): ShowState => ({ reveal: null, revealPhase: null, revealTopIds: [], power: null, resolvingSeatId: null, banner: null, score: null, scoring: false, formation: null, tally: null, focusCardId: null, powerHold: null, ghosts: [], tug: null, fromDeck: [] });
 
 export interface Store {
   get(): UIState;

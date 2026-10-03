@@ -33,8 +33,9 @@
 @keyframes tda-bar-slide { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
 @keyframes tda-chip-breathe { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
 
-.tda-actionbar { grid-row: 4; display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 52px; padding: 7px 14px; background-color: #5a3e2e; background-image: var(--tex-leather); background-size: 420px; background-blend-mode: multiply; border-top: 1px solid #0d0705; box-shadow: var(--bevel); }
-.tda-actionbar-prompt { min-width: 0; font-family: var(--font-display); font-size: 16px; }
+/* 行动栏定高：选中一张牌时出现的"牌名 · 点数"提示永远占着一行，牌桌高度不会跳 */
+.tda-actionbar { grid-row: 4; display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 56px; padding: 0 14px; overflow: hidden; background-color: #5a3e2e; background-image: var(--tex-leather); background-size: 420px; background-blend-mode: multiply; border-top: 1px solid #0d0705; box-shadow: var(--bevel); }
+.tda-actionbar-prompt { min-width: 0; min-height: 22px; font-family: var(--font-display); font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tda-actionbar-buttons { display: flex; gap: 10px; flex-shrink: 0; }
 
 .tda-choice { position: absolute; left: 50%; top: 14%; z-index: 70; transform: translateX(-50%); width: min(820px, calc(100% - 32px)); max-height: 60%; overflow: auto; padding: 14px 18px 12px; }
@@ -147,7 +148,7 @@
   .tda-flow-step { padding: 1px 4px; font-size: 11px; gap: 4px; } .tda-flow-step + .tda-flow-step::before { left: -6px; width: 8px; } .tda-flow-dot { width: 11px; height: 11px; font-size: 8px; }
   .tda-waiting { font-size: 14px; }
   .tda-waiting-text { overflow: hidden; text-overflow: ellipsis; }
-  .tda-actionbar { flex-direction: column; align-items: stretch; gap: 8px; padding: 8px 10px; }
+  .tda-actionbar { flex-direction: column; align-items: stretch; justify-content: center; gap: 6px; height: 96px; padding: 0 10px; }
   .tda-inspector { left: 10px; right: 10px; top: 128px; bottom: auto; width: auto; flex-direction: row; align-items: flex-start; gap: 8px; }
   .tda-inspector-face { width: 30%; flex: none; }
   .tda-inspector-copy { flex: 1; min-width: 0; }

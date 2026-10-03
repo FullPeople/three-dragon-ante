@@ -8,7 +8,7 @@
 - [x] 第三方素材下载（用户 2026-10-03 同意）：Poly Haven dark_wood / medieval_wood / brown_leather / metal_plate，ambientCG Fabric034 / Paper006，Kenney Casino Audio；已压缩入库并登记 `docs/design/ASSETS.md`。
 - [ ] 持续效果（德鲁伊 / 祭司 / 龙巫妖…）的**持续音效**：需要 CC0 环境循环素材（Kenney 现有包没有），来源待用户批准；`FieldLayer` 已留位置。
 - [x] 第二轮纠错后的独立审计（换模型）：第一轮"不通过"已整改，复审"有条件通过"，条件（全并列翻注重复 key、runbook 低-7 更正）已满足（runbook round2 §5–§6）。
-- [ ] **手掌素材**：拍桌 / 偷奖池需要真实照片手掌剪影（Pixabay / Unsplash 非 CC0，待用户批准来源）；未批前用掌印闪光 + 焦痕替代。
+- [ ] **手掌素材**：拍桌 / 偷奖池需要真实照片手掌剪影。rawpixel 公共领域库（CC0 标注）与 purepng 都有人机验证，AI 不绕过；需用户在浏览器里挑图或自行提供照片，再由 AI 抠图、登记。未到位前用掌印闪光 + 焦痕替代。
 - [ ] 第三轮纠错后的独立审计（换模型）。
 - [x] 6 人方桌：加赛出现第 4 张牌阵时，上侧座位第 4 张会压下侧座位前注约 23 平面单位（左右对称）；可按牌阵张数收紧步进。
 - [ ] 把审计用的"落地声必须在回执之后 / 被拒不播"浏览器测试页移进 tools/ 并接入 test:browser（现只在 scratchpad）。

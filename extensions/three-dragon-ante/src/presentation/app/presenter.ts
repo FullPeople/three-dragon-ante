@@ -38,11 +38,29 @@ export function landingFrame(previous: TableView, next: TableView, events: Publi
   const played = playedOf(events);
   if (!played) return null;
   const seatId = played.seatId!, cardId = played.cardIds![0];
-  const entry = ng.seats.find(s => s.id === seatId)?.flight.find(f => f.cardId === cardId);
-  if (!entry || pg.seats.some(s => s.flight.some(f => f.cardId === cardId))) return null;
+  if (pg.seats.some(s => s.flight.some(f => f.cardId === cardId))) return null;
+  // 这张牌可能同帧已被替换掉（赤铜龙）：下一帧的牌阵里找不到它，就用公开的牌 id 自己造条目
+  const entry = ng.seats.find(s => s.id === seatId)?.flight.find(f => f.cardId === cardId) ?? (safeCard(cardId) ? { cardId, card: safeCard(cardId)! } : null);
+  if (!entry) return null;
   const seats = pg.seats.map(s => s.id === seatId ? { ...s, flight: [...s.flight, entry], handCount: Math.max(0, s.handCount - 1) } : s);
   const game = withoutOwnCard({ ...pg, seats, waitingSeatIds: [] } as PublicView | SeatView, cardId);
   return { ...next, game };
+}
+
+/** 替换链（赤铜龙 / 术士 / 雏龙 / 诡术师）：把 events 里第 upTo 条之前的 FLIGHT_REPLACED 应用到帧上——旧牌进弃牌堆、新牌占原位。
+ *  只用公共事件里的两张公开牌 id。返回新帧与本次新进场的牌 id（它们要从牌库飞入）。 */
+export function applyReplacements(frame: TableView, events: readonly PublicEvent[], upTo: number): { frame: TableView; fromDeck: string[] } {
+  const g = frame.game; if (!g) return { frame, fromDeck: [] };
+  let seats = g.seats, discard = g.discard; const fromDeck: string[] = [];
+  for (const e of events.slice(0, upTo)) {
+    if (e.code !== "FLIGHT_REPLACED" || !e.cardIds || e.cardIds.length < 2) continue;
+    const [old, next] = e.cardIds; const value = safeCard(next); if (!value) continue;
+    let hit = false;
+    seats = seats.map(s => ({ ...s, flight: s.flight.map(f => { if (f.cardId !== old) return f; hit = true; return { cardId: next, card: value }; }) }));
+    if (hit) { const oldCard = safeCard(old); if (oldCard) discard = [...discard, oldCard]; fromDeck.push(next); }
+  }
+  if (!fromDeck.length) return { frame, fromDeck };
+  return { frame: { ...frame, game: { ...g, seats, discard } as PublicView | SeatView }, fromDeck };
 }
 
 /** 结算帧：上一帧 + 公开 ScoreReport 里每家结算时的牌（含刚打出的末牌）与总点数。结算后的投影里牌阵已空，不能直接拿来演。 */
@@ -139,13 +157,22 @@ const goldOf = (view: TableView | null): GoldHold | null => { const g = view?.ga
 export function createPresenter(store: Store, controller: Controller, hooks: PresenterHooks) {
   const queue: QueueItem[] = [];
   let running = false, destroyed = false, generation = 0;
-  const centerOf = (selector: string): Point | null => { const el = hooks.root().querySelector(selector) as HTMLElement | null; if (!el || typeof el.getBoundingClientRect !== "function") return null; const r = el.getBoundingClientRect(); return r.width ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null; };
+  // 0×0 的锚点（奖池 / 偿债池的金币锚点）也是合法终点：没有宽高就用它的位置
+  const centerOf = (selector: string): Point | null => { const el = hooks.root().querySelector(selector) as HTMLElement | null; if (!el || typeof el.getBoundingClientRect !== "function") return null; const r = el.getBoundingClientRect(); if (!r.width && !r.height && !r.left && !r.top) return null; return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; };
   const rectOf = (selector: string): Rect | null => { const el = hooks.root().querySelector(selector) as HTMLElement | null; if (!el || typeof el.getBoundingClientRect !== "function") return null; const r = el.getBoundingClientRect(); return r.width ? { x: r.left, y: r.top, w: r.width, h: r.height } : null; };
   const esc = (value: string) => typeof CSS !== "undefined" && CSS.escape ? CSS.escape(value) : value.replace(/["\\]/g, "\\$&");
   const cardPoint = (cardId: string) => centerOf(`[data-card="${esc(cardId)}"]`);
   const seatCoins = (seatId: string) => centerOf(`[data-coins-seat="${esc(seatId)}"]`);
   const pile = (id: string) => centerOf(`[data-pile="${id}"]`);
   const endpoint = (id: string) => id === "stakes" || id === "hole" ? pile(id) : seatCoins(id);
+  /** 一家手牌（匿名牌背或本家扇面）的总包围盒 */
+  const handRect = (seatId: string): Rect | null => {
+    const root = hooks.root(); const all = root.querySelectorAll ? Array.from(root.querySelectorAll(`[data-zone="hand"][data-seat="${esc(seatId)}"]`)) as HTMLElement[] : [];
+    const rects = all.filter(el => typeof el.getBoundingClientRect === "function").map(el => el.getBoundingClientRect()).filter(r => r.width);
+    if (!rects.length) return null;
+    const x = Math.min(...rects.map(r => r.left)), y = Math.min(...rects.map(r => r.top));
+    return { x, y, w: Math.max(...rects.map(r => r.right)) - x, h: Math.max(...rects.map(r => r.bottom)) - y };
+  };
   const handPoint = (seatId: string): Point | null => {
     const root = hooks.root(); const all = root.querySelectorAll ? Array.from(root.querySelectorAll(`[data-zone="hand"][data-seat="${esc(seatId)}"]`)) : [];
     const el = all[Math.floor(all.length / 2)] as HTMLElement | undefined; if (!el || typeof el.getBoundingClientRect !== "function") return null;
@@ -163,14 +190,14 @@ export function createPresenter(store: Store, controller: Controller, hooks: Pre
   function setBusy(value: boolean) { if (store.get().busy !== value) { store.set({ busy: value }); hooks.onBusy(value); } }
   const flight = (from: Point | null, to: Point | null, amount: number, duration: number) => { const fx = hooks.fx(); if (!from || !to || !fx) return wait(duration); return Promise.race([fx.coins(from, to, Math.min(8, Math.max(1, Math.ceil(amount / 2))), duration), wait(duration + 8 * 70 + 400)]); };
   const seatIds = () => store.get().view?.game?.seats.map(s => s.id) ?? [];
-  const fxContext = (): PowerFxContext | null => { const fx = hooks.fx(); if (!fx) return null; return { fx, cardPoint, seatPoint: id => centerOf(`[data-seat-plate="${esc(id)}"]`), seatRect: id => rectOf(`[data-drop-zone="flight"][data-drop-seat="${esc(id)}"]`), coinsPoint: seatCoins, handPoint, pile: id => pile(id), seatIds: seatIds(), sound: hooks.sound }; };
+  const fxContext = (): PowerFxContext | null => { const fx = hooks.fx(); if (!fx) return null; return { fx, cardPoint, seatPoint: id => centerOf(`[data-seat-plate="${esc(id)}"]`), seatRect: id => handRect(id), coinsPoint: seatCoins, handPoint, pile: id => pile(id), seatIds: seatIds(), sound: hooks.sound }; };
 
   async function goldArcs(flows: readonly PublicGoldFlow[], gen: number) {
     // 每段金币弧之间都查代际：清场后剩下的弧不再播，也不再出声。付款方的区域先亮一下（被收钱的人也有反馈）。
     for (const flow of flows) {
       if (gen !== generation) return;
-      const payer = flow.fromSeatId !== "stakes" && flow.fromSeatId !== "hole" ? rectOf(`[data-drop-zone="flight"][data-drop-seat="${esc(flow.fromSeatId)}"]`) : null;
-      if (payer) { void hooks.fx()?.pulse(payer, "ember", 520); hooks.sound("pay", flow.key + ":pay"); await beat(180); if (gen !== generation) return; }
+      const payer = flow.fromSeatId !== "stakes" && flow.fromSeatId !== "hole" ? seatCoins(flow.fromSeatId) : null;
+      if (payer) { hooks.fx()?.burst(payer, "gold", 0.7); hooks.sound("pay", flow.key + ":pay"); await beat(160); if (gen !== generation) return; }
       hooks.sound("coin", flow.key); await flight(endpoint(flow.fromSeatId), endpoint(flow.toSeatId), flow.amount, 620); if (gen !== generation) return; bookFlow(flow.fromSeatId, flow.toSeatId, flow.amount);
     }
   }
@@ -273,8 +300,8 @@ export function createPresenter(store: Store, controller: Controller, hooks: Pre
         if (hold && view.game?.choice?.id !== hold.choiceId) {
           setBusy(true);
           hooks.fx()?.ambient(`hold:${hold.choiceId}`, null);
-          const p = centerOf(`[data-strength-seat="${esc(hold.seatId)}"]`) ?? centerOf(`[data-seat-plate="${esc(hold.seatId)}"]`);
-          if (p) { hooks.sound("power-impact", `${hold.choiceId}:close`); await hooks.fx()?.ring(p, familyFx(hold.cue.family), 120, 600); if (gen !== generation) return; }
+          const p = handPoint(hold.seatId) ?? centerOf(`[data-seat-plate="${esc(hold.seatId)}"]`);
+          if (p) { hooks.sound("power-impact", `${hold.choiceId}:close`); hooks.fx()?.burst(p, familyFx(hold.cue.family), 1); await beat(420); if (gen !== generation) return; }
           show({ powerHold: null });
         }
         const hasShow = !!(pres.reveal || pres.powers.length || pres.rounds.length || pres.gold.length || pres.goldAfterScore.length || pres.formations.length);
@@ -292,7 +319,19 @@ export function createPresenter(store: Store, controller: Controller, hooks: Pre
           await beat(SETTLE_MS); if (gen !== generation) return;
           const first = pres.powers[0];
           if (isLegendary(first.cardId)) { const p = cardPoint(first.cardId); if (p) { hooks.sound("sigil", first.key + ":presence"); void hooks.fx()?.sigil(p, familyFx(first.family), 150, 1500); await beat(700); if (gen !== generation) return; } }
+          let shownFrame = landing ?? view;
           for (const [i, cue] of pres.powers.entries()) {
+            // 替换链：这个能力之前发生的替换先落到桌上（旧牌进弃牌堆、新牌从牌库飞入落下），再聚焦、说明
+            if (i > 0 && landing) {
+              const cueIndex = Number(/:(\d+)$/.exec(cue.key)?.[1] ?? -1);
+              const replaced = applyReplacements(landing, events, cueIndex < 0 ? events.length : cueIndex);
+              if (replaced.fromDeck.length && replaced.frame !== shownFrame) {
+                show({ fromDeck: replaced.fromDeck }); display(replaced.frame); shownFrame = replaced.frame;
+                hooks.sound("draw", `${cue.key}:replace`);
+                await beat(SETTLE_MS); if (gen !== generation) return;
+                show({ fromDeck: [] });
+              }
+            }
             // 每个能力（含连锁、替换上来的牌）都先聚焦再说明
             show({ focusCardId: cue.cardId });
             await beat(i === 0 ? FOCUS_MS : 320); if (gen !== generation) return;
@@ -310,8 +349,8 @@ export function createPresenter(store: Store, controller: Controller, hooks: Pre
             const choice = view.game?.choice;
             if (choice && (choice.sourceCardId === cue.cardId || view.game?.resolutionStack.some(step => step.status === "active" && step.sourceCardId === cue.cardId))) {
               show({ powerHold: { cue, seatId: choice.seatId, choiceId: choice.id } });
-              const rect = rectOf(`[data-drop-zone="flight"][data-drop-seat="${esc(choice.seatId)}"]`);
-              hooks.fx()?.ambient(`hold:${choice.id}`, { kind: familyFx(cue.family), rate: 4, area: rect ? { x: rect.x - 30, y: rect.y - 30, w: rect.w + 60, h: rect.h + 60 } : null, drift: { x: 0, y: -22 }, size: 2.6, life: 2.2, alpha: 0.8 });
+              const rect = handRect(choice.seatId);
+              hooks.fx()?.ambient(`hold:${choice.id}`, { kind: familyFx(cue.family), rate: 3, area: rect ? { x: rect.x - 16, y: rect.y - 16, w: rect.w + 32, h: rect.h + 32 } : null, drift: { x: 0, y: -22 }, size: 2.4, life: 2, alpha: 0.75 });
             }
           }
           await goldArcs(pres.gold, gen); if (gen !== generation) return;

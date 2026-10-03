@@ -34,20 +34,18 @@ const OPPONENT_ANCHORS: Record<Orientation, Record<number, Anchor[]>> = {
     4: [{ x: 300, y: 640, edge: "left", rot: 90 }, { x: 620, y: 190, edge: "top", rot: 180 }, { x: 1180, y: 190, edge: "top", rot: 180 }, { x: 1500, y: 640, edge: "right", rot: -90 }],
     5: [{ x: 300, y: 790, edge: "left", rot: 90, scale: 0.72 }, { x: 300, y: 300, edge: "left", rot: 90, scale: 0.72 }, { x: 900, y: 190, edge: "top", rot: 180 }, { x: 1500, y: 300, edge: "right", rot: -90, scale: 0.72 }, { x: 1500, y: 790, edge: "right", rot: -90, scale: 0.72 }],
   },
-  // 竖屏：平面只有 1100 宽，4 人以上分两排（远排朝下，近排侧向），座位块随缩放收紧
+  // 竖屏：平面 1100 × 1500，左右两侧有大量纵向空间——对手各占一边（侧边 ±90°、顶边 180°），不斜对本家；两人以上每边最多两席
   portrait: {
     1: [{ x: 550, y: 230, edge: "top", rot: 180 }],
-    // 两个对手：左家的牌阵朝左下、右家的牌阵朝左上（各自的右手边），所以右家要坐低一点才不撞到左家的前注
-    2: [{ x: 340, y: 300, edge: "round", rot: 150, scale: 0.65 }, { x: 780, y: 390, edge: "round", rot: -150, scale: 0.65 }],
-    3: [{ x: 300, y: 520, edge: "round", rot: 150, scale: 0.6 }, { x: 550, y: 185, edge: "top", rot: 180, scale: 0.6 }, { x: 800, y: 520, edge: "round", rot: -150, scale: 0.6 }],
-    4: [{ x: 190, y: 600, edge: "left", rot: 100, scale: 0.55 }, { x: 320, y: 230, edge: "top", rot: 180, scale: 0.55 }, { x: 780, y: 230, edge: "top", rot: 180, scale: 0.55 }, { x: 910, y: 600, edge: "right", rot: -100, scale: 0.55 }],
-    // 5 个对手：1 + 2 + 2 三排（顶中、左右上、左右下），从本家左侧顺时针
-    5: [{ x: 185, y: 680, edge: "left", rot: 100, scale: 0.5 }, { x: 270, y: 350, edge: "round", rot: 150, scale: 0.48 }, { x: 550, y: 140, edge: "top", rot: 180, scale: 0.44 }, { x: 830, y: 350, edge: "round", rot: -150, scale: 0.48 }, { x: 915, y: 680, edge: "right", rot: -100, scale: 0.5 }],
+    2: [{ x: 175, y: 640, edge: "left", rot: 90, scale: 0.62 }, { x: 925, y: 640, edge: "right", rot: -90, scale: 0.62 }],
+    3: [{ x: 175, y: 650, edge: "left", rot: 90, scale: 0.6 }, { x: 550, y: 200, edge: "top", rot: 180, scale: 0.62 }, { x: 925, y: 650, edge: "right", rot: -90, scale: 0.6 }],
+    4: [{ x: 175, y: 700, edge: "left", rot: 90, scale: 0.56 }, { x: 330, y: 215, edge: "top", rot: 180, scale: 0.55 }, { x: 770, y: 215, edge: "top", rot: 180, scale: 0.55 }, { x: 925, y: 700, edge: "right", rot: -90, scale: 0.56 }],
+    5: [{ x: 175, y: 760, edge: "left", rot: 90, scale: 0.5 }, { x: 175, y: 370, edge: "left", rot: 90, scale: 0.5 }, { x: 550, y: 190, edge: "top", rot: 180, scale: 0.55 }, { x: 925, y: 370, edge: "right", rot: -90, scale: 0.5 }, { x: 925, y: 760, edge: "right", rot: -90, scale: 0.5 }],
   },
 };
 export const CENTER: Record<Orientation, { table: Point; deck: Point; discard: Point; stakes: Point; hole: Point; neutral: Point; self: Point; fan: Point; fanRadius: number }> = {
   landscape: { table: { x: 900, y: 550 }, deck: { x: 720, y: 520 }, discard: { x: 1080, y: 520 }, stakes: { x: 900, y: 430 }, hole: { x: 1250, y: 580 }, neutral: { x: 900, y: 650 }, self: { x: 900, y: 800 }, fan: { x: 900, y: 1000 }, fanRadius: 900 },
-  portrait: { table: { x: 550, y: 750 }, deck: { x: 385, y: 818 }, discard: { x: 715, y: 818 }, stakes: { x: 550, y: 630 }, hole: { x: 550, y: 870 }, neutral: { x: 550, y: 960 }, self: { x: 550, y: 1090 }, fan: { x: 550, y: 1340 }, fanRadius: 700 },
+  portrait: { table: { x: 550, y: 750 }, deck: { x: 398, y: 822 }, discard: { x: 702, y: 822 }, stakes: { x: 550, y: 608 }, hole: { x: 550, y: 870 }, neutral: { x: 550, y: 960 }, self: { x: 550, y: 1090 }, fan: { x: 550, y: 1340 }, fanRadius: 700 },
 };
 
 const rad = (deg: number) => deg * Math.PI / 180;

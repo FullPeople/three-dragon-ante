@@ -13,7 +13,6 @@ import { FieldLayer } from "./FieldLayer";
 import { GhostLayer } from "./GhostLayer";
 import { t } from "../i18n";
 import { mountFx, type FxLayer } from "../fx/particles";
-import { familyFx } from "../fx/powers";
 
 export interface TableSceneProps { state: UIState; controller: Controller; onFx(fx: FxLayer | null): void; onOrientation(orientation: Orientation): void; onLand?(key: string, zone: string): void }
 
@@ -130,7 +129,6 @@ export function TableScene({ state, controller, onFx, onOrientation, onLand }: T
           <TableSurface width={spec.w} height={spec.h} scale={fit.scale} shape={shape} />
           {game ? <>
             <FieldLayer game={game} seats={seats} fx={fxRef.current} lang={state.lang} host={host.current} />
-            {state.show.powerHold ? (() => { const seat = seats.find(s => s.id === state.show.powerHold!.seatId); if (!seat) return null; const n = Math.max(1, game.seats.find(s => s.id === seat.id)?.flight.length ?? 1); const cx = seat.flight.x + seat.dir.x * (n - 1) * seat.flightStep / 2, cy = seat.flight.y + seat.dir.y * (n - 1) * seat.flightStep / 2; return <div className={`tda-field tda-field--hold is-${familyFx(state.show.powerHold.cue.family)}`} style={{ left: cx, top: cy, width: CARD.w * seat.scale + (n - 1) * seat.flightStep + 70, height: CARD.h * seat.scale + 60, transform: `translate(-50%, -50%) rotate(${seat.rot}deg)` }} aria-hidden="true"><div className="tda-field-ring" /><div className="tda-field-ring tda-field-ring--inner" /><span className="tda-field-label">{t("ribbonChoosing", state.lang)}</span></div>; })() : null}
             <div className="tda-pile tda-pile--deck" style={{ left: center.deck.x - CARD.w / 2 - 8, top: center.deck.y - CARD.h / 2 - 8 }} data-pile="deck"><span className="tda-slot-label">{t("deck", state.lang)} · {game.deckCount}</span></div>
             <div className="tda-pile tda-pile--discard" style={{ left: center.discard.x - CARD.w / 2 - 8, top: center.discard.y - CARD.h / 2 - 8 }} data-pile="discard" onClick={() => { const top = game.discard[game.discard.length - 1]; if (top) controller.inspect(top.id, true); }}><span className="tda-slot-label">{t("discard", state.lang)} · {game.discard.length}</span></div>
             <div className="tda-stakes" style={{ left: center.stakes.x, top: center.stakes.y }}>

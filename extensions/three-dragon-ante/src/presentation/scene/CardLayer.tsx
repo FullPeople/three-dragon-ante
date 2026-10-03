@@ -49,7 +49,8 @@ export function CardLayer({ state, controller, orientation, layer, placements, s
     else if (!previous) {
       const seat = placement.seatId ? seats.find(s => s.id === placement.seatId) : undefined;
       const fromSeat = seat && !seat.self;
-      if (placement.zone === "ante" && placement.seatId && known.current.has(`ante:${placement.seatId}`)) enterFrom = undefined; // 翻注：匿名背换成真实牌，原地出现
+      if (cardId && state.show.fromDeck.includes(cardId)) { enterFrom = { x: center.deck.x, y: center.deck.y, rot: 0, scale: 1, z: 30 }; dropIn = true; dropFaceDown = true; }
+      else if (placement.zone === "ante" && placement.seatId && known.current.has(`ante:${placement.seatId}`)) enterFrom = undefined; // 翻注：匿名背换成真实牌，原地出现
       else if ((placement.zone === "ante" || placement.zone === "flight") && fromSeat) { enterFrom = { x: seat.hand.x, y: seat.hand.y, rot: seat.rot, scale: seat.scale, z: 30 }; dropIn = true; dropFaceDown = placement.zone === "flight"; }
       else if (placement.zone === "discard") enterFrom = { x: center.stakes.x, y: center.stakes.y, rot: 0, scale: 1, z: 30 };
       else if (placement.zone !== "deck") enterFrom = { x: center.deck.x, y: center.deck.y, rot: 0, scale: 1, z: 30 };

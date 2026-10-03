@@ -51,11 +51,12 @@
 .tda-coins-anchor { position: absolute; width: 0; height: 0; transform-style: preserve-3d; }
 .tda-coins { position: absolute; left: 0; top: 0; transform-origin: 0 0; transform-style: preserve-3d; }
 /* 每枚硬币：整圆照片 + 两层深色边缘 = 3 px 厚度 */
-.tda-coin { position: absolute; left: -15px; top: -15px; width: 30px; height: 30px; object-fit: contain; border-radius: 50%; box-shadow: 0 1.5px 0 #7a5a1c, 0 3px 0 #4a3512, 0 4px 3px rgba(0, 0, 0, .55); background: #b8902e; }
-.tda-coins--big .tda-coin { width: 36px; height: 36px; left: -18px; top: -18px; }
+/* 每枚龙金：原作的沙漏形裁图原样显示，厚度靠随形投影（drop-shadow 跟着透明通道走） */
+.tda-coin { position: absolute; left: -15px; top: -16px; width: 30px; height: 32px; object-fit: contain; filter: drop-shadow(0 1.5px 0 #7a5a1c) drop-shadow(0 1.5px 0 #4a3512) drop-shadow(0 3px 3px rgba(0, 0, 0, .5)); }
+.tda-coins--big .tda-coin { width: 36px; height: 38px; left: -18px; top: -19px; }
 /* 飞行中的金币（DOM 精灵） */
 .tda-fx-dom { position: absolute; inset: 0; z-index: 55; pointer-events: none; overflow: visible; }
-.tda-coin-fly { position: absolute; left: 0; top: 0; width: 30px; height: 30px; margin: -15px 0 0 -15px; object-fit: contain; border-radius: 50%; box-shadow: 0 1.5px 0 #7a5a1c, 0 3px 0 #4a3512, 0 6px 6px rgba(0, 0, 0, .5); background: #b8902e; will-change: transform; }
+.tda-coin-fly { position: absolute; left: 0; top: 0; width: 34px; height: 36px; margin: -18px 0 0 -17px; object-fit: contain; filter: drop-shadow(0 1.5px 0 #7a5a1c) drop-shadow(0 1.5px 0 #4a3512) drop-shadow(0 8px 8px rgba(0, 0, 0, .55)); will-change: transform; }
 
 /* 卡牌 */
 .tda-card-layer { position: absolute; inset: 0; transform-style: preserve-3d; pointer-events: none; }
@@ -108,6 +109,10 @@
 .tda-strength-plate.is-tally.is-tied .tda-num { text-decoration: line-through; text-decoration-thickness: 3px; color: #5a1f1a; }
 .tda-strength-plate.is-tally.is-out { filter: saturate(.3); opacity: .6; }
 .tda-strength-plate.is-tally.is-none { opacity: .55; }
+
+/* 能力等待某家选择：该家绶带位置的标记（粒子落在其手牌上，由特效层画） */
+.tda-hold { position: absolute; padding: 3px 14px; border-radius: 2px; border: 1px solid var(--fx); background: rgba(20, 11, 6, .9); color: var(--fx); font-size: 14px; letter-spacing: .1em; white-space: nowrap; animation: tda-field-in 400ms both; }
+.tda-hold.is-ember { --fx: var(--ember); } .tda-hold.is-tide { --fx: var(--tide); } .tda-hold.is-grove { --fx: var(--grove); } .tda-hold.is-arcane { --fx: var(--arcane); } .tda-hold.is-crown { --fx: var(--crown); }
 
 /* 场地层：持续效果 */
 .tda-field-tint { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: multiply; animation: tda-field-in 800ms both; }
