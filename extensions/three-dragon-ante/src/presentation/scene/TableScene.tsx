@@ -31,6 +31,8 @@ export function TableScene({ state, controller, onFx, onOrientation }: TableScen
   const legalZone = controller.legalZone();
   const targetSeatId = state.show.power?.targetSeatIds?.[0] ?? game?.resolutionStack.find(step => step.status === "active")?.targetSeatId ?? null;
   const waitingIds = new Set(game?.waitingSeatIds ?? []);
+  const hold = state.goldHold;
+  const stakesShown = hold?.stakes ?? game?.stakes ?? 0, holeShown = hold?.hole ?? game?.hole ?? 0;
 
   // 拖动：手牌节点按下后超过 6px 才算拖动，否则保留点击语义。
   const dragRef = useRef<{ cardId: string; startX: number; startY: number; active: boolean; pointerId: number } | null>(null);
@@ -78,12 +80,12 @@ export function TableScene({ state, controller, onFx, onOrientation }: TableScen
             <div className="tda-pile tda-pile--deck" style={{ left: center.deck.x - CARD.w / 2 - 8, top: center.deck.y - CARD.h / 2 - 8 }} data-pile="deck"><span className="tda-slot-label">{t("deck", state.lang)} · {game.deckCount}</span></div>
             <div className="tda-pile tda-pile--discard" style={{ left: center.discard.x - CARD.w / 2 - 8, top: center.discard.y - CARD.h / 2 - 8 }} data-pile="discard" onClick={() => { const top = game.discard[game.discard.length - 1]; if (top) controller.inspect(top.id, true); }}><span className="tda-slot-label">{t("discard", state.lang)} · {game.discard.length}</span></div>
             <div className="tda-stakes" style={{ left: center.stakes.x, top: center.stakes.y }} data-pile="stakes">
-              <CoinStack amount={game.stakes} big />
-              <div className="tda-plate tda-stakes-plate"><span>{t("stakes", state.lang)}</span><span className="tda-num tda-stakes-amount">{game.stakes}</span></div>
+              <CoinStack amount={stakesShown} big />
+              <div className="tda-plate tda-stakes-plate"><span>{t("stakes", state.lang)}</span><span className="tda-num tda-stakes-amount">{stakesShown}</span></div>
             </div>
-            {game.hole > 0 ? <div className="tda-hole" style={{ left: center.hole.x, top: center.hole.y }} data-pile="hole"><CoinStack amount={game.hole} /><div className="tda-plate tda-hole-plate"><span>{t("hole", state.lang)}</span><span className="tda-num">{game.hole}</span></div></div> : null}
-            {seats.map(placement => <SeatBlock key={placement.id} seat={game.seats.find(s => s.id === placement.id)!} placement={placement} game={game} selfSeatId={own?.selfSeatId ?? null} lang={state.lang}
-              legalZone={legalZone} dragOver={drag?.cardId ? drag.overZone : null} targetSeatId={targetSeatId} waiting={waitingIds.has(placement.id)} onZoneClick={zone => controller.placeSelected(zone)} />)}
+            {holeShown > 0 ? <div className="tda-hole" style={{ left: center.hole.x, top: center.hole.y }} data-pile="hole"><CoinStack amount={holeShown} /><div className="tda-plate tda-hole-plate"><span>{t("hole", state.lang)}</span><span className="tda-num">{holeShown}</span></div></div> : null}
+            {seats.map(placement => { const seat = game.seats.find(s => s.id === placement.id)!; return <SeatBlock key={placement.id} seat={seat} placement={placement} game={game} selfSeatId={own?.selfSeatId ?? null} lang={state.lang}
+              legalZone={legalZone} dragOver={drag?.cardId ? drag.overZone : null} targetSeatId={targetSeatId} waiting={waitingIds.has(placement.id)} gold={hold?.seats[seat.id] ?? seat.gold} onZoneClick={zone => controller.placeSelected(zone)} />; })}
             <CardLayer state={state} controller={controller} orientation={orientation} onCardPointerDown={onCardPointerDown} />
           </> : null}
         </div>

@@ -49,7 +49,7 @@ export interface TableUISurface {
 
 export function mountTableUI(root: HTMLElement, deps: TableUIDeps): TableUISurface {
   let soundOn = true; try { soundOn = localStorage.getItem("three-dragon-ante.sound.v2") !== "off"; } catch {}
-  const initial: UIState = { lang: deps.language, hostKind: deps.hostKind ?? "obr", mode: deps.mode ?? "full", view: null, display: null, selected: [], hovered: null, keyboardCard: null, keyboardHeld: false, drag: null, pending: null, sending: false, localMessage: "", inspect: null, show: emptyShow(), busy: false, soundOn, gestures: {}, slowSeatIds: [], suspended: false, helpOpen: false };
+  const initial: UIState = { lang: deps.language, hostKind: deps.hostKind ?? "obr", mode: deps.mode ?? "full", view: null, display: null, selected: [], hovered: null, keyboardCard: null, keyboardHeld: false, drag: null, pending: null, sending: false, localMessage: "", inspect: null, show: emptyShow(), busy: false, soundOn, gestures: {}, slowSeatIds: [], suspended: false, helpOpen: false, goldHold: null };
   const store: Store = createStore(initial);
   let fx: FxLayer | null = null, orientation: Orientation = "landscape", destroyed = false, notifiedBusy = false;
   const audio = createAudio(root, () => store.get().soundOn);

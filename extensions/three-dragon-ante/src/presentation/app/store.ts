@@ -41,6 +41,8 @@ export interface UIState {
   slowSeatIds: string[];
   suspended: boolean;
   helpOpen: boolean;
+  /** 演出期间冻结的金币数字：直到金币弧线落地才跳到新值。 */
+  goldHold: { seats: Record<string, number>; stakes: number; hole: number } | null;
 }
 
 export const emptyShow = (): ShowState => ({ reveal: null, revealPhase: null, revealTopIds: [], power: null, resolvingSeatId: null, banner: null, score: null, scoring: false });
