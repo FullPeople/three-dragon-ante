@@ -16,11 +16,12 @@
 - [ ] 字体子集化：vendor CSS 约 500 kB 来自 fontsource 全部 unicode-range 子集声明；可改为只保留 chinese-simplified + latin 子集或自建子集。
 - [ ] 枭熊真实房间验收（双账号、紧凑弹窗、全屏模态）；实体手机。
 - [ ] `src/modules/threeDragonAnte`（旧稳定频道）是否删除或也切新表现层，待用户定。
-- [ ] 阶段 6：从 `package.json` 与 `.github/workflows/verify.yml` 移除 `verify:source`；`docs/EXTRACTION.md` 注明 `SOURCE.json` 已成历史记录；删除旧表现层文件与 `three` / `@types/three` 依赖；重写 `tools/production-practice-smoke.mjs` 与 `tools/three-dragon-server-browser.mjs` 选择器。
-- [ ] 枭熊适配（阶段 5）：`table.html` 两种模式（全屏模态 / 紧凑弹窗）、大厅、全能编辑器视觉重做；`index.ts` 中 `assetUrl("index.html")` 改 `table.html`。
+- [x] 阶段 6：从 `package.json` 与 `.github/workflows/verify.yml` 移除 `verify:source`；`docs/EXTRACTION.md` 注明 `SOURCE.json` 已成历史记录；删除旧表现层文件与 `three` / `@types/three` 依赖；重写 `tools/production-practice-smoke.mjs` 与 `tools/three-dragon-server-browser.mjs` 选择器。
+- [x] 枭熊适配（阶段 5，2026-10-03 完成）：`table.html` 两种模式（全屏模态 / 紧凑弹窗）、大厅、全能编辑器视觉重做；`index.ts` 中 `assetUrl("index.html")` 改 `table.html`。
 - [ ] 开放问题待用户决定：独立网站是否需要在线多人（涉及鉴权，另立项）；`src/modules/threeDragonAnte` 旧频道是否删除；依赖漏洞升级另立任务。
-- [ ] `README.md` 在阶段 6 后按新结构重写（当前内容描述的是拆分时的旧结构）。
-- [ ] 注册到工作区 `D:\my_code\PROJECTS.md`（已在 2026-10-03 完成，若导航变动需同步）。
+- [x] `README.md` 按新结构重写（2026-10-03）。
+- [x] 注册到工作区 `D:\my_code\PROJECTS.md`（2026-10-03）。
+- [ ] 审计低项：手机端流程轨横向截断、详视遮住对手区（可改为缩字号 / 详视只在点按时显示）。
 
 ## 已完成（节选）
 

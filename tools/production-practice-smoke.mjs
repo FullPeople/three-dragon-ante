@@ -1,4 +1,4 @@
-// 独立网站生产构建冒烟：首页 → 开局 → 暗置 → 翻注 → 出牌；桌面与手机各一遍；零脚本错误、零失败资源、零外部请求。
+// 独立网站生产构建冒烟：首页 → 开局 → 暗置 → 翻注 → 轮到自己时出牌；对手手牌只能是匿名牌背；桌面与手机各一遍；零脚本错误、零失败资源、零外部请求。
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { existsSync, readFileSync, mkdirSync, writeFileSync } from 'node:fs';
@@ -43,11 +43,15 @@ try {
     await page.getByRole('button', { name: '开始', exact: true }).click();
     await page.locator('.tda-card--hand').first().waitFor({ state: 'attached', timeout: 30000 });
     await page.waitForTimeout(1500);
-    const hand = await page.locator('.tda-card--hand').count();
-    assert.ok(hand >= 1, 'hand rendered');
+    const hand = await page.locator('.tda-card--hand[data-seat="you"][data-card]').count();
+    assert.ok(hand >= 4, 'own hand rendered');
     const surface = await page.evaluate(() => { const c = document.querySelector('.tda-surface-gl'); return c ? (c.dataset.fallback ? 'css' : 'webgl') : 'none'; });
-    assert.notEqual(surface, 'none', 'table surface mounted');
-    pass(`${name} site opens a local match (${hand} cards, surface ${surface})`);
+    assert.equal(surface, 'webgl', 'table surface renders through WebGL in this browser');
+    pass(`${name} site opens a local match (${hand} own cards, surface ${surface})`);
+    // 隐私：对手手牌节点不得带卡牌 id，且全部面朝下
+    const leak = await page.evaluate(() => ({ ids: document.querySelectorAll('.tda-card--hand[data-card]:not([data-seat="you"])').length, faceUp: [...document.querySelectorAll('.tda-card--hand:not([data-seat="you"])')].filter(n => !n.classList.contains('is-face-down')).length, backs: document.querySelectorAll('.tda-card--hand:not([data-seat="you"])').length }));
+    assert.equal(leak.ids, 0); assert.equal(leak.faceUp, 0); assert.ok(leak.backs >= 2);
+    pass(`${name} opponents show ${leak.backs} anonymous face-down backs and no card ids`);
     // 暗置：选最后一张合法牌，点自己的暗置槽；回执落地后 pending 标记清空
     const legal = page.locator('.tda-card--hand.is-legal').last();
     const cardId = await legal.getAttribute('data-card');
@@ -59,10 +63,36 @@ try {
     // 机器人跟注、翻注、进入出牌阶段
     await page.waitForFunction(() => ['play', 'choice'].includes(document.querySelector('.tda-shell')?.getAttribute('data-phase') || ''), null, { timeout: 30000 });
     pass(`${name} reveal completes and play phase begins`);
+    // 轮到自己时出牌：机器人的能力说明要人点"继续"，自己的能力选择要人确认；这里像玩家一样推进，直到有合法手牌可打
+    const deadline = Date.now() + 60000;
+    while (true) {
+      if (Date.now() > deadline) throw new Error(name + ': never reached an own play turn');
+      if (await page.locator('.tda-spotlight-actions button').count()) { await page.locator('.tda-spotlight-actions button').first().click(); await page.waitForTimeout(400); continue; }
+      if (await page.locator('.tda-choice').count()) {
+        const option = page.locator('.tda-choice [data-option]:not([disabled])').first();
+        if (await option.count()) { await option.click(); await page.locator('#confirm-action:not([disabled])').click({ timeout: 4000 }).catch(() => {}); }
+        await page.waitForTimeout(400); continue;
+      }
+      const ready = await page.evaluate(() => document.querySelectorAll('.tda-card--hand.is-legal').length > 0 && document.querySelector('.tda-shell')?.getAttribute('data-phase') === 'play' && document.querySelector('.tda-shell')?.getAttribute('data-busy') === 'false');
+      if (ready) break;
+      await page.waitForTimeout(300);
+    }
+    const playable = page.locator('.tda-card--hand.is-legal').last();
+    const playedId = await playable.getAttribute('data-card');
+    await playable.click({ force: true, position: { x: 70, y: 40 } });
+    await page.locator('[data-drop-zone="flight"][data-drop-seat="you"]').click({ force: true });
+    await page.waitForFunction(() => document.querySelector('.tda-shell')?.getAttribute('data-pending-action') === 'false', null, { timeout: 10000 });
+    await page.waitForFunction(id => document.querySelector(`[data-card="${id}"]`)?.getAttribute('data-zone') === 'flight', playedId, { timeout: 10000 });
+    pass(`${name} a card is played into the flight through the real action path`);
     await page.screenshot({ path: join(output, name + '.png') });
-    // 退出回首页，再进一局
+    // 退出回首页，再进一局（先像玩家一样关掉还在播放的说明层 / 待确认的选择）
+    for (let i = 0; i < 30; i++) {
+      if (await page.locator('.tda-spotlight-actions button').count()) { await page.locator('.tda-spotlight-actions button').first().click(); await page.waitForTimeout(300); continue; }
+      if (await page.locator('.tda-choice').count()) { const option = page.locator('.tda-choice [data-option]:not([disabled])').first(); if (await option.count()) { await option.click(); await page.locator('#confirm-action:not([disabled])').click({ timeout: 4000 }).catch(() => {}); } await page.waitForTimeout(400); continue; }
+      break;
+    }
     await page.getByRole('button', { name: '离开', exact: true }).click();
-    await page.getByRole('button', { name: '开始', exact: true }).waitFor();
+    await page.getByRole('button', { name: '开始', exact: true }).waitFor({ timeout: 10000 });
     await page.getByRole('button', { name: '开始', exact: true }).click();
     await page.locator('.tda-card--hand').first().waitFor({ state: 'attached', timeout: 30000 });
     await page.reload();

@@ -1,5 +1,5 @@
 /** 有限时长动画助手。减少动态偏好下直接完成，但顺序与等待不变。 */
-export const reducedMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+export const reducedMotion = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 export function wait(ms: number): Promise<void> { return new Promise(resolve => setTimeout(resolve, ms)); }
 

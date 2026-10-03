@@ -1,6 +1,6 @@
 # 素材登记（docs/design/ASSETS.md）
 
-> 全部为 CC0 真实照片扫描 / 真实录音，无 AI 生成。每行：路径（相对 `src/presentation/assets/`）/ 来源 / 许可 / 用途 / 处理 / 字节 / SHA-256。卡图扫描件另见 `src/game/art/*/inventory.json`。
+> 纹理与音效为 CC0 真实照片扫描 / 真实录音，字体为 OFL；无 AI 生成。每行：路径（相对 `src/presentation/assets/`）/ 来源 / 许可 / 用途 / 处理 / 字节 / SHA-256。卡图扫描件另见 `src/game/art/*/inventory.json`。
 
 | 路径 | 来源 | 许可 | 用途 | 处理 | 字节 | SHA-256 |
 |---|---|---|---|---|---|---|
@@ -36,3 +36,13 @@
 Kenney 音效包 zip SHA-256：`f36250766ac5bc378c13708ddf12a23a8e54a3251f8d482c7536e51b5dbafa18`（下载于 2026-10-03，本地留存 `.local-evidence/downloads/`，不入库）。
 
 完整哈希见 `.local-evidence/downloads/ledger.json`（gitignore）。
+
+## 字体（OFL，npm 安装，随包自托管）
+
+| 包 | 版本 | 用途 | 许可 |
+|---|---|---|---|
+| `@fontsource/noto-serif-sc` | 5.2.6 | 中文显示字体（700 / 900） | SIL OFL 1.1 |
+| `@fontsource/noto-sans-sc` | 5.2.6 | 正文字体（400 / 700） | SIL OFL 1.1 |
+| `@fontsource/cinzel` | 5.2.6 | 拉丁与数字显示字体（700 / 900） | SIL OFL 1.1 |
+
+字体文件由 fontsource 按 unicode-range 切片，构建时全部进入 `dist/assets/`（约 396 个 woff2），浏览器只下载用到的子集；字体子集化见 `AI_CONTEXT/TODO.md`。

@@ -21,10 +21,11 @@ export interface TableAppProps { store: Store; controller: Controller; onFx(fx: 
 export function TableApp({ store, controller, onFx, onOrientation, showTopBar }: TableAppProps) {
   const state = useStore(store);
   const view = state.view, display = state.display, game = display?.game ?? null, own = privateGame(display);
+  const flowGame = (state.flow ?? display)?.game ?? null;
   const lang = state.lang;
   const flags: PresentationFlags = useMemo(() => ({ revealing: !!state.show.revealPhase, resolvingSeatId: state.show.resolvingSeatId, scoring: state.show.scoring }), [state.show.revealPhase, state.show.resolvingSeatId, state.show.scoring]);
   const seatName = (id: string) => game?.seats.find(s => s.id === id)?.name ?? id;
-  const line = waitingLine(game, own?.selfSeatId ?? null, lang, flags, seatName, state.slowSeatIds);
+  const line = waitingLine(flowGame, own?.selfSeatId ?? null, lang, flags, seatName, state.slowSeatIds);
   const root = useRef<HTMLDivElement>(null);
   useEffect(() => { const el = root.current; if (!el) return; const onKey = (event: KeyboardEvent) => { if ((event.target as HTMLElement)?.closest?.("input, select, textarea")) return; controller.keyboard(event); }; el.addEventListener("keydown", onKey); return () => el.removeEventListener("keydown", onKey); }, [controller]);
   const inGame = !!game;
@@ -43,8 +44,8 @@ export function TableApp({ store, controller, onFx, onOrientation, showTopBar }:
       </div>
     </header> : <div />}
     <div className="tda-status">
-      <FlowRail game={game} lang={lang} flags={flags} />
-      <WaitingLine line={line} game={game} selfSeatId={own?.selfSeatId ?? null} />
+      <FlowRail game={flowGame} lang={lang} flags={flags} />
+      <WaitingLine line={line} game={flowGame} selfSeatId={own?.selfSeatId ?? null} />
     </div>
     <TableScene state={state} controller={controller} onFx={onFx} onOrientation={onOrientation} />
     <ActionBar state={state} controller={controller} />

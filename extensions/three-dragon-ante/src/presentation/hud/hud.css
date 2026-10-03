@@ -135,7 +135,7 @@
   .tda-help { left: 10px; right: 10px; top: 128px; width: auto; }
   .tda-spotlight { grid-template-columns: minmax(110px, 30%) minmax(0, 1fr); padding: 14px 12px; gap: 14px; }
   .tda-spotlight-copy { padding: 12px 14px; }
-  .tda-choice { top: 10px; max-height: 70%; padding: 12px; } .tda-choice-card { width: 70px; }
+  .tda-choice { top: 128px; max-height: 60%; padding: 12px; } .tda-choice-card { width: 70px; }
   .tda-score-row { grid-template-columns: 60px minmax(0, 1fr) 80px; padding: 6px; gap: 6px; } .tda-score-card { width: 38px; }
 }
 

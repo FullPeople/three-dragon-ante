@@ -51,7 +51,7 @@ export interface TableUISurface {
 
 export function mountTableUI(root: HTMLElement, deps: TableUIDeps): TableUISurface {
   let soundOn = true; try { soundOn = localStorage.getItem("three-dragon-ante.sound.v2") !== "off"; } catch {}
-  const initial: UIState = { lang: deps.language, hostKind: deps.hostKind ?? "obr", mode: deps.mode ?? "full", view: null, display: null, selected: [], hovered: null, keyboardCard: null, keyboardHeld: false, drag: null, pending: null, sending: false, localMessage: "", inspect: null, show: emptyShow(), busy: false, soundOn, gestures: {}, slowSeatIds: [], suspended: false, helpOpen: false, goldHold: null };
+  const initial: UIState = { lang: deps.language, hostKind: deps.hostKind ?? "obr", mode: deps.mode ?? "full", view: null, display: null, flow: null, selected: [], hovered: null, keyboardCard: null, keyboardHeld: false, drag: null, pending: null, sending: false, localMessage: "", inspect: null, show: emptyShow(), busy: false, soundOn, gestures: {}, slowSeatIds: [], suspended: false, helpOpen: false, goldHold: null };
   const store: Store = createStore(initial);
   let fx: FxLayer | null = null, orientation: Orientation = "landscape", destroyed = false, notifiedBusy = false;
   const audio = createAudio(root, () => store.get().soundOn);
@@ -127,13 +127,14 @@ export function mountTableUI(root: HTMLElement, deps: TableUIDeps): TableUISurfa
       return root.querySelector(selector)?.getBoundingClientRect() ?? null;
     },
     suspend() { store.set({ suspended: true, drag: null, keyboardHeld: false }); presenter.clear(); audio.suspend(); },
-    resume() { store.set({ suspended: false }); audio.resume(); const view = store.get().view; if (view) store.set({ display: view }); },
+    resume() { store.set({ suspended: false }); audio.resume(); const view = store.get().view; if (view) store.set({ display: view, flow: view }); },
     failed() { const s = store.get(); store.set({ sending: false, localMessage: "requestFailed", pending: s.pending ? { ...s.pending, retryable: true } : null, view: s.view ? { ...s.view, pending: false, connected: false } : null }); presenter.clear(); },
     destroy() {
       if (destroyed) return; destroyed = true;
       presenter.destroy(); audio.destroy(); for (const timer of gestureTimers.values()) clearTimeout(timer); for (const timer of slowTimers.values()) clearTimeout(timer);
-      // React 19 可能把 unmount 推迟到当前提交之后；这里不能再手动清空容器，否则它稍后 removeChild 会找不到节点。
-      reactRoot.unmount(); root.classList.remove("tda-root");
+      // 宿主常在另一个 React 树的 effect 清理里销毁牌桌；同步 unmount 会被 React 19 推迟并在开发模式告警，
+      // 所以放到下一个宏任务，且不再手动清空容器（否则推迟的 removeChild 会找不到节点）。
+      setTimeout(() => reactRoot.unmount(), 0); root.classList.remove("tda-root");
     },
   };
   void orientation;

@@ -24,7 +24,10 @@ export interface UIState {
   hostKind: "local" | "obr";
   mode: "full" | "compact";
   view: TableView | null;
+  /** 场景正在画的帧 */
   display: TableView | null;
+  /** 流程轨 / 等待行读的帧：演出结束后才跟进 */
+  flow: TableView | null;
   selected: string[];
   hovered: string | null;
   keyboardCard: string | null;

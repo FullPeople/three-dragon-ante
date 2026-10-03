@@ -8,6 +8,7 @@ const scripts = server ? [
   'tools/three-dragon-auto-host208.mjs',
 ] : [
   'extensions/three-dragon-ante/src/game/privacy-selftest.mjs',
+  'extensions/three-dragon-ante/src/presentation/presentation-selftest.mjs',
   'tools/three-dragon-controller-selftest.mjs',
   'tools/three-dragon-handover-selftest.mjs',
   'tools/three-dragon-legacy-recovery-selftest.mjs',

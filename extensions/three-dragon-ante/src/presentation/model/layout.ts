@@ -134,6 +134,17 @@ export function cardPlacements(view: PublicView | SeatView | OmniscientView, ori
   return result;
 }
 
+/** 待确认卡牌的位姿：只要本家有未回执的提交，这张牌就停在目标区域上方，
+ *  不管投影把它画在哪（投影可能先于回执到达）。回执匹配后 pending 清空，牌才落到真实位姿。 */
+export function pendingPose(view: PublicView | SeatView | OmniscientView, orientation: Orientation, pending: { cardId: string; zone?: "ante" | "flight" }): Pose | null {
+  if (!("selfSeatId" in view) || !pending.zone) return null;
+  const selfId = (view as SeatView).selfSeatId;
+  const seat = seatPlacements(view, selfId, orientation).find(s => s.self); if (!seat) return null;
+  if (pending.zone === "ante") return { ...seat.ante, y: seat.ante.y - 10, z: 60 };
+  const flightCount = view.seats.find(s => s.id === selfId)?.flight.filter(f => f.cardId !== pending.cardId).length ?? 0;
+  return { x: seat.flight.x + flightCount * seat.flightStep, y: seat.flight.y - 10, rot: 0, scale: 1, z: 60 };
+}
+
 /** 由视口尺寸决定方向与缩放。 */
 export function fitPlane(width: number, height: number): { orientation: Orientation; scale: number; spec: PlaneSpec } {
   const orientation: Orientation = width < 640 || width < height * 0.9 ? "portrait" : "landscape";

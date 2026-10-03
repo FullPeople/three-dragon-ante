@@ -28,7 +28,7 @@ export function SeatBlock({ seat, placement, game, selfSeatId, lang, legalZone, 
       <span className="tda-seat-name">{seat.name}{self && seat.name !== t("you", lang) ? ` · ${t("you", lang)}` : ""}</span>
       <span className="tda-num tda-seat-gold">{gold}</span>
       {seat.debt ? <span className="tda-seat-debt">−{seat.debt}</span> : null}
-      {!self ? <span className="tda-seat-hand" title={t("hand", lang)}>🂠{seat.handCount}</span> : null}
+      {!self ? <span className="tda-seat-hand" title={t("hand", lang)}><svg viewBox="0 0 12 14" width="10" height="12" aria-hidden="true"><rect x="0.5" y="2.5" width="7" height="10" rx="1" fill="none" stroke="currentColor" /><rect x="4.5" y="0.5" width="7" height="10" rx="1" fill="#15100b" stroke="currentColor" /></svg>{seat.handCount}</span> : null}
     </div>
     {ribbon ? <div className={`tda-ribbon tda-ribbon--${ribbon}`} style={at(placement.ribbon)}>{t(RIBBON_KEY[ribbon], lang)}</div> : null}
     <div className={`tda-slot tda-slot--ante${anteLegal ? " is-legal" : ""}${dragOver === "ante" && self ? " is-over" : ""}`} style={{ left: placement.ante.x - CARD.w * s / 2 - 8, top: placement.ante.y - CARD.h * s / 2 - 8, width: CARD.w * s + 16, height: CARD.h * s + 16 }}

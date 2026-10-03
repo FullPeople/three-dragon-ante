@@ -12,7 +12,7 @@ const PALETTE: Record<FxKind, string[]> = {
   gold: ["#ffd36b", "#ffe9b0", "#e0a62a"],
 };
 
-export interface FxLayer { burst(point: { x: number; y: number }, kind: FxKind, strength?: number): void; arc(from: { x: number; y: number }, to: { x: number; y: number }, count?: number, onLand?: () => void): void; ripple(point: { x: number; y: number }, color?: string): void; shake(ms?: number): void; destroy(): void }
+export interface FxLayer { burst(point: { x: number; y: number }, kind: FxKind, strength?: number): void; arc(from: { x: number; y: number }, to: { x: number; y: number }, count?: number, onLand?: () => void, duration?: number): void; ripple(point: { x: number; y: number }, color?: string): void; shake(ms?: number): void; destroy(): void }
 
 export function mountFx(canvas: HTMLCanvasElement, host: HTMLElement): FxLayer {
   const ctx = canvas.getContext("2d");
@@ -70,7 +70,7 @@ export function mountFx(canvas: HTMLCanvasElement, host: HTMLElement): FxLayer {
   }
   return {
     burst(point, kind, strength = 1) { if (reduced()) return; const at = local(point); spawn(at, kind, Math.round(46 * strength), 170 * strength); ripples.push({ x: at.x, y: at.y, start: performance.now(), color: PALETTE[kind][1] }); request(); },
-    arc(from, to, count = 3, onLand) { if (reduced()) { onLand?.(); return; } arcs.push({ from: local(from), to: local(to), start: performance.now(), duration: 620, color: "#ffd36b", count: Math.max(1, Math.min(6, count)), onLand, landed: false }); request(); },
+    arc(from, to, count = 3, onLand, duration = 620) { if (reduced()) { setTimeout(() => onLand?.(), duration); return; } arcs.push({ from: local(from), to: local(to), start: performance.now(), duration, color: "#ffd36b", count: Math.max(1, Math.min(6, count)), onLand, landed: false }); request(); },
     ripple(point, color = "#ead38f") { if (reduced()) return; const at = local(point); ripples.push({ x: at.x, y: at.y, start: performance.now(), color }); request(); },
     shake(ms = 600) { if (reduced()) return; shakeUntil = performance.now() + ms; request(); },
     destroy() { destroyed = true; if (raf) cancelAnimationFrame(raf); observer.disconnect(); host.style.transform = ""; },
