@@ -126,7 +126,8 @@
   .tda-topbar { padding: 5px 10px; } .tda-topbar-title { font-size: 15px; } .tda-topbar-title small { display: none; }
   .tda-topbar-tools { gap: 4px; } .tda-topbar-tools .tda-btn { min-height: 30px; padding: 2px 8px; font-size: 12px; white-space: nowrap; }
   .tda-status { grid-template-columns: 1fr; gap: 6px; padding: 6px 10px; }
-  .tda-flow-step { padding: 2px 6px; font-size: 12px; }
+  .tda-flow { gap: 8px; } .tda-flow-gambit { padding: 1px 7px; font-size: 13px; } .tda-flow-gambit .tda-num { font-size: 15px; }
+  .tda-flow-step { padding: 1px 4px; font-size: 11px; gap: 4px; } .tda-flow-step + .tda-flow-step::before { left: -6px; width: 8px; } .tda-flow-dot { width: 11px; height: 11px; font-size: 8px; }
   .tda-waiting { font-size: 14px; white-space: normal; }
   .tda-actionbar { flex-direction: column; align-items: stretch; gap: 8px; padding: 8px 10px; }
   .tda-inspector { left: 10px; right: 10px; top: 128px; bottom: auto; width: auto; flex-direction: row; align-items: flex-start; gap: 8px; }
