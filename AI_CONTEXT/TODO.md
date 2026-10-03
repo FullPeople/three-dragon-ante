@@ -19,6 +19,7 @@
 - [x] 阶段 4 时序对齐：落地帧 → 说明 → 效果与金币（commit `2c2df3f`）。
 - [x] `test:browser` 改测新 `index.html`；`test:server-browser` 改新选择器。
 - [ ] **push 被拒**：用户 2026-10-03 授权"修复完之后推送"，但 `git push -u origin rebuild/presentation` 返回 403——Git Credential Manager 里的 GitHub 账号 `pzy197684` 对 `FullPeople/three-dragon-ante` 无写权限（本机未装 gh）。需用户：给该账号写权限 / 在凭据管理器换成有权限的账号 / 或改推到自己的 fork；之后重跑 push。是否合并 main 由用户定。
+- [ ] **fx3d 设计评审工作流结果待落地**（2026-10-04 会话因用量额度中断）：工作流 `fx3d-understand-design`（run `wf_46b40141-1ba`）已完成 4 位读者与 3 份设计稿，评审与合成在中断时仍在跑；结果（design / judges）在该会话的 workflows 目录 `…\subagents\workflows\wf_46b40141-1ba\journal.jsonl` 与各 `agent-*.jsonl` 里（原机器 scratch 会话）。下一会话：先把合成的设计文档抄进 `RUNBOOKS/2026-10-03_fx3d-kickoff.md` §4，再按 §3 顺序实施。
 - [ ] **three.js 特效层 fx3d（用户 2026-10-03 批准）**：地基已交付（runbook `2026-10-03_fx3d-kickoff.md` §2）；待办：设计定稿 → 图元工具箱 → 家族签名 → 单牌变体 → 传说牌定制 → 持续 / 环境 → 尘土与手；MIT 署名文件待随首个移植图元一起加入 `docs/design/ASSETS.md` 与 THIRD_PARTY 说明。
 - [ ] 字体子集化：vendor CSS 约 500 kB 来自 fontsource 全部 unicode-range 子集声明；可改为只保留 chinese-simplified + latin 子集或自建子集。
 - [ ] 枭熊真实房间验收（双账号、紧凑弹窗、全屏模态）；实体手机。
