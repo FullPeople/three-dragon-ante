@@ -1,19 +1,17 @@
 import OBR from '@owlbear-rodeo/sdk';
 import {getLocalLang,onLangChange,setLocalLang} from '../locale';
-import {mountTableUI} from './ui';
+import {mountTableUI} from '../presentation/mount';
 import type {TableView} from './protocol';
 import {SERVER_GRANT,SERVER_ROOM_KEY,SERVER_WINDOW,serverRoom,type ServerRoom,type ServerSession} from './server-protocol';
 import {registerServerSession,serverPost,setupServerAdmission,writeServerSession} from './server-session';
 import {ServerTableClient} from './server-client';
 import {readUIDraft} from './ui-command';
-import './style.css';import './stage-ui.css';
 
 export async function mountServerPage(initial:Record<string,unknown>){
  const root=document.getElementById('table-app')!,[playerId,name,initialRole]=await Promise.all([OBR.player.getId(),OBR.player.getName(),OBR.player.getRole()]);let role=initialRole,lastAdmission=0;
  let alive=true,client:ServerTableClient|undefined,room:ServerRoom|null=null,session:ServerSession|undefined,admitted=false,generation=0;
  const off: Array<()=>void>=[],instance=new URLSearchParams(location.search).get('instance')||'',draftKey='three-dragon-server-draft:'+OBR.room.id+':'+playerId;
- let overlay:any,overlayHost:HTMLElement|undefined;
- const surface=mountTableUI(root,{language:getLocalLang(),mode:new URLSearchParams(location.search).get('mode')==='compact'?'compact':'full',gesture:g=>client?.sendGesture(g),send:async command=>{
+ const surface=mountTableUI(root,{language:getLocalLang(),hostKind:'obr',onLanguage:language=>setLocalLang(language),mode:new URLSearchParams(location.search).get('mode')==='compact'?'compact':'full',gesture:g=>client?.sendGesture(g),send:async command=>{
   if(command.type==='close'||command.type==='display'||command.type==='remember'){
    if('draft'in command&&command.draft)try{sessionStorage.setItem(draftKey,JSON.stringify(command.draft));}catch{}
    if(command.type==='remember')return;
@@ -45,18 +43,10 @@ export async function mountServerPage(initial:Record<string,unknown>){
    },()=>surface.failed());client.start();
   }catch(error){fail(error);}
  }
- off.push(setupServerAdmission(),OBR.room.onMetadataChange(metadata=>{void adopt(metadata[SERVER_ROOM_KEY]);}),onLangChange(language=>{surface.language(language);overlay?.setLanguage(language);}));
+ off.push(setupServerAdmission(),OBR.room.onMetadataChange(metadata=>{void adopt(metadata[SERVER_ROOM_KEY]);}),onLangChange(language=>{surface.language(language);}));
  if(OBR.player.onChange)off.push(OBR.player.onChange(player=>{if(player.role!==role){role=player.role;lastAdmission=0;void askAdmission().catch(()=>{});}}));
  const timer=setInterval(()=>void askAdmission().catch(()=>{}),5000);
- root.querySelector<HTMLButtonElement>('#language')!.onclick=()=>setLocalLang(getLocalLang()==='en'?'zh':'en');
- function closeOverlay(){overlay?.destroy();overlay=undefined;overlayHost?.remove();overlayHost=undefined;root.inert=false;surface.resume();}
- async function guide(practice=false){
-  if(overlay)return;surface.suspend();root.inert=true;overlayHost=document.createElement('div');overlayHost.id=practice?'tutorial-host':'introduction-host';document.body.append(overlayHost);
-  try{if(practice){const m=await import('./tutorial');overlay=m.mountTutorial(overlayHost,getLocalLang(),closeOverlay);}else{const m=await import('./onboarding');overlay=m.mountOnboarding(overlayHost,{language:getLocalLang(),getAnchor:zone=>surface.getAnchor(zone),onClose:closeOverlay,onPractice(){closeOverlay();void guide(true);}});}}
-  catch{closeOverlay();}
- }
- root.querySelector<HTMLButtonElement>('#tutorial')!.onclick=()=>void guide();
- window.addEventListener('pagehide',()=>{alive=false;++generation;clearInterval(timer);client?.stop();closeOverlay();for(const f of off)f();surface.destroy();},{once:true});
+ window.addEventListener('pagehide',()=>{alive=false;++generation;clearInterval(timer);client?.stop();for(const f of off)f();surface.destroy();},{once:true});
  await adopt(initial[SERVER_ROOM_KEY]);
  try{const draft=readUIDraft(JSON.parse(sessionStorage.getItem(draftKey)||'null'));if(draft)surface.restore(draft);}catch{}
 }

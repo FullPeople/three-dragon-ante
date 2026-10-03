@@ -1,6 +1,7 @@
 /** 牌桌根组件：顶栏 / 流程轨 + 等待行 / 场景 / 行动栏，再叠选择面板、详视、横幅、聚光、计分板、终局、大厅。 */
 import { useEffect, useMemo, useRef } from "react";
-import { privateGame, useStore, type Store } from "./store";
+import { omniscientGame, privateGame, useStore, type Store } from "./store";
+import { Editor } from "../hud/Editor";
 import type { Controller } from "./controller";
 import { TableScene } from "../scene/TableScene";
 import { FlowRail } from "../hud/FlowRail";
@@ -27,15 +28,18 @@ export function TableApp({ store, controller, onFx, onOrientation, showTopBar }:
   const root = useRef<HTMLDivElement>(null);
   useEffect(() => { const el = root.current; if (!el) return; const onKey = (event: KeyboardEvent) => { if ((event.target as HTMLElement)?.closest?.("input, select, textarea")) return; controller.keyboard(event); }; el.addEventListener("keydown", onKey); return () => el.removeEventListener("keydown", onKey); }, [controller]);
   const inGame = !!game;
-  return <div ref={root} className={`tda-shell${state.busy ? " is-busy" : ""}${state.pending ? " is-pending" : ""}`} data-phase={game?.phase ?? "lobby"} data-busy={state.busy} data-pending-action={state.pending ? "true" : "false"} data-renderer="dom25" tabIndex={-1}>
+  const omniscient = !!omniscientGame(view);
+  return <div ref={root} className={`tda-shell${state.busy ? " is-busy" : ""}${state.pending ? " is-pending" : ""}`} data-phase={game?.phase ?? "lobby"} data-busy={state.busy} data-pending-action={state.pending ? "true" : "false"} data-omniscient={String(omniscient)} data-mode={state.mode} data-renderer="dom25" tabIndex={-1}>
     {showTopBar ? <header className="tda-topbar">
       <div className="tda-topbar-title">{t("siteTitle", lang)}</div>
       <div className="tda-topbar-tools">
         <button type="button" className="tda-btn tda-btn--quiet" onClick={() => store.set(s => ({ helpOpen: !s.helpOpen }))} aria-pressed={state.helpOpen}>{t("help", lang)}</button>
         <button type="button" className="tda-btn tda-btn--quiet" onClick={() => controller.toggleSound()} aria-pressed={state.soundOn}>{t(state.soundOn ? "soundOn" : "soundOff", lang)}</button>
         <button type="button" className="tda-btn tda-btn--quiet" onClick={() => controller.setLanguage(lang === "zh" ? "en" : "zh")}>{lang === "zh" ? "English" : "中文"}</button>
-        {state.hostKind === "local" || view?.isHost ? <button type="button" className="tda-btn tda-btn--quiet" onClick={() => controller.send({ type: "newGame" })} disabled={!inGame}>{t("newGame", lang)}</button> : null}
-        <button type="button" className="tda-btn tda-btn--quiet" onClick={() => controller.send({ type: "close" })}>{t("leaveGame", lang)}</button>
+        {state.hostKind === "obr" && inGame && (view?.isHost || view?.role === "GM") ? <button type="button" id="omniscient-toggle" className={`tda-btn tda-btn--quiet${omniscient ? " is-on" : ""}`} aria-pressed={omniscient} onClick={() => controller.send({ type: "omniscient", enabled: !omniscient })}>{t(omniscient ? "omniscientOn" : "omniscientOff", lang)}</button> : null}
+        {state.hostKind === "local" || view?.isHost ? <button type="button" className="tda-btn tda-btn--quiet" onClick={() => controller.send({ type: "newGame" })} disabled={!inGame || (state.hostKind === "obr" && view?.table?.stage === "lobby")}>{t("newGame", lang)}</button> : null}
+        {state.hostKind === "obr" ? <button type="button" id="display-mode" className="tda-btn tda-btn--quiet" onClick={() => controller.send({ type: "display", mode: state.mode === "compact" ? "full" : "compact" })}>{t(state.mode === "compact" ? "expand" : "minimize", lang)}</button> : null}
+        <button type="button" id="close" className="tda-btn tda-btn--quiet" onClick={() => controller.send({ type: "close" })}>{t(state.hostKind === "obr" ? "backToMap" : "leaveGame", lang)}</button>
       </div>
     </header> : <div />}
     <div className="tda-status">
@@ -56,6 +60,7 @@ export function TableApp({ store, controller, onFx, onOrientation, showTopBar }:
     <ScoreBoard state={state} />
     <PowerSpotlight state={state} controller={controller} />
     <EndPanel state={state} controller={controller} />
+    <Editor state={state} controller={controller} />
     <Lobby state={state} controller={controller} />
   </div>;
 }

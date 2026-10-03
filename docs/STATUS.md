@@ -1,4 +1,13 @@
-# 2026-10-03 · 独立三龙牌源码仓库
+# 2026-10-03 · 表现层重构（分支 rebuild/presentation）
+
+旧表现层（three.js 舞台、innerHTML + React 岛屿、合成音、程序化纹理、教程课程、历史回放）已删除，替换为 `src/presentation/`：DOM 2.5D 牌桌 + WebGL 法线贴图桌面 + 照片材质 HUD + 真实音效。`index.html` 为独立网站入口，`table.html` 为枭熊牌桌页。`verify:source` 与 `three` 依赖已移除。
+
+本机验证：`npm run typecheck`、`npm run build`、`npm test` 7/7、`npm run test:server`、`npm run test:browser`（独立网站桌面 + 手机）、`npm run test:server-browser`（四客户端 + 本地服务）。首次 CI 结果以 GitHub 回执为准。枭熊真实房间、实体手机未验证。阶段记录与遗留见 `AI_CONTEXT/RUNBOOKS/` 与 `AI_CONTEXT/TODO.md`。
+
+---
+
+# 历史 · 2026-10-03 · 独立三龙牌源码仓库（拆分时）
+
 
 从 Suite dev `54766302f88e2bd35a179f5f45124133dd9c81af` 提取，前端版本保持 `0.7.21-dev`。
 独立依赖、前端构建、服务构建、回归入口和 CI 已配置。Windows Node 22.17.1 本机验证结果如下，GitHub 首次 CI 结果另行记录。

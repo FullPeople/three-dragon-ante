@@ -14,13 +14,13 @@ export default defineConfig({
   plugins: [{ name: "standalone-manifest", generateBundle() {
     this.emitFile({ type: "asset", fileName: "manifest.json", source: JSON.stringify({
       name: `Three-Dragon Ante${dev ? " (Dev)" : ""}`, version,
-      manifest_version: 1, author: "FullPeople", description: "三龙牌 · Legendary Edition 基础牌桌 / A shared tavern card table with guided practice.",
+      manifest_version: 1, author: "FullPeople", description: "三龙牌 · Legendary Edition 牌桌 / A shared tavern card table.",
       icon: `${base}icon.svg`, background_url: `${base}background.html`,
       action: { title: "三龙牌 / Three-Dragon Ante", icon: `${base}icon.svg`, popover: `${base}launcher.html`, width: 300, height: 180 },
     }, null, 2) });
   } }],
   build: {target:['chrome109','edge109','firefox102','safari15.4'], outDir: "dist", emptyOutDir: true, rollupOptions: {
-    input: { site: resolve(root, "index.html"), background: resolve(root, "background.html"), table: resolve(root, "table.html"), launcher: resolve(root, "launcher.html"), practice: resolve(root, "practice.html") },
-    output: { manualChunks: id => /node_modules[/\\]three[/\\]/.test(id) ? "table-engine" : id.includes("node_modules") ? "vendor" : undefined },
+    input: { site: resolve(root, "index.html"), background: resolve(root, "background.html"), table: resolve(root, "table.html"), launcher: resolve(root, "launcher.html") },
+    output: { manualChunks: id => id.includes("node_modules") ? "vendor" : undefined },
   } },
 });

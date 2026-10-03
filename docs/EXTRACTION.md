@@ -27,8 +27,9 @@
 测试浏览器从仓库自身依赖加载；Windows Edge 与官方 Chromium 均可选择。
 测试证据、服务构建与本地数据库改用本仓库或临时目录，解除对 D:/Temp、Codex 专用安装和相邻 web 仓库的依赖。
 
-SOURCE.json 的 adaptedFiles 明确列出修改过的构建/测试/说明文件；其余提取文件可通过 `npm run verify:source` 逐文件核对。
-游戏运行源码、服务运行源码、规则和素材未为拆分改写。
+SOURCE.json 的 adaptedFiles 明确列出拆分时修改过的构建/测试/说明文件；拆分当日其余文件与上游逐字一致。
+
+**2026-10-03 起**：表现层整体重做（见 `AI_CONTEXT/GOAL.md`），`verify:source` 脚本与 CI 步骤已移除，`SOURCE.json` 只作为拆分来源的历史记录保留，不再作为校验依据。规则、协议、控制器、服务端与卡图未改。
 
 ## 维护和发布边界
 

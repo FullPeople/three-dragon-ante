@@ -138,3 +138,55 @@
   .tda-choice { top: 10px; max-height: 70%; padding: 12px; } .tda-choice-card { width: 70px; }
   .tda-score-row { grid-template-columns: 60px minmax(0, 1fr) 80px; padding: 6px; gap: 6px; } .tda-score-card { width: 38px; }
 }
+
+/* 枭熊大厅设置 */
+.tda-lobby-board { width: min(560px, 100%); max-height: 100%; overflow: auto; text-align: left; }
+.tda-lobby-board h2 { text-align: center; }
+.tda-lobby-seats li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 0; border-bottom: 1px solid rgba(60, 40, 20, .25); }
+.tda-lobby-kick { min-height: 26px; padding: 0 8px; font-size: 12px; color: var(--ink); }
+.tda-setup { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; margin: 12px 0; padding: 12px; border: 1px solid rgba(60, 40, 20, .35); border-radius: 2px; }
+.tda-setup label { display: grid; gap: 4px; font-size: 13px; color: #5a4328; }
+.tda-setup input, .tda-setup select { width: 100%; padding: 6px 8px; border: 1px solid #4a3522; border-radius: 2px; background: rgba(255, 255, 255, .35); color: var(--ink); font-family: var(--font-body); }
+.tda-setup-summary { grid-column: 1 / -1; margin: 0; font-size: 13px; color: #5a4328; }
+.tda-specials { grid-column: 1 / -1; }
+.tda-specials-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; max-height: 220px; overflow: auto; }
+.tda-special { display: grid; grid-template-columns: 16px 36px minmax(0, 1fr); align-items: center; gap: 6px; padding: 4px; border: 1px solid rgba(60, 40, 20, .3); border-radius: 2px; font-size: 12px; cursor: pointer; }
+.tda-special.is-on { background: rgba(201, 162, 77, .35); border-color: #8a6a2a; }
+.tda-special img { width: 36px; aspect-ratio: 1250 / 2208; object-fit: cover; border-radius: 2px; }
+.tda-setup .tda-lobby-note { grid-column: 1 / -1; margin: 0; }
+.tda-lobby .tda-end-actions { margin-top: 12px; }
+
+/* 全能编辑器 */
+.tda-editor { position: absolute; inset: 12px; z-index: 85; display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; overflow: auto; font-size: 13px; }
+.tda-editor-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding-bottom: 8px; border-bottom: 1px solid rgba(60, 40, 20, .35); }
+.tda-editor-head h2 { margin: 0; font-family: var(--font-display); font-size: 17px; }
+.tda-editor-head p { margin: 0; max-width: 46ch; color: #5a4328; }
+.tda-editor-piles { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
+.tda-editor-pile { display: flex; flex-direction: column; align-items: center; min-width: 54px; padding: 2px 6px; border: 1px solid rgba(60, 40, 20, .35); border-radius: 2px; }
+.tda-editor-pile small { font-size: 11px; color: #5a4328; } .tda-editor-pile b { font-size: 15px; }
+.tda-editor-body { display: flex; flex-direction: column; gap: 8px; }
+.tda-editor-seat, .tda-editor-remove { padding: 8px 10px; border: 1px solid rgba(60, 40, 20, .35); border-radius: 2px; background: rgba(255, 255, 255, .22); }
+.tda-editor-seat h3 { margin: 0 0 4px; font-family: var(--font-display); font-size: 14px; }
+.tda-editor-gold { display: flex; align-items: center; gap: 6px; margin: 2px 0 6px; }
+.tda-editor-gold input { width: 90px; padding: 2px 6px; border: 1px solid #4a3522; border-radius: 2px; background: rgba(255, 255, 255, .4); color: var(--ink); }
+.tda-editor-ante { display: flex; align-items: center; gap: 6px; margin: 2px 0 6px; }
+.tda-editor-hand { display: flex; flex-wrap: wrap; gap: 6px; min-height: 40px; align-items: flex-start; }
+.tda-editor-card { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 56px; padding: 2px; border: 1px solid transparent; border-radius: 2px; background: none; color: var(--ink); cursor: pointer; }
+.tda-editor-card:hover { border-color: #8a6a2a; } .tda-editor-card.is-picked { border-color: #8a6a2a; background: rgba(201, 162, 77, .35); }
+.tda-editor-card img { width: 100%; aspect-ratio: 1250 / 2208; object-fit: cover; border-radius: 2px; display: block; }
+.tda-editor-card span { font-size: 10px; line-height: 1.15; text-align: center; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.tda-editor-add { justify-content: center; font-size: 18px; border: 1px dashed #8a6a2a; aspect-ratio: .566; }
+.tda-editor-remove { border-style: dashed; text-align: center; cursor: pointer; } .tda-editor-remove h3 { margin: 0; font-size: 14px; } .tda-editor-remove p { margin: 2px 0 0; color: #5a4328; }
+.tda-editor-menu { position: fixed; z-index: 90; display: flex; flex-direction: column; min-width: 150px; padding: 4px; }
+.tda-editor-menu button { padding: 5px 8px; border: 0; text-align: left; background: none; color: var(--ink); cursor: pointer; }
+.tda-editor-menu button:hover { background: rgba(201, 162, 77, .35); }
+.tda-editor-submenu { display: flex; flex-direction: column; max-height: 150px; overflow: auto; margin: 2px 0 2px 10px; border-left: 1px solid rgba(60, 40, 20, .35); padding-left: 4px; }
+.tda-editor-search { padding: 8px 10px; border: 1px solid #8a6a2a; border-radius: 2px; background: rgba(255, 255, 255, .25); }
+.tda-editor-search h3 { margin: 0 0 6px; font-size: 14px; }
+.tda-editor-search input { width: 100%; max-width: 26rem; padding: 4px 8px; border: 1px solid #4a3522; border-radius: 2px; background: rgba(255, 255, 255, .5); color: var(--ink); }
+.tda-editor-candidates { display: flex; flex-wrap: wrap; gap: 4px; max-height: 14rem; overflow: auto; margin-top: 6px; }
+.tda-editor-candidates .tda-editor-card { width: 50px; }
+
+/* 枭熊紧凑弹窗 */
+.tda-shell[data-mode="compact"] .tda-topbar-title { font-size: 15px; }
+.tda-shell[data-mode="compact"] .tda-topbar-tools .tda-btn { min-height: 30px; padding: 2px 8px; font-size: 12px; }

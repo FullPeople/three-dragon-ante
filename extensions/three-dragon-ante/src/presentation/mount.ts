@@ -30,6 +30,8 @@ export interface TableUIDeps {
   hostKind?: "local" | "obr";
   /** 宿主自己画顶栏时关掉 */
   topBar?: boolean;
+  /** 用户在 UI 里切换语言时通知宿主（枭熊页用它写入本地语言偏好） */
+  onLanguage?(language: TableLanguage): void;
 }
 
 export interface TableUISurface {
@@ -53,7 +55,10 @@ export function mountTableUI(root: HTMLElement, deps: TableUIDeps): TableUISurfa
   const store: Store = createStore(initial);
   let fx: FxLayer | null = null, orientation: Orientation = "landscape", destroyed = false, notifiedBusy = false;
   const audio = createAudio(root, () => store.get().soundOn);
-  const controller = createController(store, { send: deps.send, gesture: deps.gesture, id: deps.id });
+  const controller = createController(store, { send: deps.send, gesture: deps.gesture, id: deps.id, onLanguage: deps.onLanguage });
+  root.dataset.mode = deps.mode ?? "full";
+  // 宿主与测试夹具从挂载根读取的状态镜像。
+  store.subscribe(() => { const s = store.get(); root.dataset.pendingAction = s.pending ? "true" : "false"; root.dataset.omniscient = String(!!(s.view?.game && "omniscient" in s.view.game && (s.view.game as { omniscient?: boolean }).omniscient)); root.dataset.busy = String(s.busy); });
   (controller as unknown as { _setDrag(v: UIState["drag"]): void })._setDrag = value => store.set({ drag: value });
   const presenter = createPresenter(store, controller, { fx: () => fx, root: () => root, onBusy: busy => { if (busy !== notifiedBusy) { notifiedBusy = busy; deps.onPresentationChange?.(busy); } }, sound: (kind, key) => audio.play(kind, key) });
   root.classList.add("tda-root");
@@ -127,7 +132,8 @@ export function mountTableUI(root: HTMLElement, deps: TableUIDeps): TableUISurfa
     destroy() {
       if (destroyed) return; destroyed = true;
       presenter.destroy(); audio.destroy(); for (const timer of gestureTimers.values()) clearTimeout(timer); for (const timer of slowTimers.values()) clearTimeout(timer);
-      reactRoot.unmount(); root.classList.remove("tda-root"); root.replaceChildren();
+      // React 19 可能把 unmount 推迟到当前提交之后；这里不能再手动清空容器，否则它稍后 removeChild 会找不到节点。
+      reactRoot.unmount(); root.classList.remove("tda-root");
     },
   };
   void orientation;

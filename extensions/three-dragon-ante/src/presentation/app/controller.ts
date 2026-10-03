@@ -9,7 +9,7 @@ export interface ControllerDeps {
   send(command: TableUICommand): void | Promise<void>;
   gesture?(value: HandGesture): void;
   id?(): string;
-  onLocked?(): void;
+  onLanguage?(lang: "zh" | "en"): void;
 }
 
 export interface Controller {
@@ -116,7 +116,7 @@ export function createController(store: Store, deps: ControllerDeps): Controller
       if (p) { store.set({ sending: true, localMessage: "" }); void Promise.resolve(deps.send({ type: "retry", tableId: p.tableId, gameId: p.gameId, action: structuredClone(p.action) })).catch(() => store.set({ sending: false, localMessage: "requestFailed" })); }
       else this.send({ type: "retry" });
     },
-    setLanguage(lang) { store.set({ lang }); },
+    setLanguage(lang) { if (store.get().lang === lang) return; store.set({ lang }); deps.onLanguage?.(lang); },
     toggleSound() { const next = !store.get().soundOn; try { localStorage.setItem("three-dragon-ante.sound.v2", next ? "on" : "off"); } catch {} store.set({ soundOn: next }); },
     cancelKeyboard() { store.set({ keyboardHeld: false }); publish(); },
     publishGesture: publish,

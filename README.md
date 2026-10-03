@@ -1,14 +1,12 @@
 # 三龙牌 · Three-Dragon Ante
 
-三龙牌的独立源码仓库：包含网页练习、Owlbear Rodeo 独立扩展、三维牌桌、纯规则引擎、权威游戏服务，以及读取历史牌桌所需的兼容源码。
+D&D 桌游《三龙牌·传奇版》的网页实现：**独立网站**（无需账号，与机器人对战）为核心，**Owlbear Rodeo 扩展**（多人、权威游戏服务）为次要适配。规则引擎是纯函数；公共投影永不含牌库顺序与他人手牌。
 
-本仓库由 `FullPeople/obr-suite` 的 `dev` 分支拆出，固定来源提交为
-[`54766302f88e2bd35a179f5f45124133dd9c81af`](https://github.com/FullPeople/obr-suite/commit/54766302f88e2bd35a179f5f45124133dd9c81af)。
-三龙牌前端版本保留 `0.7.21-dev`，本次建仓库没有部署或改变线上牌局。
+2026-10-03 起表现层整体重做（分支 `rebuild/presentation`）：写实风 2.5D 牌桌，照片扫描材质（CC0）与 WebGL 法线贴图光照，无渐变、无发光的 HUD；去掉了历史回放与练习课程。决策与阶段记录见 `AI_CONTEXT/GOAL.md`，视觉规格见 `docs/design/VISUAL_SPEC.md` 与 `docs/design/ANTI_AI_FEEL.md`。
 
-## 安装与本地体验
+## 安装与本地运行
 
-使用 **Node.js 22.17+**，推荐 `.nvmrc` 中的 22.17.1。所有命令从本仓库根目录执行，不需要 Suite 或 DND-card-web 的相邻工作树。
+Node.js 22.17+（`.nvmrc`）。所有命令在仓库根目录执行。
 
 ```sh
 npm ci --ignore-scripts
@@ -16,15 +14,22 @@ npm run build
 npm run dev
 ```
 
-打开 <http://127.0.0.1:5173/three-dragon-ante-dev/practice.html>。
-练习模式无需账号、房间或游戏服务器；它不会读写线上牌局，刷新会重新开始。
+打开 <http://127.0.0.1:5173/three-dragon-ante-dev/>。首页选择对手数量后开始本地对战；刷新会重新开始，不读写任何线上牌局。
 
-构建输出为 `extensions/three-dragon-ante/dist/`。`npm run preview` 可以预览实际生产构建，端口为 4173。
+构建输出在 `extensions/three-dragon-ante/dist/`；`npm run preview` 预览生产构建（端口 4173）。
 
-已有线上入口：
+## 目录
 
-- [独立插件安装地址](https://obr.dnd.center/three-dragon-ante-dev/manifest.json)
-- [网页练习](https://obr.dnd.center/three-dragon-ante-dev/practice.html)
+| 路径 | 内容 |
+|---|---|
+| `extensions/three-dragon-ante/src/presentation/` | 新表现层：`mount.ts`（`mountTableUI` 契约）、`app/`（状态、输入、演出调度）、`scene/`（2.5D 牌桌、卡牌层、WebGL 桌面）、`hud/`（流程轨、等待行、行动栏、选择、详视、横幅、聚光、计分板、大厅、全能编辑器）、`fx/`、`audio/`、`theme/`、`assets/`（CC0 纹理与音效）、`local/LocalMatch.ts`（本地机器人宿主） |
+| `extensions/three-dragon-ante/src/site/` | 独立网站壳（`index.html` 入口） |
+| `extensions/three-dragon-ante/src/game/` | 规则引擎 `rules/`、协议、私牌通道、控制器、枭熊页面（`table.html` 入口）、后台 |
+| `extensions/three-dragon-ante/src/game/art/` | 卡面扫描件（©2021 Wizards，沿用原公开源码，不主张原创） |
+| `server/three-dragon/` | 权威游戏服务（ws + SQLite） |
+| `src/modules/threeDragonAnte/` | 早期稳定频道的兼容源码（旧 UI，原样保留） |
+| `tools/` | 规则 / 控制器 / 服务端回归与浏览器冒烟 |
+| `AI_CONTEXT/`、`docs/` | 目标、规格、留痕、历史文档 |
 
 ## 多人游戏服务
 
@@ -34,53 +39,21 @@ npm run build:server
 npm run dev:server
 ```
 
-本地服务监听 `127.0.0.1:5013`，测试存档位于被 Git 忽略的 `.local-data/game.sqlite`。
-把 `.env.example` 复制为 `.env.local`，再启动前端，即可让前端请求本地代理 API。
-真实枭熊扩展需要可访问的 HTTPS/WSS 地址与正确的 `TDA_ORIGIN`；本地网页练习不等于独立账号登录或多人服务。
-
-服务使用现有规则引擎、WebSocket 和 SQLite WAL。提交成功才确认动作；重复动作不会重复执行。
-身份准入由枭熊真实连接确认，GM 权限有租约；私牌只发送给对应玩家或获得授权的私有查看者。
-生产部署配置示例保留于 `server/three-dragon/obr-three-dragon.service`，本次不安装或运行生产服务。
-
-## 最近保留的修复
-
-- 旧大厅主持与旧座位均离线时，经过宽限时间允许当前 GM 接管；在线老座位保持优先级。
-- 多窗口、多候选人竞争、重连和权限变化时再次核对主持资格。
-- Suite 历史牌桌兼容入口与独立插件各用对应频道，避免两个写入端争用历史牌桌。
-- 旧版本地消息处理使用当前连接身份，拒绝旧连接与销毁后迟到的结果。
-- 进行中的历史牌局缺少私有存档时显示恢复提示，保留记录，不清桌、不编造手牌。
-- 新服务器牌局保留断线主持自动交接、状态与私牌持久化、动作幂等和恢复逻辑。
-
-`extensions/three-dragon-ante/src/game/` 为当前实现；`src/modules/threeDragonAnte/` 为早期稳定频道兼容源码。
-后者仍使用原来的房间键、IndexedDB 名称和规则，不能把旧进行中牌局当作空大厅重新创建。
-独立扩展不会自动接管 Suite 的历史频道。拆出源码也不会自动让 Suite 改用本仓库。
+本地服务监听 `127.0.0.1:5013`，存档在 `.local-data/game.sqlite`（gitignore）。把 `.env.example` 复制为 `.env.local` 后启动前端即可走本地代理。真实枭熊扩展需要 HTTPS/WSS 地址与正确的 `TDA_ORIGIN`；独立网站不等于多人服务。
 
 ## 验证
 
 ```sh
-npm run verify:source
-npm test
-npm run test:server
-npm run test:browser
-npm run test:server-browser
+npm test                 # 规则、私牌边界、控制器、主持交接、旧牌桌恢复、时光龙
+npm run test:server      # 真实本地 WebSocket + SQLite
+npm run test:browser     # 独立网站生产构建：开局、暗置、翻注、出牌；零外部请求
+npm run test:server-browser   # 四个浏览器客户端 + 本地服务：创建、准入、入座、发牌、全能边界、刷新恢复
 ```
 
-先完成两份依赖安装、前端和服务端构建。Windows 默认使用已安装的 Edge；其他系统先执行
-`npx playwright install chromium`，使用官方 Playwright Chromium。
-可设置 `PLAYWRIGHT_CHANNEL` 或 `TDA_BROWSER` 指定浏览器。
+先完成两份依赖安装与前端 / 服务端构建。Windows 默认用已安装的 Edge；其他系统先执行 `npx playwright install chromium`。证据写入 `.local-evidence/`（gitignore）。枭熊身份边界是夹具，不等同真实账号房间验收。
 
-`npm test` 包含私牌泄露与故意变异检查、控制器、主持交接、两代旧牌桌恢复、连接身份和时光龙回归。
-服务测试使用真实本地 WebSocket、SQLite 与事务失败注入。
-浏览器测试覆盖生产构建练习入口及本地多人 UI；枭熊身份边界是夹具，不等同真实账号房间验收。
-本机证据保留于 `.local-evidence/` 或系统临时目录，不上传玩家数据。
+## 素材与许可
 
-更多历史渲染与教程测试保留在源码目录的 `*-selftest.mjs` 中，没有全部纳入本次拆分验收。
-实际通过项和限制见 [docs/STATUS.md](docs/STATUS.md)。
+代码 GPL-3.0。卡面扫描件版权归 Wizards，沿用原公开源码的声明。纹理（Poly Haven、ambientCG）与音效（Kenney）均为 CC0，逐文件登记在 `docs/design/ASSETS.md`；不使用 AI 生成素材。字体 Noto Serif SC / Noto Sans SC / Cinzel（OFL）随包自托管，产物不向外部域发请求。
 
-## 来源与许可
-
-保留原仓库的 GPL-3.0 许可证与作者信息。Three.js 的 MIT 许可保留于前端 `public/THREE-LICENSE.txt`。
-牌面扫描、原印刷版权说明和参考素材沿用原公开源码，不宣称其为本项目原创或由 GPL 授权；二次发布素材应遵守各自权利要求。
-
-[SOURCE.json](SOURCE.json) 记录拆分来源与文件 SHA-256；[docs/EXTRACTION.md](docs/EXTRACTION.md) 解释目录与维护边界。
-上游历史提交继续保留在原仓库，本仓库首个提交是注明精确来源的独立快照。
+`SOURCE.json` 是 2026-10-03 从 `FullPeople/obr-suite` 拆分时的来源记录（见 `docs/EXTRACTION.md`），重构后不再作为校验依据。
