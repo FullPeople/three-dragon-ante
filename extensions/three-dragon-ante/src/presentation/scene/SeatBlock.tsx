@@ -44,6 +44,8 @@ export function SeatBlock({ seat, placement, game, selfSeatId, lang, legalZone, 
       {!self ? <span className="tda-seat-hand" title={t("hand", lang)}><svg viewBox="0 0 12 14" width="10" height="12" aria-hidden="true"><rect x="0.5" y="2.5" width="7" height="10" rx="1" fill="none" stroke="currentColor" /><rect x="4.5" y="0.5" width="7" height="10" rx="1" fill="#15100b" stroke="currentColor" /></svg>{seat.handCount}</span> : null}
     </div>
     {ribbon ? <div className={`tda-ribbon tda-ribbon--${ribbon}`} style={{ ...at(placement.ribbon), "--rot": `${plateRot}deg` } as React.CSSProperties}>{t(RIBBON_KEY[ribbon], lang)}</div> : null}
+    {/* 大法师效果：绶带位置旁的第二条绶带（身份标签区，不往桌心伸、不压牌堆） */}
+    {seat.archmage ? <div className="tda-ribbon tda-ribbon--archmage" style={{ ...at({ x: placement.ribbon.x + dir.x * 80, y: placement.ribbon.y + dir.y * 80 }), "--rot": `${plateRot}deg` } as React.CSSProperties}>{t("archmage", lang)}</div> : null}
     <div className={`tda-slot tda-slot--ante${anteLegal ? " is-legal" : ""}${dragOver === "ante" && self ? " is-over" : ""}`} style={box(placement.ante, CARD.w * s + 16, CARD.h * s + 16)}
       data-drop-zone="ante" data-drop-seat={seat.id} onClick={anteLegal ? () => onZoneClick("ante") : undefined} role={anteLegal ? "button" : undefined} aria-label={self ? t("placeAnte", lang) : undefined}>
       <span className="tda-slot-label">{t("ante", lang)}</span>
@@ -58,6 +60,5 @@ export function SeatBlock({ seat, placement, game, selfSeatId, lang, legalZone, 
       <span className="tda-num">{tally ? tally.value : changed ? `${seat.strength} → ${seat.scoringStrength}` : seat.strength}</span>
     </div>
     {formation ? <span className={`tda-formation tda-formation--${formation}`} style={{ left: formationAt.x, top: formationAt.y, position: "absolute", transform: `translate(-50%, -50%) translateZ(26px) rotate(${rot}deg)` }}>{t(formation === "color" ? "formationColor" : formation === "strength" ? "formationStrength" : "formationMortal", lang)}</span> : null}
-    {seat.archmage ? <span className="tda-formation tda-formation--archmage" style={{ left: formationAt.x + inward.x * 26, top: formationAt.y + inward.y * 26, position: "absolute", transform: `translate(-50%, -50%) translateZ(26px) rotate(${rot}deg)` }}>{t("archmage", lang)}</span> : null}
   </div>;
 }

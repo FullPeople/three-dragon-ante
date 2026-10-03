@@ -13,8 +13,10 @@ import { FieldLayer } from "./FieldLayer";
 import { GhostLayer } from "./GhostLayer";
 import { t } from "../i18n";
 import { mountFx, type FxLayer } from "../fx/particles";
+import { mountFxStage, type FxStage } from "../fx3d/FxStage";
+import { debugMarkers } from "../fx3d/debug";
 
-export interface TableSceneProps { state: UIState; controller: Controller; onFx(fx: FxLayer | null): void; onOrientation(orientation: Orientation): void; onLand?(key: string, zone: string): void }
+export interface TableSceneProps { state: UIState; controller: Controller; onFx(fx: FxLayer | null): void; onFx3d?(stage: FxStage | null): void; onOrientation(orientation: Orientation): void; onLand?(key: string, zone: string): void }
 
 /** 指向器：二次贝塞尔上的 chevron 列，越靠近指针越大，末端箭头。 */
 function PointerArrow({ from, to, legal }: { from: { x: number; y: number }; to: { x: number; y: number }; legal: boolean }) {
@@ -34,9 +36,10 @@ function PointerArrow({ from, to, legal }: { from: { x: number; y: number }; to:
   </svg>;
 }
 
-export function TableScene({ state, controller, onFx, onOrientation, onLand }: TableSceneProps) {
-  const host = useRef<HTMLDivElement>(null), canvas = useRef<HTMLCanvasElement>(null);
-  const fxRef = useRef<FxLayer | null>(null);
+export function TableScene({ state, controller, onFx, onFx3d, onOrientation, onLand }: TableSceneProps) {
+  const host = useRef<HTMLDivElement>(null), canvas = useRef<HTMLCanvasElement>(null), airCanvas = useRef<HTMLCanvasElement>(null), groundCanvas = useRef<HTMLCanvasElement>(null);
+  const fxRef = useRef<FxLayer | null>(null), fx3dRef = useRef<FxStage | null>(null);
+  const fx3dDebug = typeof location !== "undefined" && new URLSearchParams(location.search).get("fx3dDebug") === "1";
   const [fit, setFit] = useState(() => fitPlane(1440, 820));
   useLayoutEffect(() => {
     const el = host.current; if (!el) return;
@@ -45,6 +48,13 @@ export function TableScene({ state, controller, onFx, onOrientation, onLand }: T
   }, []);
   useEffect(() => { onOrientation(fit.orientation); }, [fit.orientation]);
   useEffect(() => { const c = canvas.current, h = host.current; if (!c || !h) return; const fx = mountFx(c, h); fxRef.current = fx; onFx(fx); return () => { fx.destroy(); fxRef.current = null; onFx(null); }; }, []);
+  // three.js 特效舞台（空中 + 地面两张画布）；WebGL 不可用时为 null，只剩贴图粒子层
+  useEffect(() => {
+    const h = host.current, a = airCanvas.current; if (!h || !a) return;
+    const stage = mountFxStage(h, a, groundCanvas.current); fx3dRef.current = stage; onFx3d?.(stage);
+    if (stage && fx3dDebug) (window as unknown as { __tdaFx3d?: FxStage }).__tdaFx3d = stage;
+    return () => { stage?.destroy(); fx3dRef.current = null; onFx3d?.(null); };
+  }, []);
 
   const view = state.display, game = view?.game ?? null, own = privateGame(view);
   const orientation = fit.orientation, spec = fit.spec, center = CENTER[orientation];
@@ -53,6 +63,11 @@ export function TableScene({ state, controller, onFx, onOrientation, onLand }: T
   // 上一帧每个节点的位姿与所在层，两层共用；渲染后把已消失的 key 清掉，同一张牌日后再出现仍算"新来的"
   const known = useRef(new Map<string, KnownEntry>());
   useEffect(() => { const keys = new Set(placements.map(p => p.key)); for (const key of [...known.current.keys()]) if (!keys.has(key)) known.current.delete(key); for (const p of placements) known.current.set(p.key, { pose: p.pose, layer: isHeldByPending(p, state.pending, own?.selfSeatId ?? null) ? "table" : p.layer }); });
+  useEffect(() => {
+    const stage = fx3dRef.current; if (!stage || !fx3dDebug || !game) return;
+    const pts = [center.deck, center.discard, center.stakes, center.hole, ...seats.flatMap(s => [s.ante, s.coins, s.flight])];
+    return debugMarkers(stage, pts);
+  }, [fx3dDebug, game?.id, seats.length, orientation]);
   const handAt = handLayerPlacement(orientation);
   const shape = tableShape(game?.seats.length ?? 3);
   const legalZone = controller.legalZone();
@@ -127,6 +142,7 @@ export function TableScene({ state, controller, onFx, onOrientation, onLand }: T
       <div className="tda-viewport">
         <div className="tda-plane">
           <TableSurface width={spec.w} height={spec.h} scale={fit.scale} shape={shape} />
+          <canvas ref={groundCanvas} className="tda-fx3d-ground" aria-hidden="true" />
           {game ? <>
             <FieldLayer game={game} seats={seats} fx={fxRef.current} lang={state.lang} host={host.current} />
             <div className="tda-pile tda-pile--deck" style={{ left: center.deck.x - CARD.w / 2 - 8, top: center.deck.y - CARD.h / 2 - 8 }} data-pile="deck"><span className="tda-slot-label">{t("deck", state.lang)} · {game.deckCount}</span></div>
@@ -150,6 +166,7 @@ export function TableScene({ state, controller, onFx, onOrientation, onLand }: T
       </div>
     </div>
     <canvas ref={canvas} className="tda-fx" aria-hidden="true" />
+    <canvas ref={airCanvas} className="tda-fx3d-air" aria-hidden="true" />
     {pointer ? <PointerArrow from={pointer.from} to={pointer.to} legal={pointer.legal} /> : null}
   </div>;
 }

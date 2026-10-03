@@ -20,7 +20,8 @@
     "test": "node tools/verify-three-dragon.mjs",
     "test:server": "node tools/verify-three-dragon.mjs --server",
     "test:browser": "node tools/production-practice-smoke.mjs",
-    "test:server-browser": "node tools/three-dragon-server-browser.mjs"
+    "test:server-browser": "node tools/three-dragon-server-browser.mjs",
+    "test:fx3d": "node tools/fx3d-alignment-check.mjs"
   },
   "dependencies": {
     "@fontsource/cinzel": "5.2.6",

@@ -12,6 +12,7 @@ import { createController } from "./app/controller";
 import { createPresenter } from "./app/presenter";
 import { TableApp } from "./app/TableApp";
 import type { FxLayer } from "./fx/particles";
+import type { FxStage } from "./fx3d/FxStage";
 import type { Orientation } from "./model/layout";
 import { createAudio } from "./audio/player";
 import "./theme/fonts";
@@ -53,17 +54,17 @@ export function mountTableUI(root: HTMLElement, deps: TableUIDeps): TableUISurfa
   let soundOn = true; try { soundOn = localStorage.getItem("three-dragon-ante.sound.v2") !== "off"; } catch {}
   const initial: UIState = { lang: deps.language, hostKind: deps.hostKind ?? "obr", mode: deps.mode ?? "full", view: null, display: null, flow: null, selected: [], hovered: null, keyboardCard: null, keyboardHeld: false, drag: null, pending: null, sending: false, localMessage: "", inspect: null, show: emptyShow(), busy: false, soundOn, gestures: {}, slowSeatIds: [], suspended: false, helpOpen: false, goldHold: null, knockAt: 0, orientation: "landscape" };
   const store: Store = createStore(initial);
-  let fx: FxLayer | null = null, orientation: Orientation = "landscape", destroyed = false, notifiedBusy = false;
+  let fx: FxLayer | null = null, fx3d: FxStage | null = null, orientation: Orientation = "landscape", destroyed = false, notifiedBusy = false;
   const audio = createAudio(root, () => store.get().soundOn);
   const controller = createController(store, { send: deps.send, gesture: deps.gesture, id: deps.id, onLanguage: deps.onLanguage });
   root.dataset.mode = deps.mode ?? "full";
   // 宿主与测试夹具从挂载根读取的状态镜像。
   store.subscribe(() => { const s = store.get(); root.dataset.pendingAction = s.pending ? "true" : "false"; root.dataset.omniscient = String(!!(s.view?.game && "omniscient" in s.view.game && (s.view.game as { omniscient?: boolean }).omniscient)); root.dataset.busy = String(s.busy); });
   (controller as unknown as { _setDrag(v: UIState["drag"]): void })._setDrag = value => store.set({ drag: value });
-  const presenter = createPresenter(store, controller, { fx: () => fx, root: () => root, onBusy: busy => { if (busy !== notifiedBusy) { notifiedBusy = busy; deps.onPresentationChange?.(busy); } }, sound: (kind, key) => audio.play(kind, key) });
+  const presenter = createPresenter(store, controller, { fx: () => fx, fx3d: () => fx3d, root: () => root, onBusy: busy => { if (busy !== notifiedBusy) { notifiedBusy = busy; deps.onPresentationChange?.(busy); } }, sound: (kind, key) => audio.play(kind, key) });
   root.classList.add("tda-root");
   const reactRoot: Root = createRoot(root);
-  const render = () => flushSync(() => reactRoot.render(createElement(TableApp, { store, controller, onFx: value => { fx = value; }, onOrientation: value => { orientation = value; store.set({ orientation: value }); }, showTopBar: deps.topBar !== false, onLand: (key, zone) => audio.play("thud", `${key}:${zone}:${store.get().view?.game?.revision ?? 0}`) })));
+  const render = () => flushSync(() => reactRoot.render(createElement(TableApp, { store, controller, onFx: value => { fx = value; }, onFx3d: value => { fx3d = value; }, onOrientation: value => { orientation = value; store.set({ orientation: value }); }, showTopBar: deps.topBar !== false, onLand: (key, zone) => audio.play("thud", `${key}:${zone}:${store.get().view?.game?.revision ?? 0}`) })));
   // 本家拍桌：声音在这里，震动与手掌在场景层
   let knockSeen = 0; store.subscribe(() => { const at = store.get().knockAt; if (at && at !== knockSeen) { knockSeen = at; audio.play("slap", `knock:${at}`); } });
   render();

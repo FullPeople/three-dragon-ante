@@ -9,6 +9,7 @@ import { card } from "../../game/rules/cards";
 import { derivePresentation, freshPublicEvents, type FormationCue, type Presentation, type PublicGoldFlow, type PowerCue, type RevealCue, type RoundCue } from "../model/cues";
 import { wait } from "../fx/motion";
 import type { FxLayer, Point, Rect } from "../fx/particles";
+import type { FxStage } from "../fx3d/FxStage";
 import { familyFx, isLegendary, powerScript, type PowerFxContext } from "../fx/powers";
 import { emptyShow, type GhostCard, type Store, type TallyItem } from "./store";
 import { CENTER, cardPlacements, fanPose, handShadowPose, seatPlacements, type Pose } from "../model/layout";
@@ -18,7 +19,7 @@ export { familyFx };
 /** SETTLE 从显示落地帧起算，要盖住"抬起 + 落下"（约 480 ms）再停一拍。 */
 export const BEAT_MS = 300, SETTLE_MS = 1100, FOCUS_MS = 420, PLACE_MS = 250, FLIP_MS = 360, PRICE_MS = 640, PAY_MS = 470, TALLY_MS = 700, MARK_MS = 1000;
 
-export interface PresenterHooks { fx(): FxLayer | null; root(): { querySelector(selector: string): Element | null; querySelectorAll?(selector: string): ArrayLike<Element> }; onBusy(busy: boolean): void; sound(kind: string, key: string): void }
+export interface PresenterHooks { fx(): FxLayer | null; fx3d?(): FxStage | null; root(): { querySelector(selector: string): Element | null; querySelectorAll?(selector: string): ArrayLike<Element> }; onBusy(busy: boolean): void; sound(kind: string, key: string): void }
 
 interface QueueItem { view: TableView; previous: TableView; pres: Presentation; events: PublicEvent[] }
 
@@ -120,6 +121,11 @@ export function cardMoves(previous: TableView, next: TableView, events: readonly
   const seats = seatPlacements(ng, selfId, orientation), center = CENTER[orientation];
   const placements = cardPlacements(pg, orientation);
   const handOf = (seatId: string): Pose => { const seat = seats.find(s => s.id === seatId)!; return seat.self ? handShadowPose(orientation, fanPose(0, 1, orientation)) : { x: seat.hand.x, y: seat.hand.y, rot: seat.rot, scale: 0.5, z: 30 }; };
+  // 幽灵牌的落点：对手落在手牌背中心；本家落在扇面里这张新牌将要出现的位置（按先后排到扇面末端）
+  const selfBefore = Math.max(0, (pg.seats.find(s => s.id === selfId)?.handCount ?? 0) - (events.some(e => e.code === "CARD_PLAYED" && e.seatId === selfId) ? 1 : 0));
+  const selfTotal = Math.max(1, ng.seats.find(s => s.id === selfId)?.handCount ?? 1);
+  let selfArrivals = 0; const arrivedSeats = new Set<string>();
+  const handTo = (seatId: string): Pose => { arrivedSeats.add(seatId); if (seatId !== selfId) return handOf(seatId); const slot = Math.min(selfTotal - 1, selfBefore + selfArrivals++); return handShadowPose(orientation, fanPose(slot, selfTotal, orientation)); };
   const deck: Pose = { x: center.deck.x, y: center.deck.y, rot: 0, scale: 1, z: 20 }, discard: Pose = { x: center.discard.x, y: center.discard.y, rot: 4, scale: 1, z: 20 };
   const ghosts: GhostCard[] = []; let tug: { seatId: string; index: number } | null = null;
   const inflow = new Map<string, number>(), outflow = new Map<string, number>(); // 已由事件解释的进牌 / 出牌数
@@ -132,11 +138,11 @@ export function cardMoves(previous: TableView, next: TableView, events: readonly
     if (e.code === "CARD_TRANSFERRED" && e.seatId && e.targetSeatId) {
       // 被偷的是最后一张牌背（它正是下一帧消失的那张）
       const victim = pg.seats.find(s => s.id === e.seatId); if (victim && e.seatId !== selfId) tug = { seatId: e.seatId, index: Math.max(0, Math.min(victim.handCount, 10) - 1) };
-      push({ cardId: e.cardIds?.[0], from: handOf(e.seatId), to: handOf(e.targetSeatId), faceDown: !e.cardIds?.[0], flip: !!e.cardIds?.[0] }, 700);
+      push({ cardId: e.cardIds?.[0], from: handOf(e.seatId), to: handTo(e.targetSeatId), faceDown: !e.cardIds?.[0], flip: !!e.cardIds?.[0] }, 700);
       bump(inflow, e.targetSeatId); bump(outflow, e.seatId);
     } else if (e.code === "DISCARD_RECLAIMED" && e.seatId) {
       const n = Math.min(6, e.cardIds?.length ?? e.amount ?? 0);
-      for (let i = 0; i < n; i++) push({ cardId: e.cardIds?.[i], from: discard, to: handOf(e.seatId), faceDown: false }, 480);
+      for (let i = 0; i < n; i++) push({ cardId: e.cardIds?.[i], from: discard, to: handTo(e.seatId), faceDown: false }, 480);
       bump(inflow, e.seatId, n);
     } else if (e.code === "BUY_PRICE" && e.cardIds?.length) {
       // 买牌的"价格牌"：牌库顶翻到弃牌堆（公开 id）
@@ -146,7 +152,7 @@ export function cardMoves(previous: TableView, next: TableView, events: readonly
   // 前注区的牌被拿进手牌（青铜龙 / 同点牌阵奖励）
   for (const card of pg.ante) if (!ng.ante.some(c => c.id === card.id) && !ng.discard.some(c => c.id === card.id) && !ng.seats.some(s => s.flight.some(f => f.cardId === card.id))) {
     const from = placements.find(p => p.cardId === card.id)?.pose; const taker = ng.seats.find(s => s.handCount > (pg.seats.find(p => p.id === s.id)?.handCount ?? 0) + (inflow.get(s.id) ?? 0) - (outflow.get(s.id) ?? 0) - (played?.seatId === s.id ? 1 : 0));
-    if (from && taker) { push({ cardId: card.id, from, to: handOf(taker.id), faceDown: false }, 560); bump(inflow, taker.id); }
+    if (from && taker) { push({ cardId: card.id, from, to: handTo(taker.id), faceDown: false }, 560); bump(inflow, taker.id); }
   }
   // 弃牌堆的增加里，被替换 / 被屠龙者弃掉 / 翻注全并列 / 结算收牌的都不是"弃手牌"；价格牌已单独解释
   const priceCount = events.filter(e => e.code === "BUY_PRICE").reduce((n, e) => n + (e.cardIds?.length ?? 0), 0);
@@ -159,7 +165,7 @@ export function cardMoves(previous: TableView, next: TableView, events: readonly
     // 打出的那张不是"弃牌"，也不抵消抽牌；被偷走 / 交出的那张已由幽灵牌解释
     const delta = s.handCount - before + (played?.seatId === s.id ? 1 : 0) + (outflow.get(s.id) ?? 0) - (inflow.get(s.id) ?? 0);
     if (delta < 0 && discardDelta > 0) for (let i = 0; i < Math.min(4, -delta, discardDelta); i++) push({ from: handOf(s.id), to: discard, faceDown: s.id !== selfId }, 460);
-    for (let i = 0; i < Math.min(6, delta); i++) push({ from: deck, to: handOf(s.id), faceDown: true }, 520);
+    for (let i = 0; i < Math.min(6, delta); i++) push({ from: deck, to: handTo(s.id), faceDown: true }, 520);
     drawn += Math.max(0, delta);
   }
   // 手牌数不变却既抽了牌又弃了牌（狗头人"弃 N 抽 N"、买牌后弃到上限）：牌库多出的减少量 = 这家先弃后抽的张数，归到买牌 / 刚做选择的那家
@@ -167,9 +173,9 @@ export function cardMoves(previous: TableView, next: TableView, events: readonly
   const who = buy?.seatId ?? pg.choice?.seatId ?? null;
   if (extra > 0 && who) {
     for (let i = 0; i < Math.min(4, extra); i++) push({ from: handOf(who), to: discard, faceDown: who !== selfId }, 460);
-    for (let i = 0; i < Math.min(4, extra); i++) push({ from: deck, to: handOf(who), faceDown: true }, 520);
+    for (let i = 0; i < Math.min(4, extra); i++) push({ from: deck, to: handTo(who), faceDown: true }, 520);
   }
-  const arrived = [...new Set(ghosts.filter(g => g.to !== discard).flatMap(g => ng.seats.filter(s => handOf(s.id).x === g.to.x && handOf(s.id).y === g.to.y).map(s => s.id)))];
+  const arrived = [...arrivedSeats];
   return { ghosts, tug, arrived };
 }
 
@@ -388,14 +394,16 @@ export function createPresenter(store: Store, controller: Controller, hooks: Pre
           show({ resolvingSeatId: null });
         } else if (pres.gold.length) {
           holdGold(previous);
-          const moving = transfers(previous, shown, events, gen); if (moving) { await moving; if (gen !== generation) return; }
+          // 有幽灵牌时也不能让待确认的牌回到手牌：先同步显示落地帧（上一帧 + 刚打出的牌），再等幽灵牌飞完
+          const moving = transfers(previous, shown, events, gen); if (moving) { const landing = landingFrame(previous, shown, events); if (landing) display(landing); await moving; if (gen !== generation) return; }
           display(shown); await settleArrivals(gen); if (gen !== generation) return;
           // 只有金币流、没有出牌的帧（例如选完"付 5 金"）不必等落牌那么久
           await beat(played ? SETTLE_MS : BEAT_MS); if (gen !== generation) return;
           await goldArcs(pres.gold, gen); if (gen !== generation) return; await beat(); if (gen !== generation) return;
         } else {
           // 没有幽灵牌时 display 必须同步发生（不能先 await）：否则待确认的牌会在中间帧回到手牌再飞一次
-          const moving = transfers(previous, shown, events, gen); if (moving) { await moving; if (gen !== generation) return; }
+          // 有幽灵牌时也不能让待确认的牌回到手牌：先同步显示落地帧（上一帧 + 刚打出的牌），再等幽灵牌飞完
+          const moving = transfers(previous, shown, events, gen); if (moving) { const landing = landingFrame(previous, shown, events); if (landing) display(landing); await moving; if (gen !== generation) return; }
           display(shown); await settleArrivals(gen); if (gen !== generation) return;
           if (played && (pres.rounds.length || pres.formations.length)) { await beat(SETTLE_MS); if (gen !== generation) return; }
         }

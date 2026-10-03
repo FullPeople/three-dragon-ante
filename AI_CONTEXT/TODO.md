@@ -19,7 +19,7 @@
 - [x] 阶段 4 时序对齐：落地帧 → 说明 → 效果与金币（commit `2c2df3f`）。
 - [x] `test:browser` 改测新 `index.html`；`test:server-browser` 改新选择器。
 - [ ] **push 被拒**：用户 2026-10-03 授权"修复完之后推送"，但 `git push -u origin rebuild/presentation` 返回 403——Git Credential Manager 里的 GitHub 账号 `pzy197684` 对 `FullPeople/three-dragon-ante` 无写权限（本机未装 gh）。需用户：给该账号写权限 / 在凭据管理器换成有权限的账号 / 或改推到自己的 fork；之后重跑 push。是否合并 main 由用户定。
-- [ ] **特效升级评估（用户 2026-10-03 提出）**：钻研 Elemental Sandbox（github.com/achrefelouafi/LinearAbiltyCastingExtendedThreeJS，MIT，Three.js + 手写 GLSL 的十个全程序化技能特效）能否用于"每张牌独一份、分发动 / 等待 / 结算 / 持续 / 环境"的特效体系；需用户先决定是否重新引入 three.js 的 WebGL 特效层（阶段 6 已删掉 three 依赖）。
+- [ ] **three.js 特效层 fx3d（用户 2026-10-03 批准）**：地基已交付（runbook `2026-10-03_fx3d-kickoff.md` §2）；待办：设计定稿 → 图元工具箱 → 家族签名 → 单牌变体 → 传说牌定制 → 持续 / 环境 → 尘土与手；MIT 署名文件待随首个移植图元一起加入 `docs/design/ASSETS.md` 与 THIRD_PARTY 说明。
 - [ ] 字体子集化：vendor CSS 约 500 kB 来自 fontsource 全部 unicode-range 子集声明；可改为只保留 chinese-simplified + latin 子集或自建子集。
 - [ ] 枭熊真实房间验收（双账号、紧凑弹窗、全屏模态）；实体手机。
 - [ ] `src/modules/threeDragonAnte`（旧稳定频道）是否删除或也切新表现层，待用户定。
@@ -33,7 +33,8 @@
 - [ ] 审计低项：翻注四段 1720 ms 只靠代码确认，没有自动化断言。
 - [ ] 审计低项 L5：本家交出牌时，幽灵从扇面中心以牌背飞出，被交出的那张在落地前仍留在扇面；应从该牌真实位置起飞并立即隐藏原牌。
 - [ ] 审计 M3：姓名铭牌 / 绶带是否也随座位 θ 整转（现只有点数铭牌与组合标签整转，姓名牌保持可读），待用户定。
-- [ ] 洗牌帧（DECK_RESHUFFLED）抽牌幽灵只能按手牌差计，同帧既抽又弃会少飞一张（400 局中 1 帧）。
+- [ ] 洗牌帧（DECK_RESHUFFLED）抽牌幽灵只能按手牌差计，同帧既抽又弃会少飞一张（400 局中 1 帧）；多家同帧买牌时"先弃后抽"归属可能判错（复审按座位核对 8 帧 / 400 局）。
+- [ ] 复审低项：竖屏 6 人 3 张牌阵时点数铭牌与组合标签叠 15 平面单位（检查器显式放行）；可把组合标签沿 dir 再挪。
 
 ## 已完成（节选）
 

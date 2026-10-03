@@ -96,8 +96,8 @@ export function seatPlacements(view: PublicView, selfSeatId: string | null, orie
       // 圆桌：铭牌在左；方桌（4 人以上）左下有侧边座位，铭牌改到左下、扇面之外
       // 本家铭牌是左对齐的（translate(0,-50%)）：圆桌放左侧；方桌左下有侧席，放右下扇面之外；竖屏放左上角、前注槽上方
       if (orientation === "portrait") {
-        // 竖屏：本家一整行从左到右「铭牌 | 前注 | 金币 | 牌阵 | 点数」。铭牌靠左（透视下平面底边比屏幕宽，x<40 会被切掉）；左侧对手的牌阵是往下伸的，放前注上方会被压到
-        const plate = { x: 40, y: a.y };
+        // 竖屏：本家一整行从左到右「铭牌 | 前注 | 金币 | 牌阵 | 点数」。铭牌靠左（透视下平面底边比屏幕宽：390 宽视口下 x<60 会被切掉）；左侧对手的牌阵是往下伸的，放前注上方会被压到
+        const plate = { x: 60, y: a.y };
         return { id: seat.id, self, index, scale: 1, edge: "bottom", rot: 0, dir: f.dir, inward: f.inward, plateRot: 0, anchor: a, plate, ribbon: { x: plate.x, y: plate.y + 44 },
           ante: pose(a.x - 240, a.y, 1), coins: { x: a.x - 90, y: a.y }, flight: { x: a.x + 26, y: a.y }, hand: center.fan, flightStep: 82 };
       }

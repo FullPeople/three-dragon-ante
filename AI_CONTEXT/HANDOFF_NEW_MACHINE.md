@@ -10,7 +10,7 @@
 
 ### 0. 身份与现状
 
-- 仓库 `https://github.com/FullPeople/three-dragon-ante`（GPL-3.0）。当前分支 **`rebuild/presentation`**，最新提交 `365f77c`（其前一个 `8d23298` 是第三轮审计整改）；`main` 停在拆分基线 `eb74f62`。
+- 仓库 `https://github.com/FullPeople/three-dragon-ante`（GPL-3.0）。当前分支 **`rebuild/presentation`**，最新提交以 `git log -1` 为准（压缩包含 2026-10-03 深夜的全部提交：`8d23298` 第三轮审计整改、`365f77c` 留痕、之后是 three.js 特效层地基）；`main` 停在拆分基线 `eb74f62`。
 - 原机器 push 被 403 拒绝（凭据账号对该仓库无写权限），所以这些提交**还没到 GitHub**。你的第一件实事就是用有写权限的账号把它推上去。
 - 2026-10-03 起表现层整体重做：写实风 2.5D 牌桌（DOM + CSS 3D + WebGL2 桌面材质 + 贴图粒子）。**规则引擎、协议、私牌边界、权威服务端、旧稳定频道一个字节都没改**，联机逻辑原样保留。
 - 原机器会继续在同一分支上做「three.js 特效层」（新目录 `extensions/three-dragon-ante/src/presentation/fx3d/`）。你**不要碰表现层代码**；你负责环境、推送、部署与枭熊联机验证。任何改动前先 `git fetch` 看远端，绝不 force-push。
