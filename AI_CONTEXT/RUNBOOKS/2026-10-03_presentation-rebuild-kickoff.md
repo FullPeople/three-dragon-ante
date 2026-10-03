@@ -93,3 +93,13 @@
 **验证**：typecheck / build 通过；`gl-diag.mjs` 报 `surface: webgl 1144x699`（修掉一处 GLSL 参数类型错误后）；桌面 + 手机走查全程通过，外部请求 0、错误 0；截图 `.local-evidence/shots/site/`。
 
 **遗留**：见 `TODO.md`（去 AI 感逐项复查、材质细化、6 人桌、拖放真机、时序对齐）。
+
+## 14. 第三轮（同日）· 阶段 2 收尾、阶段 4 时序、阶段 5 枭熊、阶段 6 删旧
+
+- **阶段 2 收尾**：`.local-evidence/shots/six-and-drag.mjs` 核对六人桌（桌面 / 手机）、真实指针拖拽（影子跟随、落入暗置、回执清空 pending）、减少动态偏好流程；全部通过。
+- **阶段 4 时序**（commit `2c2df3f`）：presenter 先显示"落地帧"（上一帧 + 刚打出的牌进牌阵），说明关闭后才应用完整投影；`goldHold` 把金币数字冻结到弧线落地；翻注与计分板同样冻结。
+- **阶段 5**：`legacy-page.ts` / `server-page.ts` 改挂新包（去掉教程 / 引导覆盖层，加 `onLanguage`）；大厅补齐主持设置（初始金币 / 手牌、规则、牌组、十张特殊牌选择、踢人、移交、重试）；全能编辑器移植为 `hud/Editor.tsx`；顶栏加全能 / 展开缩小 / 返回地图；`launcher.html`、`announcement.html`、`icon.svg` 重做；挂载根镜像 `data-pending-action / data-omniscient / data-busy / data-mode` 供宿主与测试读取。
+- **阶段 6**：删除旧表现层 49 个文件（`ui.ts`、`react/`、`stage/`、合成音、程序化纹理、教程、引导、练习页、旧 selftest、`verify-source.mjs`、`THREE-LICENSE.txt`）；移除 `three` / `@types/three` 依赖、`verify:source` 脚本与 CI 步骤、`practice` 入口；`tools/production-practice-smoke.mjs` 重写为独立网站冒烟；`tools/three-dragon-server-browser.mjs` 改为新选择器并增加 `/assets/` 静态路由与 npm 包 CSS 解析；`README.md` 重写，`docs/STATUS.md` / `docs/EXTRACTION.md` 更新。
+- **坑**：React 19 的 `root.unmount()` 可能推迟到当前提交之后，宿主销毁时再 `replaceChildren()` 会让它稍后 `removeChild` 报 NotFoundError；`mount.ts` 的 `destroy()` 不再手动清空容器。
+- **验证**：`npm run typecheck`、`npm run build`、`npm test` 7/7、`npm run build:server`、`npm run test:server` 2/2、`npm run test:browser` 10/10（桌面 + 手机，surface webgl，零外部请求、零错误）、`npm run test:server-browser` 4/4（四客户端 + 本地 ws/sqlite，GM 全能边界、刷新恢复）。
+- **未验证**：真实枭熊房间与实体手机；`src/modules/threeDragonAnte` 旧频道页面未切换（保留旧 UI）。

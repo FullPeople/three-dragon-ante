@@ -9,6 +9,8 @@ button, input, select { font: inherit; color: inherit; }
 button { cursor: pointer; }
 [hidden] { display: none !important; }
 :focus-visible { outline: 2px solid var(--parchment); outline-offset: 2px; }
+/* 挂载根撑满视口（枭熊页的 #table-app 没有自己的尺寸）；站内对局容器是 absolute inset:0，同样成立。 */
+.tda-root { display: block; width: 100%; height: 100vh; height: 100dvh; }
 
 /* 皮革按钮；主按钮为黄铜色铁片 */
 .tda-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 38px; padding: 7px 16px; border: 1px solid #0d0705; border-radius: 3px;
