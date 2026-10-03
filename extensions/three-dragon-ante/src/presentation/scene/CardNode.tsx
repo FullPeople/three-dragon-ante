@@ -1,5 +1,9 @@
 /** 一张可见的卡。按 key 保持身份，位置只通过 CSS 变量变化，所以跨区域移动自然成为飞行。
- * 离开手牌（打出 / 前注）走两段式：先抽出并转正（快出慢停），再加速落下（慢起快落），落地时回调（尘土与声音由场景层做）。 */
+ * 进场方式由父层决定：
+ *   - dropIn：从起点"抬起"再加速落下（本家出牌 / 前注、对手出牌）；落地回调只在回执已被接受后触发（提交 ≠ 接受）。
+ *   - arriving：进入手牌立板（抽牌、取牌）从下方升起。
+ *   - 其他：从起点按飞行时长滑到位（抽牌到桌面、弃牌）。
+ * 所有阶段都是 React 状态，定时器只在卸载时清理，回执早到或晚到都不会把牌卡住。 */
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { cardFaceURL } from "../../game/card-images";
 import { CardBackArt } from "./CardBack";
@@ -10,8 +14,8 @@ import { reducedMotion } from "../fx/motion";
 export interface CardNodeProps {
   placement: CardPlacement;
   enterFrom?: Pose;
-  /** 新节点从 enterFrom 以"抽出 → 落下"方式进场（对手出牌 / 前注） */
   dropIn?: boolean;
+  arriving?: boolean;
   faceDownOverride?: boolean;
   selected?: boolean;
   hovered?: boolean;
@@ -30,70 +34,55 @@ export interface CardNodeProps {
   onLand?(key: string, el: HTMLElement, zone: CardPlacement["zone"]): void;
 }
 
-export const LIFT_MS = 190, DROP_MS = 260;
+export const DROP_MS = 260, FLY_MS = 480, ARRIVE_MS = 480, ACCEPT_SLIDE_MS = 220;
+type Phase = "enter" | "drop" | "fly" | "arrive" | null;
 const poseVars = (pose: Pose): Record<string, string> => ({ "--x": String(pose.x), "--y": String(pose.y), "--rot": `${pose.rot}deg`, "--s": String(pose.scale), "--z": String(pose.z) });
 const lifted = (from: Pose, rot: number): Pose => ({ x: from.x, y: from.y - 26, rot, scale: from.scale * 1.06, z: from.z + 110 });
 
 export function CardNode(props: CardNodeProps) {
   const { placement } = props;
   const ref = useRef<HTMLDivElement>(null);
-  const entered = useRef(false);
-  const [phase, setPhase] = useState<"lift" | "drop" | null>(null);
-  const liftPose = useRef<Pose | null>(null);
-  // 上一帧的区域 / 位姿 / 待确认标志，用来判断"这张牌刚离开手牌"
-  const history = useRef({ zone: placement.zone, pose: placement.pose, pending: !!props.pending });
-  // React 只在 style 变化时才重写内联变量，所以入场动画结束后必须自己把目标位姿写回去，
-  // 不能删除属性（删除会让 transform 失效、卡牌掉到平面原点）。
-  const latest = useRef(placement.pose);
-  latest.current = placement.pose;
+  const reduced = reducedMotion();
+  const [phase, setPhase] = useState<Phase>(props.enterFrom && !reduced ? "enter" : null);
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const awaitingLand = useRef(false);
   const onLand = useRef(props.onLand); onLand.current = props.onLand;
+  const pendingNow = useRef(!!props.pending); pendingNow.current = !!props.pending;
+  const zoneNow = useRef(placement.zone); zoneNow.current = placement.zone;
+  const land = () => { const el = ref.current; if (el) onLand.current?.(placement.key, el, zoneNow.current); };
+  const later = (ms: number, fn: () => void) => { timers.current.push(setTimeout(fn, ms)); };
 
+  // 进场：第一帧停在起点（无过渡），下一帧切到目标位姿并带上对应时长的过渡类
   useLayoutEffect(() => {
-    const el = ref.current; if (!el || entered.current) return; entered.current = true;
-    if (!props.enterFrom) return;
-    const from = props.dropIn && !reducedMotion() ? lifted(props.enterFrom, latest.current.rot) : props.enterFrom;
-    for (const [name, value] of Object.entries(poseVars(from))) el.style.setProperty(name, value);
-    el.style.transition = "none";
-    void el.offsetWidth;
-    el.style.transition = "";
-    if (props.dropIn && !reducedMotion()) {
-      el.classList.add("is-dropping");
-      requestAnimationFrame(() => { for (const [name, value] of Object.entries(poseVars(latest.current))) el.style.setProperty(name, value); });
-      const timer = setTimeout(() => { el.classList.remove("is-dropping"); onLand.current?.(placement.key, el, placement.zone); }, DROP_MS + 40);
-      return () => clearTimeout(timer);
-    }
-    requestAnimationFrame(() => { for (const [name, value] of Object.entries(poseVars(latest.current))) el.style.setProperty(name, value); });
+    if (!props.enterFrom || reduced) { if (props.dropIn && reduced) { if (pendingNow.current) awaitingLand.current = true; else land(); } return; }
+    const raf = requestAnimationFrame(() => {
+      if (props.dropIn) { setPhase("drop"); later(DROP_MS + 30, () => { setPhase(null); if (pendingNow.current) awaitingLand.current = true; else land(); }); }
+      else if (props.arriving) { setPhase("arrive"); later(ARRIVE_MS + 30, () => setPhase(null)); }
+      else { setPhase("fly"); later(FLY_MS + 30, () => setPhase(null)); }
+    });
+    return () => cancelAnimationFrame(raf);
   }, []);
-
-  // 离开手牌：先在原地抽出转正，再加速落向目标
-  useLayoutEffect(() => {
-    const was = history.current;
-    const leaving = was.zone === "hand" && !was.pending && (placement.zone !== "hand" || !!props.pending);
-    history.current = { zone: placement.zone, pose: placement.pose, pending: !!props.pending };
-    if (!leaving) return;
-    if (reducedMotion()) { onLand.current?.(placement.key, ref.current!, placement.zone); return; }
-    liftPose.current = lifted(was.pose, 0);
-    setPhase("lift");
-    const t1 = setTimeout(() => setPhase("drop"), LIFT_MS);
-    const t2 = setTimeout(() => { setPhase(null); if (ref.current) onLand.current?.(placement.key, ref.current, placement.zone); }, LIFT_MS + DROP_MS + 30);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
-  }, [placement.zone, !!props.pending]);
-  useEffect(() => () => { liftPose.current = null; }, []);
+  useEffect(() => () => { for (const t of timers.current) clearTimeout(t); timers.current = []; }, []);
+  // 回执到达：待确认的牌被接受后才算真正落地（尘土与声音在这里），被拒回手则什么都不播
+  useEffect(() => {
+    if (props.pending || !awaitingLand.current) return;
+    awaitingLand.current = false;
+    if (placement.zone !== "hand") later(ACCEPT_SLIDE_MS, land);
+  }, [props.pending, placement.zone]);
 
   const faceDown = props.faceDownOverride ?? placement.faceDown;
   const cardId = placement.cardId;
-  const cls = ["tda-card", `tda-card--${placement.zone}`];
+  const cls = ["tda-card", `tda-card--${placement.zone}`, `tda-card--on-${placement.layer}`];
   if (faceDown) cls.push("is-face-down");
-  const standing = phase ? false : placement.standing;
-  if (standing) cls.push("is-standing");
-  if (phase === "lift") cls.push("is-lifting"); else if (phase === "drop") cls.push("is-dropping");
+  if (placement.standing && !phase) cls.push("is-standing");
+  if (phase) cls.push(`is-${phase === "enter" ? "entering" : phase === "drop" ? "dropping" : phase === "fly" ? "flying" : "arriving"}`);
   if (props.selected) cls.push("is-selected"); if (props.hovered) cls.push("is-hovered"); if (props.legal) cls.push("is-legal");
   if (props.pending) cls.push("is-pending"); if (props.dragging) cls.push("is-dragging"); if (props.top) cls.push("is-top"); if (props.resolving) cls.push("is-resolving"); if (props.focus) cls.push("is-focus"); if (props.lifted) cls.push("is-lifted");
   if (props.hint?.state === "power-ready") cls.push("is-power-ready"); else if (props.hint?.state === "playable-no-power") cls.push("is-playable");
-  const shown = phase === "lift" && liftPose.current ? liftPose.current : placement.pose;
-  const style = { ...poseVars(shown), zIndex: Math.round(shown.z) + 10 } as CSSProperties;
+  const shown = phase === "enter" && props.enterFrom ? (props.dropIn ? lifted(props.enterFrom, placement.pose.rot) : props.enterFrom) : placement.pose;
+  const style = { ...poseVars(shown), zIndex: (placement.layer === "hand" ? placement.order : Math.round(shown.z)) + 10 } as CSSProperties;
   const interactive = !!cardId && !!(props.onClick || props.onPointerDown);
-  return <div ref={ref} className={cls.join(" ")} style={style} data-key={placement.key} data-card={cardId} data-zone={placement.zone} data-seat={placement.seatId}
+  return <div ref={ref} className={cls.join(" ")} style={style} data-key={placement.key} data-card={cardId} data-zone={placement.zone} data-seat={placement.seatId} data-layer={placement.layer}
     role={interactive ? "button" : undefined} tabIndex={interactive && placement.zone === "hand" ? 0 : undefined}
     aria-label={props.label}
     onPointerDown={props.onPointerDown && cardId ? event => props.onPointerDown!(event, cardId) : undefined}

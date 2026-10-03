@@ -18,7 +18,7 @@ export { createGame, applyAction, eligibleActions, projectSeat } from ${abs('gam
 export { cardPlacements, pendingPose, isHeldByPending } from ${abs('presentation/model/layout.ts')};
 export { createStore, emptyShow } from ${abs('presentation/app/store.ts')};
 export { createController } from ${abs('presentation/app/controller.ts')};
-export { createPresenter, landingFrame, revealTally, scoreTally, SETTLE_MS, BEAT_MS, FOCUS_MS, TALLY_MS, MARK_MS } from ${abs('presentation/app/presenter.ts')};
+export { createPresenter, landingFrame, settlementFrame, revealFrame, powerSegment, revealTally, scoreTally, SETTLE_MS, BEAT_MS, FOCUS_MS, TALLY_MS, MARK_MS } from ${abs('presentation/app/presenter.ts')};
 export { freshPublicEvents, derivePresentation, formationCues } from ${abs('presentation/model/cues.ts')};
 export { seatPlacements, tableShape } from ${abs('presentation/model/layout.ts')};`;
 await build({ input: 'entry', plugins: [{ name: 'entry', resolveId(id) { if (id === 'entry') return '\0entry.ts'; }, load(id) { if (id === '\0entry.ts') return entry; } }], output: { file: join(out, 'bundle.mjs'), format: 'esm', codeSplitting: false }, logLevel: 'silent' });
@@ -192,6 +192,72 @@ assert.ok(events.some(e => e.code === 'CARD_PLAYED' && e.cardIds?.[0] === ready)
   assert.deepEqual(places.map(s => s.rot), [0, 90, 90, 0, -90, -90]);
   for (const s of places.filter(s => s.edge !== 'bottom')) { assert.ok(s.plate.x > 60 && s.plate.x < 1740 && s.plate.y > 20 && s.plate.y < 1080, 'plates stay on the table'); }
   pass('table shape: round for three, square with rotated side seats for six');
+}
+
+// --- 9) 层标记：本家手牌画在手牌立板上（z=0，叠放靠 order），其余都在桌面层 ---
+{
+  const placements = m.cardPlacements(nextView.game, 'landscape');
+  const own = placements.filter(p => p.zone === 'hand' && p.seatId === leader);
+  assert.ok(own.length > 0 && own.every(p => p.layer === 'hand' && p.pose.z === 0), 'own hand is on the hand layer');
+  assert.ok(placements.filter(p => !(p.zone === 'hand' && p.seatId === leader)).every(p => p.layer === 'table'), 'everything else is on the table layer');
+  pass('own hand lives on the screen-aligned hand layer, never inside the table plane');
+}
+
+// --- 10) 末牌与结算同帧：合成结算帧上每家都有牌、总点数来自 ScoreReport；结算后的金币排在最后 ---
+{
+  // 用真实引擎把一局打到第一次结算
+  let g = m.createGame({ id: 'settle', seats, seed: 4242 });
+  const step = () => { for (const seat of g.seats) { const a = m.eligibleActions(g, seat.id)[0]; if (!a) continue; const base = { id: 's' + g.revision + ':' + seat.id, revision: g.revision, seatId: seat.id }; const move = a.kind === 'choose' ? { ...base, kind: 'choose', choiceId: a.choice.id, optionIds: a.choice.options.slice(0, Math.max(a.choice.min, Math.min(1, a.choice.max))).map(o => o.id) } : { ...base, kind: a.kind, cardId: a.cardIds[0] }; const r = m.applyAction(g, move); if (r.ok) return r.state; } return null; };
+  let prev = null, next = null;
+  for (let i = 0; i < 400 && !next; i++) { const before = g; const after = step(); if (!after) break; g = after; const ev = m.freshPublicEvents(m.projectSeat(before, 'you'), m.projectSeat(after, 'you')); if (ev.some(e => e.code === 'GAMBIT_SCORED')) { prev = before; next = after; } }
+  assert.ok(next, 'reached a scoring frame');
+  const pv = view(prev), nv = view(next);
+  const events = m.freshPublicEvents(pv.game, nv.game), report = events.find(e => e.code === 'GAMBIT_SCORED').score;
+  assert.ok(nv.game.seats.every(s => s.flight.length === 0), 'the real post-score projection has empty flights');
+  const frame = m.settlementFrame(pv, nv, events, report);
+  assert.ok(frame, 'settlement frame built');
+  for (const row of report.rows) { const seat = frame.game.seats.find(s => s.id === row.seatId); assert.equal(seat.flight.length, row.cards.length, 'every scored card is back on the table'); assert.equal(seat.strength, row.total); }
+  const played = events.find(e => e.code === 'CARD_PLAYED');
+  if (played && played.seatId === 'you') assert.ok(!frame.game.hand.some(c => c.id === played.cardIds[0]), 'own played card is not in the hand on the settlement frame');
+  const pres = m.derivePresentation(pv.game, nv.game);
+  assert.ok(pres.gold.every(f => f.code !== 'PAID_HOLE' && f.code !== 'TOOK_HOLE'), 'debt flows never precede the scoreboard');
+  // 演出：桌面拼点时场景帧还是结算帧（有牌、有点数），演完才切到结算后的投影
+  const initial = { lang: 'zh', hostKind: 'local', mode: 'full', view: null, display: null, flow: null, selected: [], hovered: null, keyboardCard: null, keyboardHeld: false, drag: null, pending: null, sending: false, localMessage: '', inspect: null, show: m.emptyShow(), busy: false, soundOn: false, gestures: {}, slowSeatIds: [], suspended: false, helpOpen: false, goldHold: null, knockAt: 0 };
+  const store = m.createStore(initial), controller = m.createController(store, { send() {} });
+  const presenter = m.createPresenter(store, controller, { fx: () => null, root: () => ({ querySelector: () => null }), onBusy() {}, sound() {} });
+  store.set({ view: pv }); presenter.update(pv, null, false); store.set({ view: nv }); presenter.update(nv, pv, true);
+  const until = async (fn, ms) => { const end = Date.now() + ms; while (!fn()) { if (Date.now() > end) throw new Error('timeout'); const s = store.get(); if (s.show.power || s.show.formation) controller.dismissPower(); await new Promise(r => setTimeout(r, 15)); } };
+  await until(() => store.get().show.tally?.kind === 'score', 15000);
+  const atTally = store.get();
+  assert.ok(atTally.display.game.seats.every(s => s.flight.length === (report.rows.find(r => r.seatId === s.id)?.cards.length ?? 0)), 'cards stay on the table during the showdown');
+  assert.equal(atTally.flow?.game?.revision, pv.game.revision, 'flow rail has not advanced during the showdown');
+  await until(() => store.get().display === nv && !store.get().busy, 25000);
+  assert.equal(store.get().flow, nv, 'flow rail advances only after the whole settlement');
+  presenter.destroy();
+  pass('end-of-gambit frame keeps every scored card on the table through the showdown and scoreboard');
+}
+
+// --- 11) 全并列翻注：投影里前注牌已弃，翻注帧把它们按座位次序放回前注区 ---
+{
+  const g = { ...m.projectSeat(state, leader), ante: [], anteOrigins: [] };
+  const cue = { key: 'r', cardIds: ['red-10', 'blue-6', 'green-6'], allTied: true, payments: [] };
+  const frame = m.revealFrame(view(state, { game: g }), cue);
+  assert.deepEqual(frame.game.ante.map(c => c.id), cue.cardIds);
+  assert.deepEqual(frame.game.anteOrigins.map(o => o.seatId), g.seats.map(s => s.id));
+  assert.ok(m.revealTally(frame.game, cue.cardIds, true).every(i => i.mark === 'tied' && i.seatId), 'all-tied pips exist and are struck');
+  pass('all-tied reveal still shows every ante card and strikes them');
+}
+
+// --- 12) 拍桌节流；能力事件段切分 ---
+{
+  const initial = { lang: 'zh', hostKind: 'local', mode: 'full', view: view(state), display: null, flow: null, selected: [], hovered: null, keyboardCard: null, keyboardHeld: false, drag: null, pending: null, sending: false, localMessage: '', inspect: null, show: m.emptyShow(), busy: false, soundOn: false, gestures: {}, slowSeatIds: [], suspended: false, helpOpen: false, goldHold: null, knockAt: 0 };
+  const store = m.createStore(initial); let sent = 0; const c = m.createController(store, { send() {}, gesture() { sent++; } });
+  c.knock(); const first = store.get().knockAt; c.knock();
+  assert.ok(first > 0 && store.get().knockAt === first && sent === 1, 'second knock within 1.5 s is ignored');
+  const evs = [{ code: 'POWER_TRIGGERED', seatId: 'a', cardIds: ['black-3'] }, { code: 'TOOK_STAKES', seatId: 'a', amount: 3 }, { code: 'POWER_TRIGGERED', seatId: 'a', cardIds: ['red-5'] }, { code: 'PAID_PLAYER', seatId: 'b', targetSeatId: 'a', amount: 1 }];
+  assert.deepEqual(m.powerSegment(evs, { key: 'g:1:0', cardId: 'black-3', seatId: 'a', family: 'black' }).map(e => e.code), ['TOOK_STAKES']);
+  assert.deepEqual(m.powerSegment(evs, { key: 'g:1:2', cardId: 'red-5', seatId: 'a', family: 'red' }).map(e => e.code), ['PAID_PLAYER']);
+  pass('knock is throttled and each power script only sees its own event segment');
 }
 
 writeFileSync(join(out, 'result.json'), JSON.stringify({ checks }, null, 2));

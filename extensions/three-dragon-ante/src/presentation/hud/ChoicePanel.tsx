@@ -30,8 +30,8 @@ export function ChoicePanel({ state, controller }: { state: UIState; controller:
   const seatName = (id: string) => id === own.selfSeatId ? t("you", lang) : game.seats.find(s => s.id === id)?.name ?? id;
   const owner = (cardId: string) => game.seats.find(seat => seat.flight.some(entry => entry.cardId === cardId))?.name ?? null;
   const cardOptions = choice.options.filter(o => o.cardId);
-  // 并列提示：全部卡牌选项同点数且只能选一张 → "并列 · 任选"
-  const tied = cardOptions.length > 1 && max === 1 && cardOptions.every(o => { try { return card(o.cardId!).strength === card(cardOptions[0].cardId!).strength; } catch { return false; } });
+  // 并列提示：只对"取最低前注牌"一类按点数筛出来的选择，且全部卡牌选项同点数、只能选一张
+  const tied = ["LOWEST_ANTE_CARD", "STRENGTH_FLIGHT_ANTE", "KEEP_ONE_ANTE_CARD"].includes(choice.code) && cardOptions.length > 1 && max === 1 && cardOptions.every(o => { try { return card(o.cardId!).strength === card(cardOptions[0].cardId!).strength; } catch { return false; } });
   const range = min === 0 ? t("choiceOptional", lang) : min === max ? t("choicePickN", lang, { n: min }) : t("choicePickRange", lang, { a: min, b: max });
   return <section className="tda-choice tda-parchment" role="dialog" aria-label={prompt(choice.code, lang)}>
     <div className="tda-choice-head">

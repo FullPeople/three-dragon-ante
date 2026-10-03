@@ -10,7 +10,7 @@ export interface Pose { x: number; y: number; rot: number; scale: number; z: num
 export interface Point { x: number; y: number }
 export interface PlaneSpec { w: number; h: number; tilt: number; cardScaleHand: number }
 export const PLANES: Record<Orientation, PlaneSpec> = {
-  landscape: { w: 1800, h: 1100, tilt: 28, cardScaleHand: 1.15 },
+  landscape: { w: 1800, h: 1100, tilt: 28, cardScaleHand: 1.0 },
   portrait: { w: 1100, h: 1500, tilt: 22, cardScaleHand: 1 },
 };
 export const CARD = { w: 140, h: 247 } as const;
@@ -29,7 +29,7 @@ const OPPONENT_ANCHORS: Record<Orientation, Record<number, Anchor[]>> = {
     2: [{ x: 520, y: 250, edge: "top" }, { x: 1280, y: 250, edge: "top" }],
     3: [{ x: 300, y: 520, edge: "left" }, { x: 900, y: 150, edge: "top" }, { x: 1500, y: 520, edge: "right" }],
     4: [{ x: 300, y: 520, edge: "left" }, { x: 620, y: 170, edge: "top" }, { x: 1180, y: 170, edge: "top" }, { x: 1500, y: 520, edge: "right" }],
-    5: [{ x: 300, y: 660, edge: "left" }, { x: 300, y: 300, edge: "left" }, { x: 900, y: 150, edge: "top" }, { x: 1500, y: 300, edge: "right" }, { x: 1500, y: 660, edge: "right" }],
+    5: [{ x: 300, y: 700, edge: "left" }, { x: 300, y: 270, edge: "left" }, { x: 900, y: 150, edge: "top" }, { x: 1500, y: 270, edge: "right" }, { x: 1500, y: 700, edge: "right" }],
   },
   portrait: {
     1: [{ x: 550, y: 180, edge: "top" }],
@@ -40,8 +40,8 @@ const OPPONENT_ANCHORS: Record<Orientation, Record<number, Anchor[]>> = {
   },
 };
 export const CENTER: Record<Orientation, { deck: Point; discard: Point; stakes: Point; hole: Point; neutral: Point; self: Point; fan: Point; fanRadius: number }> = {
-  landscape: { deck: { x: 720, y: 500 }, discard: { x: 1080, y: 500 }, stakes: { x: 900, y: 470 }, hole: { x: 1260, y: 470 }, neutral: { x: 900, y: 640 }, self: { x: 900, y: 800 }, fan: { x: 900, y: 960 }, fanRadius: 900 },
-  portrait: { deck: { x: 420, y: 700 }, discard: { x: 680, y: 700 }, stakes: { x: 550, y: 640 }, hole: { x: 820, y: 640 }, neutral: { x: 550, y: 820 }, self: { x: 550, y: 1090 }, fan: { x: 550, y: 1300 }, fanRadius: 700 },
+  landscape: { deck: { x: 720, y: 500 }, discard: { x: 1080, y: 500 }, stakes: { x: 900, y: 470 }, hole: { x: 1260, y: 470 }, neutral: { x: 900, y: 640 }, self: { x: 900, y: 800 }, fan: { x: 900, y: 1000 }, fanRadius: 900 },
+  portrait: { deck: { x: 420, y: 700 }, discard: { x: 680, y: 700 }, stakes: { x: 550, y: 640 }, hole: { x: 820, y: 640 }, neutral: { x: 550, y: 820 }, self: { x: 550, y: 1090 }, fan: { x: 550, y: 1340 }, fanRadius: 700 },
 };
 
 /** 座位朝向：卡牌旋转角、牌阵排列方向（dir）、指向桌心的方向（inward）。 */
@@ -101,6 +101,8 @@ export function seatPlacements(view: PublicView, selfSeatId: string | null, orie
 export interface CardPlacement {
   /** 节点身份：公开牌用卡牌 id；匿名牌背用 `back:seat:i` / `ante:seat` / `deck`。 */
   key: string;
+  /** 画在桌面平面里，还是本家的手牌立板上 */
+  layer: "table" | "hand";
   cardId?: string;
   card: Card | null;
   zone: Zone;
@@ -115,12 +117,24 @@ export interface CardPlacement {
   rider?: boolean;
 }
 
-function fanPose(i: number, n: number, orientation: Orientation): Pose {
+/** 本家手牌：扇面画在一块独立的、屏幕对齐的立板上（不进桌面的 3D 上下文，永不被桌面切片，叠放靠 z-index）。
+ *  位姿相对扇面枢轴（CENTER.fan）；z 永远 0，叠放次序 = order。 */
+export function fanPose(i: number, n: number, orientation: Orientation): Pose {
   const center = CENTER[orientation], plane = PLANES[orientation];
   const stepDeg = Math.min(orientation === "landscape" ? 6 : 7, (orientation === "landscape" ? 54 : 62) / Math.max(1, n - 1));
   const a = (i - (n - 1) / 2) * stepDeg, rad = a * Math.PI / 180;
   const r = center.fanRadius;
-  return { x: center.fan.x + Math.sin(rad) * r, y: center.fan.y + (1 - Math.cos(rad)) * r, rot: a, scale: plane.cardScaleHand, z: 40 + i * 3 };
+  return { x: Math.sin(rad) * r, y: (1 - Math.cos(rad)) * r, rot: a, scale: plane.cardScaleHand, z: 0 };
+}
+/** 手牌立板在视口（透视容器）里的位置：枢轴点经桌面倾斜后的投影位置与深度，再抬高 40 单位。 */
+export function handLayerPlacement(orientation: Orientation): { left: number; top: number; z: number } {
+  const center = CENTER[orientation], plane = PLANES[orientation], cy = plane.h / 2, tilt = plane.tilt * Math.PI / 180;
+  return { left: center.fan.x, top: cy + (center.fan.y - cy) * Math.cos(tilt), z: (center.fan.y - cy) * Math.sin(tilt) + 40 };
+}
+/** 一张手牌离开扇面时，在桌面坐标里的起点（扇面在桌面上的"影子"位置）。 */
+export function handShadowPose(orientation: Orientation, pose: Pose): Pose {
+  const center = CENTER[orientation];
+  return { x: center.fan.x + pose.x, y: center.fan.y - 120 + pose.y * 0.4, rot: 0, scale: 1.05, z: 20 };
 }
 
 /** 牌阵第 i 张的位姿（沿座位 dir 排列，随座位旋转）。 */
@@ -142,30 +156,30 @@ export function cardPlacements(view: PublicView | SeatView | OmniscientView, ori
     const value = view.seats.find(s => s.id === seat.id)!;
     const backPose = (offset: number, i: number) => pose(seat.hand.x + seat.dir.x * offset * 26, seat.hand.y + seat.dir.y * offset * 26, 0.5, seat.rot + offset * 3, 1 + i);
     if (seat.self && privateView) {
-      privateView.hand.forEach((card, i) => result.push({ key: card.id, cardId: card.id, card, zone: "hand", seatId: seat.id, pose: fanPose(i, privateView.hand.length, orientation), faceDown: false, order: i, standing: true }));
+      privateView.hand.forEach((card, i) => result.push({ key: card.id, layer: "hand", cardId: card.id, card, zone: "hand", seatId: seat.id, pose: fanPose(i, privateView.hand.length, orientation), faceDown: false, order: i, standing: false }));
     } else if (omniscient && Array.isArray(omniscient.privateHands[seat.id])) {
       const hand = omniscient.privateHands[seat.id];
-      hand.forEach((card, i) => { const offset = i - (hand.length - 1) / 2; result.push({ key: `hand:${seat.id}:${card.id}`, cardId: card.id, card, zone: "hand", seatId: seat.id, pose: backPose(offset, i), faceDown: false, order: i }); });
+      hand.forEach((card, i) => { const offset = i - (hand.length - 1) / 2; result.push({ layer: "table", key: `hand:${seat.id}:${card.id}`, cardId: card.id, card, zone: "hand", seatId: seat.id, pose: backPose(offset, i), faceDown: false, order: i }); });
     } else {
       const count = Math.min(value.handCount, 10);
-      for (let i = 0; i < count; i++) { const offset = i - (count - 1) / 2; result.push({ key: `back:${seat.id}:${i}`, card: null, zone: "hand", seatId: seat.id, pose: backPose(offset, i), faceDown: true, order: i }); }
+      for (let i = 0; i < count; i++) { const offset = i - (count - 1) / 2; result.push({ layer: "table", key: `back:${seat.id}:${i}`, card: null, zone: "hand", seatId: seat.id, pose: backPose(offset, i), faceDown: true, order: i }); }
     }
     if (value.committed) {
       const own = seat.self && privateView ? privateView.committedAnte : null;
       const known = omniscient?.privateCommittedAntes[seat.id] ?? null;
       const cardId = known?.id ?? own?.id;
-      result.push({ key: cardId ?? `ante:${seat.id}`, cardId, card: known, zone: "ante", seatId: seat.id, pose: { ...seat.ante, z: 2 }, faceDown: true, order: 0 });
+      result.push({ layer: "table", key: cardId ?? `ante:${seat.id}`, cardId, card: known, zone: "ante", seatId: seat.id, pose: { ...seat.ante, z: 2 }, faceDown: true, order: 0 });
     }
-    value.flight.forEach((entry, i) => result.push({ key: entry.cardId, cardId: entry.cardId, card: entry.card, zone: "flight", seatId: seat.id, pose: flightPose(seat, i), faceDown: false, order: i, wild: entry.wild, rider: entry.rider }));
+    value.flight.forEach((entry, i) => result.push({ layer: "table", key: entry.cardId, cardId: entry.cardId, card: entry.card, zone: "flight", seatId: seat.id, pose: flightPose(seat, i), faceDown: false, order: i, wild: entry.wild, rider: entry.rider }));
   }
-  if (view.deckCount > 0) result.push({ key: "deck", card: null, zone: "deck", pose: pose(center.deck.x, center.deck.y, 1, 0, 1), faceDown: true, order: 0 });
+  if (view.deckCount > 0) result.push({ layer: "table", key: "deck", card: null, zone: "deck", pose: pose(center.deck.x, center.deck.y, 1, 0, 1), faceDown: true, order: 0 });
   const top = view.discard[view.discard.length - 1];
-  if (top) result.push({ key: top.id, cardId: top.id, card: top, zone: "discard", pose: pose(center.discard.x, center.discard.y, 1, 4, 1), faceDown: false, order: 0 });
+  if (top) result.push({ layer: "table", key: top.id, cardId: top.id, card: top, zone: "discard", pose: pose(center.discard.x, center.discard.y, 1, 4, 1), faceDown: false, order: 0 });
   const neutral = view.ante.filter(card => !seats.some(seat => seat.id === origins.get(card.id)));
   view.ante.forEach(card => {
     const seat = seats.find(seat => seat.id === origins.get(card.id));
-    if (seat) result.push({ key: card.id, cardId: card.id, card, zone: "ante", seatId: seat.id, pose: { ...seat.ante, z: 3 }, faceDown: false, order: 1 });
-    else { const i = neutral.findIndex(v => v.id === card.id); result.push({ key: card.id, cardId: card.id, card, zone: "ante", pose: pose(center.neutral.x + (i - (neutral.length - 1) / 2) * 110, center.neutral.y, 0.9, 0, 3 + i), faceDown: false, order: i }); }
+    if (seat) result.push({ layer: "table", key: card.id, cardId: card.id, card, zone: "ante", seatId: seat.id, pose: { ...seat.ante, z: 3 }, faceDown: false, order: 1 });
+    else { const i = neutral.findIndex(v => v.id === card.id); result.push({ layer: "table", key: card.id, cardId: card.id, card, zone: "ante", pose: pose(center.neutral.x + (i - (neutral.length - 1) / 2) * 110, center.neutral.y, 0.9, 0, 3 + i), faceDown: false, order: i }); }
   });
   return result;
 }

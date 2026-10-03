@@ -13,6 +13,8 @@ export interface LocalMatchOptions {
   startingGold?: number;
   startingHand?: number;
   seed?: number;
+  /** 测试钩子：本家动作的回执延迟这么多毫秒再回来，模拟慢宿主（枭熊 / 服务端） */
+  receiptDelayMs?: number;
   onClose(): void;
   onLanguage?(language: TableLanguage): void;
 }
@@ -72,6 +74,7 @@ export function createLocalMatch(parent: HTMLElement, options: LocalMatchOptions
     const result = applyAction(game, move);
     if (human) receipt = { actionId: move.id, tableId: game.id, gameId: game.id, revision: result.ok ? result.state.revision : move.revision, ok: result.ok, ...(!result.ok ? { code: result.error.code, retryable: false } : {}), source: "host" };
     if (result.ok && !result.duplicate) game = result.state;
+    if (human && options.receiptDelayMs) { const gen = generation; setTimeout(() => { if (!destroyed && gen === generation) render(); }, options.receiptDelayMs); return; }
     render();
   }
   function view(): TableView {

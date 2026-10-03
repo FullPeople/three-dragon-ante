@@ -49,3 +49,30 @@
 | C3 | 测试：自测 9 项；冒烟改点击任意处关闭、节点直接 click；拖拽证据改断言指向器 | `presentation-selftest.mjs`、`production-practice-smoke.mjs`、`six-and-drag.mjs` | 全绿 |
 
 **未做 / 待定**：持续效果的**持续音效**需要循环素材（Kenney 现有包无环境循环），待用户批准来源后加；§1 第 8 条"无必要的选择"不改引擎。
+
+## 5. 独立审计（Claude Opus 5.5，只读）第一轮：不通过 → 整改
+
+审计用自建测试页（真实 `mountTableUI` + 可控回执延迟）与 400 局引擎模拟复现了三条高严重度问题。整改如下（commit 见 git log "Audit fixes"）：
+
+| # | 发现 | 整改 | 证据 |
+|---|---|---|---|
+| 高-1 | 回执 ≤ 190 ms 到达时牌永久卡在抬起位置（effect 清理掉定时器后阶段不复位） | `CardNode` 重写为纯状态机：阶段 enter → drop / fly / arrive，定时器只在卸载时清理；手→桌是**换层重挂**（dropIn），没有"离开手牌"的跨渲染判定 | 冒烟新增真实拖拽 + `?receiptDelay=60/300`，断言落在前注区且无残留阶段类 |
+| 高-2 | 末牌与结算同帧：投影里牌阵已清空，拼点在空桌上显示"点数 0" | `settlementFrame()`：上一帧 + 公开 `ScoreReport.rows[].cards` 与总点数合成结算帧，整段演出（落牌、能力、特殊牌阵、拼点、计分板）都在它上面做，发完奖池才 `display(view)`；铭牌在拼点时显示 `tally.value` | 自测 10（真实引擎打到结算帧，断言拼点时每家牌都在、流程帧未前进） |
+| 高-3 | 手牌仍被桌面切片；左半扇面遮挡反向 | 扇面改画在 `.tda-viewport` 下独立的屏幕对齐立板（`transform-style: flat`，z-index = order），不进桌面 3D 上下文；手牌缩放 1.0、枢轴 1000 | 截图 `site/desktop-07-played.png`、`desktop-03-hover.png`；自测 9 |
+| 中-1 | 结算帧里特殊牌阵说明没有牌 | `formationCues` 在牌阵已空时从 ScoreReport 行取牌并判断组合 | 自测 7 |
+| 中-2 | 结算后的金币（偿债、君王、终局取偿债池）先于计分板飞；铭牌可能显示负数 | `goldAfterScore` 单独一组，在发奖池之后播；`bookFlow` 座位金币下限 0 | 自测 10 断言 `gold` 不含 PAID_HOLE / TOOK_HOLE |
+| 中-3 | 尘土与声音先于回执 | 落地回调只在 `pending` 变为 false 且区域不是手牌后触发；被拒回手不播 | 冒烟慢回执用例 |
+| 中-4 | 冒烟改成节点 click 削弱覆盖 | 恢复坐标点击（手牌立板最后一张在最上层；槽位点上段）；真实拖拽 + 慢回执用例进 `test:browser` | 18/18 ×3 |
+| 中-5 | 自测覆盖不足 | 新增手牌层、结算帧演出、全并列翻注、拍桌节流、事件段切分（共 13 项） | `npm test` |
+| 中-6 | 全并列翻注无拼点 | `revealFrame()` 按 ANTE_REVEALED 座位次序把牌放回前注区再演翻开与划掉 | 自测 11 |
+| 低-1 | 6 人同侧两席重叠 | 锚点拉开到 y 270 / 700 | 待截图复核 |
+| 低-2 | 抽牌进手牌只有 150 ms | 进入手牌层用 `arriving`（480 ms 从下方升起） | — |
+| 低-3 | 翻注时对手前注背换 id 又落一次 | 识别 `ante:seat` 背已存在 → 原地出现 | — |
+| 低-4 | 场地层淡出定时器被清掉 | 每项独立定时器 Map，回场取消淡出 | — |
+| 低-5 | 自己出牌后停顿不足；连锁能力无聚焦 | SETTLE 1100 ms 从显示起算盖住落牌；每个能力都先聚焦 | 自测 4 |
+| 低-6 | 脚本取整帧事件；源牌不在桌上无特效 | `powerSegment()` 切本能力事件段；结算帧保证源牌在桌上 | 自测 12 |
+| 低-7 | 换行符 / 文档 | 核对：`prompts.ts`、`text.ts`、`rules.ts` 在 HEAD~1 与 HEAD 的 blob 都是 CRLF（CR 计数 101 / 50 / 31 相同），不存在换行符改动；MEMORY、DOMAIN 时序已更新 | `git show HEAD~1:… \| grep -c $''` |
+| 低-8 | 并列提示误标；场地环未随座位旋转 | 只对 LOWEST_ANTE_CARD / STRENGTH_FLIGHT_ANTE / KEEP_ONE_ANTE_CARD 标注；场地环 `rotate(seat.rot)` | — |
+| 槽位命中 | （整改中发现）槽位带 `transform` 后与桌面画布同深度，手机端命中测试落到画布 | 槽位 `translateZ(2px)` | 冒烟 narrow 用例 |
+
+**复审**：整改提交后回同一审计会话复审，裁决见 §6。

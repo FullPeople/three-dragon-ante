@@ -29,7 +29,8 @@ export function SeatBlock({ seat, placement, game, selfSeatId, lang, legalZone, 
   const strengthAt = { x: flightEnd.x + inward.x * depthOut, y: flightEnd.y + inward.y * depthOut };
   const formationAt = { x: placement.flight.x + inward.x * depthOut, y: placement.flight.y + inward.y * depthOut };
   const at = (p: { x: number; y: number }) => ({ left: p.x, top: p.y });
-  const box = (c: { x: number; y: number }, w: number, h: number) => ({ left: c.x - w / 2, top: c.y - h / 2, width: w, height: h, transform: `rotate(${rot}deg)` });
+  // 槽位带了 transform 就会成为与桌面画布同深度的独立层，命中测试会随机落到画布上；抬高 2 单位保证槽位永远在桌面之上
+  const box = (c: { x: number; y: number }, w: number, h: number) => ({ left: c.x - w / 2, top: c.y - h / 2, width: w, height: h, transform: `rotate(${rot}deg) translateZ(2px)` });
   const cls = ["tda-seat", self ? "tda-seat--self" : "tda-seat--other", `tda-seat--${placement.edge}`];
   if (active) cls.push("is-active"); if (waiting) cls.push("is-waiting"); if (targetSeatId === seat.id) cls.push("is-target"); if (seat.id === game.leaderSeatId) cls.push("is-leader");
   const changed = seat.scoringStrength !== seat.strength;
@@ -53,7 +54,7 @@ export function SeatBlock({ seat, placement, game, selfSeatId, lang, legalZone, 
     </div>
     <div className={`tda-plate tda-strength-plate${changed ? " is-changed" : ""}${tally ? ` is-tally is-${tally.mark}` : ""}`} style={at(strengthAt)} data-strength-seat={seat.id}>
       <span>{t("strength", lang)}</span>
-      <span className="tda-num">{changed ? `${seat.strength} → ${seat.scoringStrength}` : seat.strength}</span>
+      <span className="tda-num">{tally ? tally.value : changed ? `${seat.strength} → ${seat.scoringStrength}` : seat.strength}</span>
     </div>
     {formation ? <span className={`tda-formation tda-formation--${formation}`} style={{ left: formationAt.x, top: formationAt.y, position: "absolute", transform: "translate(-50%, -50%) translateZ(26px)" }}>{t(formation === "color" ? "formationColor" : formation === "strength" ? "formationStrength" : "formationMortal", lang)}</span> : null}
     {seat.archmage ? <span className="tda-formation tda-formation--archmage" style={{ left: formationAt.x, top: formationAt.y + 26, position: "absolute", transform: "translate(-50%, -50%) translateZ(26px)" }}>{t("archmage", lang)}</span> : null}

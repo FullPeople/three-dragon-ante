@@ -42,11 +42,15 @@ export function FieldLayer({ game, seats, fx, lang, host }: FieldLayerProps) {
   // 离场的效果保留 800 ms 做淡出
   const [leaving, setLeaving] = useState<FieldItem[]>([]);
   const known = useRef<FieldItem[]>([]);
+  const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   useEffect(() => {
     const gone = known.current.filter(old => !items.some(item => item.id === old.id));
     known.current = items;
-    if (gone.length) { setLeaving(prev => [...prev, ...gone]); const timer = setTimeout(() => setLeaving(prev => prev.filter(item => !gone.includes(item))), 820); return () => clearTimeout(timer); }
+    // 每个离场项自己的淡出定时器；再次出现就取消淡出
+    for (const item of items) { const t = timers.current.get(item.id); if (t) { clearTimeout(t); timers.current.delete(item.id); setLeaving(prev => prev.filter(x => x.id !== item.id)); } }
+    for (const item of gone) { setLeaving(prev => prev.some(x => x.id === item.id) ? prev : [...prev, item]); timers.current.set(item.id, setTimeout(() => { timers.current.delete(item.id); setLeaving(prev => prev.filter(x => x.id !== item.id)); }, 820)); }
   }, [items.map(item => item.id).join("|")]);
+  useEffect(() => () => { for (const t of timers.current.values()) clearTimeout(t); }, []);
   // 环境粒子：全局效果铺满桌面，座位效果只在该座位的牌阵附近
   useEffect(() => {
     if (!fx) return;
@@ -60,12 +64,12 @@ export function FieldLayer({ game, seats, fx, lang, host }: FieldLayerProps) {
     return () => { for (const id of active) fx.ambient(id, null); };
   }, [fx, host, items.map(item => item.id).join("|")]);
   const tint = items.find(item => item.global);
-  const place = (item: FieldItem) => { const seat = seats.find(s => s.id === item.seatId); if (!seat) return null; const n = Math.max(1, game?.seats.find(s => s.id === item.seatId)?.flight.length ?? 1); return { x: seat.flight.x + seat.dir.x * (n - 1) * seat.flightStep / 2, y: seat.flight.y + seat.dir.y * (n - 1) * seat.flightStep / 2, w: CARD.w * seat.scale + (n - 1) * seat.flightStep + 60, h: CARD.h * seat.scale + 50 }; };
+  const place = (item: FieldItem) => { const seat = seats.find(s => s.id === item.seatId); if (!seat) return null; const n = Math.max(1, game?.seats.find(s => s.id === item.seatId)?.flight.length ?? 1); return { x: seat.flight.x + seat.dir.x * (n - 1) * seat.flightStep / 2, y: seat.flight.y + seat.dir.y * (n - 1) * seat.flightStep / 2, w: CARD.w * seat.scale + (n - 1) * seat.flightStep + 60, h: CARD.h * seat.scale + 50, rot: seat.rot }; };
   return <>
     {tint ? <div className={`tda-field-tint is-${tint.kind}`} aria-hidden="true" /> : null}
     {[...items.map(item => ({ item, out: false })), ...leaving.map(item => ({ item, out: true }))].map(({ item, out }) => {
       const p = place(item); if (!p) return null;
-      return <div key={item.id + (out ? ":out" : "")} className={`tda-field is-${item.fx}${out ? " is-leaving" : ""}`} style={{ left: p.x, top: p.y, width: p.w, height: p.h }} aria-hidden="true">
+      return <div key={item.id + (out ? ":out" : "")} className={`tda-field is-${item.fx}${out ? " is-leaving" : ""}`} style={{ left: p.x, top: p.y, width: p.w, height: p.h, transform: `translate(-50%, -50%) rotate(${p.rot}deg)` }} aria-hidden="true">
         <div className="tda-field-ring" /><div className="tda-field-ring tda-field-ring--inner" />
         <span className="tda-field-label">{t(item.label, lang)}</span>
       </div>;

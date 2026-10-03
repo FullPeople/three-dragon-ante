@@ -57,11 +57,14 @@
   /* 先立起（rotateX）再在立面内旋转（rotateZ）：所有手牌是同一组平行平面，preserve-3d 下不会互相切片 */
   transform: translate3d(calc(var(--x) * 1px), calc(var(--y) * 1px), calc(var(--z) * 1px)) rotateX(var(--stand, 0deg)) rotateZ(var(--rot)) scale(var(--s));
   transition: transform var(--t-flight) var(--ease-flight), opacity 220ms, filter 220ms; will-change: transform; }
-/* 手牌：悬浮 / 选中要快，信息立刻出现；离开手牌时类名换成 --flight / --ante，自动改用飞行时长 */
-.tda-card--hand { transition: transform 150ms var(--ease-out), opacity 220ms, filter 220ms; }
-/* 两段式落牌：抽出（快出慢停）→ 加速落下（慢起快落） */
-.tda-card.is-lifting { transition: transform 190ms cubic-bezier(.2, .8, .3, 1); }
+/* 手牌立板：屏幕对齐的竖直平面，不在桌面的 3D 上下文里（flat），永不被桌面切片；叠放靠 z-index（order） */
+.tda-hand-layer { position: absolute; width: 0; height: 0; transform-style: flat; z-index: 20; pointer-events: none; }
+.tda-hand-layer .tda-card { pointer-events: auto; transition: transform 150ms var(--ease-out), opacity 220ms, filter 220ms; }
+/* 进场阶段：第一帧无过渡；落下慢起快落；飞行与升起用飞行时长 */
+.tda-card.is-entering { transition: none !important; }
 .tda-card.is-dropping { transition: transform 260ms cubic-bezier(.6, 0, 1, .5); }
+.tda-card.is-flying { transition: transform var(--t-flight) var(--ease-flight); }
+.tda-card.is-arriving { transition: transform 480ms var(--ease-out), opacity 300ms; }
 .tda-card.is-standing { --stand: calc(-1 * var(--tilt)); }
 .tda-card-flip { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform var(--t-flip) var(--ease-flight); }
 .is-face-down .tda-card-flip { transform: rotateY(180deg); }

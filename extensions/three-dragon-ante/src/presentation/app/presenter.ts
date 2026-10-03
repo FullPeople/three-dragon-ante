@@ -1,11 +1,12 @@
 /** 演出调度：投影按序进入画面；翻注、落牌、聚焦、能力说明、能力特效、金币流转、特殊牌阵说明、拼点、计分板严格串行。
  * 规格见 AI_CONTEXT/GOAL.md §4.3：出牌落地（抽出 → 加速落下 → 尘土）→ 停一拍 → 聚焦 → 能力说明（玩家关闭）→ 能力特效与金币 → 停一拍；
- * 轮局结束：特殊牌阵说明（玩家关闭）→ 桌面拼点（数字浮现 → 最高亮 / 并列划掉）→ 计分板 → 发奖池 → 阶段标签才变。
+ * 轮局结束：特殊牌阵说明（玩家关闭）→ 桌面拼点（数字浮现 → 最高亮 / 并列划掉）→ 计分板 → 发奖池 → 结算后的金币 → 阶段标签才变。
+ * 末牌与结算同帧时，投影里牌阵已清空：用上一帧 + 公开的 ScoreReport 合成"结算帧"，整段演出都在这一帧上做，演完才切到结算后的投影。
  * 这里永远不改规则状态，只决定"什么时候把哪一帧给场景看"。减少动态偏好下动画瞬移，但顺序与等待时长不变。 */
 import type { TableView } from "../../game/protocol";
 import type { PublicEvent, PublicView, ScoreReport, SeatView } from "../../game/rules/types";
 import { card } from "../../game/rules/cards";
-import { derivePresentation, freshPublicEvents, type FormationCue, type Presentation, type PublicGoldFlow, type PowerCue, type RoundCue } from "../model/cues";
+import { derivePresentation, freshPublicEvents, type FormationCue, type Presentation, type PublicGoldFlow, type PowerCue, type RevealCue, type RoundCue } from "../model/cues";
 import { wait } from "../fx/motion";
 import type { FxLayer, Point, Rect } from "../fx/particles";
 import { familyFx, isLegendary, powerScript, type PowerFxContext } from "../fx/powers";
@@ -13,31 +14,64 @@ import { emptyShow, type Store, type TallyItem } from "./store";
 import type { Controller } from "./controller";
 
 export { familyFx };
-export const BEAT_MS = 300, SETTLE_MS = 640, FOCUS_MS = 420, PLACE_MS = 250, FLIP_MS = 360, PRICE_MS = 640, PAY_MS = 470, TALLY_MS = 700, MARK_MS = 1000;
+/** SETTLE 从显示落地帧起算，要盖住"抬起 + 落下"（约 480 ms）再停一拍。 */
+export const BEAT_MS = 300, SETTLE_MS = 1100, FOCUS_MS = 420, PLACE_MS = 250, FLIP_MS = 360, PRICE_MS = 640, PAY_MS = 470, TALLY_MS = 700, MARK_MS = 1000;
 
 export interface PresenterHooks { fx(): FxLayer | null; root(): { querySelector(selector: string): Element | null; querySelectorAll?(selector: string): ArrayLike<Element> }; onBusy(busy: boolean): void; sound(kind: string, key: string): void }
 
 interface QueueItem { view: TableView; previous: TableView; pres: Presentation; events: PublicEvent[] }
 
+const safeCard = (id: string) => { try { return card(id); } catch { return null; } };
+const playedOf = (events: readonly PublicEvent[]) => events.find(e => e.code === "CARD_PLAYED" && e.seatId && e.cardIds?.[0]);
+/** 本家视图：去掉刚打出的牌、清空可用动作 */
+function withoutOwnCard(game: PublicView | SeatView, cardId: string | null) {
+  if (!("selfSeatId" in game)) return game;
+  const own = game as SeatView;
+  return { ...own, hand: cardId ? own.hand.filter(c => c.id !== cardId) : own.hand, actions: [], handPowerHints: cardId ? own.handPowerHints.filter(h => h.cardId !== cardId) : own.handPowerHints } as SeatView;
+}
+
 /** 落地帧：上一帧 + 刚打出的那张牌放进牌阵。其余效果（偷牌、抽牌、金币）留到说明关闭后。
  *  只用公共事件里已公开的牌 id 与下一帧的公开牌阵条目，不碰任何私牌。 */
 export function landingFrame(previous: TableView, next: TableView, events: PublicEvent[]): TableView | null {
   const pg = previous.game, ng = next.game; if (!pg || !ng) return null;
-  const played = events.find(e => e.code === "CARD_PLAYED" && e.seatId && e.cardIds?.[0]);
+  const played = playedOf(events);
   if (!played) return null;
   const seatId = played.seatId!, cardId = played.cardIds![0];
   const entry = ng.seats.find(s => s.id === seatId)?.flight.find(f => f.cardId === cardId);
   if (!entry || pg.seats.some(s => s.flight.some(f => f.cardId === cardId))) return null;
   const seats = pg.seats.map(s => s.id === seatId ? { ...s, flight: [...s.flight, entry], handCount: Math.max(0, s.handCount - 1) } : s);
-  const game = { ...pg, seats, waitingSeatIds: [] } as PublicView | SeatView;
-  if ("selfSeatId" in pg) { const own = pg as SeatView; Object.assign(game, { hand: own.hand.filter(c => c.id !== cardId), actions: [], handPowerHints: own.handPowerHints.filter(h => h.cardId !== cardId) }); }
+  const game = withoutOwnCard({ ...pg, seats, waitingSeatIds: [] } as PublicView | SeatView, cardId);
   return { ...next, game };
+}
+
+/** 结算帧：上一帧 + 公开 ScoreReport 里每家结算时的牌（含刚打出的末牌）与总点数。结算后的投影里牌阵已空，不能直接拿来演。 */
+export function settlementFrame(previous: TableView, next: TableView, events: PublicEvent[], report: ScoreReport): TableView | null {
+  const pg = previous.game; if (!pg || !next.game) return null;
+  const played = playedOf(events);
+  const seats = pg.seats.map(s => {
+    const row = report.rows.find(r => r.seatId === s.id);
+    const flight = row ? row.cards.flatMap(c => { const prev = s.flight.find(f => f.cardId === c.cardId); if (prev) return [prev]; const value = safeCard(c.cardId); return value ? [{ cardId: c.cardId, card: value }] : []; }) : s.flight;
+    const handCount = played?.seatId === s.id && !s.flight.some(f => f.cardId === played.cardIds![0]) ? Math.max(0, s.handCount - 1) : s.handCount;
+    return { ...s, flight, handCount, strength: row ? row.total : s.strength, scoringStrength: row ? row.total : s.scoringStrength };
+  });
+  const game = withoutOwnCard({ ...pg, seats, waitingSeatIds: [], activeSeatId: null } as PublicView | SeatView, played?.cardIds?.[0] ?? null);
+  return { ...next, game };
+}
+
+/** 翻注帧：全并列时引擎同帧已把前注牌弃掉，投影里找不到它们；按 ANTE_REVEALED 的座位次序把牌放回前注区来演翻开与划掉。 */
+export function revealFrame(next: TableView, cue: RevealCue): TableView {
+  const g = next.game; if (!g) return next;
+  const present = new Set(g.ante.map(c => c.id));
+  if (cue.cardIds.every(id => present.has(id))) return next;
+  const ante = cue.cardIds.flatMap(id => { const value = safeCard(id); return value ? [value] : []; });
+  const anteOrigins = cue.cardIds.map((cardId, i) => ({ seatId: g.seats[i]?.id ?? "", cardId })).filter(o => o.seatId);
+  return { ...next, game: { ...g, ante, anteOrigins, seats: g.seats.map(s => ({ ...s, committed: false })) } as PublicView | SeatView };
 }
 
 /** 翻注拼点：每张前注牌一个数字；领出者的牌打"领出"，点数重复的打"并列"（全并列时全部划掉）。 */
 export function revealTally(game: PublicView, cardIds: readonly string[], allTied: boolean): TallyItem[] {
   const origins = new Map((game.anteOrigins ?? []).map(o => [o.cardId, o.seatId]));
-  const strengths = new Map(cardIds.map(id => { try { return [id, card(id).strength] as const; } catch { return [id, 0] as const; } }));
+  const strengths = new Map(cardIds.map(id => [id, safeCard(id)?.strength ?? 0] as const));
   const counts = new Map<number, number>(); for (const v of strengths.values()) counts.set(v, (counts.get(v) ?? 0) + 1);
   const leaderCard = [...origins].find(([, seatId]) => seatId === game.leaderSeatId)?.[0];
   return cardIds.map(cardId => { const value = strengths.get(cardId) ?? 0; const mark: TallyItem["mark"] = allTied ? "tied" : cardId === leaderCard ? "lead" : (counts.get(value) ?? 0) > 1 ? "tied" : "none"; return { seatId: origins.get(cardId) ?? "", cardId, value, mark }; });
@@ -46,6 +80,14 @@ export function revealTally(game: PublicView, cardIds: readonly string[], allTie
 /** 轮局拼点：每家总点数；胜者打"胜"，多人并列打"并列"，龙神限制打"不能获胜"。 */
 export function scoreTally(report: ScoreReport): TallyItem[] {
   return report.rows.map(row => ({ seatId: row.seatId, value: row.total, mark: !row.eligible ? "out" : report.winners.includes(row.seatId) ? (report.winners.length > 1 ? "tied" : "win") : "none" }));
+}
+
+/** 这个能力提示对应的事件段：从它的 POWER_TRIGGERED 到下一个 POWER_TRIGGERED 之前。 */
+export function powerSegment(events: readonly PublicEvent[], cue: PowerCue): PublicEvent[] {
+  const index = Number(/:(\d+)$/.exec(cue.key)?.[1] ?? -1);
+  if (index < 0 || events[index]?.code !== "POWER_TRIGGERED") return [...events];
+  let end = events.length; for (let j = index + 1; j < events.length; j++) if (events[j].code === "POWER_TRIGGERED") { end = j; break; }
+  return events.slice(index + 1, end);
 }
 
 type GoldHold = { seats: Record<string, number>; stakes: number; hole: number };
@@ -74,7 +116,7 @@ export function createPresenter(store: Store, controller: Controller, hooks: Pre
   // 金币数字冻结在上一帧，每段弧线落地后再把这一笔记进去，直到演出结束才解除冻结
   const holdGold = (view: TableView | null) => { if (!store.get().goldHold) store.set({ goldHold: goldOf(view) }); };
   const releaseGold = () => store.set({ goldHold: null });
-  const bookFlow = (from: string, to: string, amount: number) => store.set(s => { const h = s.goldHold; if (!h) return {}; const next = { seats: { ...h.seats }, stakes: h.stakes, hole: h.hole }; const sub = (id: string, n: number) => { if (id === "stakes") next.stakes = Math.max(0, next.stakes - n); else if (id === "hole") next.hole = Math.max(0, next.hole - n); else if (id in next.seats) next.seats[id] -= n; }; const add = (id: string, n: number) => { if (id === "stakes") next.stakes += n; else if (id === "hole") next.hole += n; else if (id in next.seats) next.seats[id] += n; }; sub(from, amount); add(to, amount); return { goldHold: next }; });
+  const bookFlow = (from: string, to: string, amount: number) => store.set(s => { const h = s.goldHold; if (!h) return {}; const next = { seats: { ...h.seats }, stakes: h.stakes, hole: h.hole }; const sub = (id: string, n: number) => { if (id === "stakes") next.stakes = Math.max(0, next.stakes - n); else if (id === "hole") next.hole = Math.max(0, next.hole - n); else if (id in next.seats) next.seats[id] = Math.max(0, next.seats[id] - n); }; const add = (id: string, n: number) => { if (id === "stakes") next.stakes += n; else if (id === "hole") next.hole += n; else if (id in next.seats) next.seats[id] += n; }; sub(from, amount); add(to, amount); return { goldHold: next }; });
   function setBusy(value: boolean) { if (store.get().busy !== value) { store.set({ busy: value }); hooks.onBusy(value); } }
   const flight = (from: Point | null, to: Point | null, amount: number, duration: number) => new Promise<void>(resolve => { const fx = hooks.fx(); if (!from || !to || !fx) return void setTimeout(resolve, duration); fx.arc(from, to, Math.min(5, Math.max(1, Math.ceil(amount / 3))), resolve, duration); setTimeout(resolve, duration + 300); });
   const seatIds = () => store.get().view?.game?.seats.map(s => s.id) ?? [];
@@ -86,11 +128,12 @@ export function createPresenter(store: Store, controller: Controller, hooks: Pre
   }
 
   async function runReveal(item: QueueItem, gen: number) {
-    const reveal = item.pres.reveal!, game = item.view.game!;
-    const strengths = reveal.cardIds.map(id => { try { return card(id).strength; } catch { return 0; } });
+    const reveal = item.pres.reveal!;
+    const frame = revealFrame(item.view, reveal), game = frame.game!;
+    const strengths = reveal.cardIds.map(id => safeCard(id)?.strength ?? 0);
     const top = Math.max(...strengths), topIds = reveal.cardIds.filter((id, i) => strengths[i] === top);
     holdGold(item.previous);
-    show({ reveal, revealPhase: "placing", revealTopIds: [] }); display(item.view);
+    show({ reveal, revealPhase: "placing", revealTopIds: [] }); display(frame);
     await beat(PLACE_MS); if (gen !== generation) return;
     show({ revealPhase: "revealing" }); hooks.sound("flip", reveal.key);
     await beat(FLIP_MS); if (gen !== generation) return;
@@ -111,6 +154,7 @@ export function createPresenter(store: Store, controller: Controller, hooks: Pre
     }
     if (gen !== generation) return;
     show({ reveal: null, revealPhase: null, revealTopIds: [], tally: null });
+    if (frame !== item.view) display(item.view);
   }
 
   function waitDismiss(open: () => void, close: () => void): Promise<void> {
@@ -166,25 +210,30 @@ export function createPresenter(store: Store, controller: Controller, hooks: Pre
         const item = queue.shift()!;
         const { view, pres, previous, events } = item;
         const played = events.some(e => e.code === "CARD_PLAYED" || e.code === "FLIGHT_REPLACED");
-        const hasShow = !!(pres.reveal || pres.powers.length || pres.rounds.length || pres.gold.length || pres.formations.length);
+        const hasShow = !!(pres.reveal || pres.powers.length || pres.rounds.length || pres.gold.length || pres.goldAfterScore.length || pres.formations.length);
         setBusy(hasShow);
+        const scoreCue = pres.rounds.find((c): c is Extract<RoundCue, { kind: "score" }> => c.kind === "score");
+        // 结算帧：末牌与结算同帧时，整段演出（落牌、能力、特殊牌阵、拼点、计分板）都在合成帧上做
+        const settlement = scoreCue ? settlementFrame(previous, view, events, scoreCue.report) : null;
+        const shown = settlement ?? view;
         if (pres.reveal) { await runReveal(item, gen); if (gen !== generation) return; }
         else if (pres.powers.length) {
           // 第一步：只落牌（抽出 → 落下 → 尘土）。第二步：停一拍、聚焦。第三步：说明。第四步：能力特效与金币。
-          const landing = landingFrame(previous, view, events);
+          const landing = settlement ?? landingFrame(previous, view, events);
           holdGold(previous);
           display(landing ?? view);
           await beat(SETTLE_MS); if (gen !== generation) return;
           const first = pres.powers[0];
           if (isLegendary(first.cardId)) { const p = cardPoint(first.cardId); if (p) { hooks.sound("sigil", first.key + ":presence"); void hooks.fx()?.sigil(p, familyFx(first.family), 150, 1500); await beat(700); if (gen !== generation) return; } }
-          show({ focusCardId: first.cardId });
-          await beat(FOCUS_MS); if (gen !== generation) return;
           for (const [i, cue] of pres.powers.entries()) {
+            // 每个能力（含连锁、替换上来的牌）都先聚焦再说明
+            show({ focusCardId: cue.cardId });
+            await beat(i === 0 ? FOCUS_MS : 320); if (gen !== generation) return;
             await spotlight(cue); if (gen !== generation) return;
-            if (i === 0 && landing) display(view);
+            if (i === 0 && landing && !settlement) display(view);
             show({ focusCardId: null });
             const ctx = fxContext();
-            if (ctx) { await powerScript(cue, events, ctx); } else await beat(200);
+            if (ctx) { await powerScript(cue, powerSegment(events, cue), ctx); } else await beat(200);
             if (gen !== generation) return;
             hooks.sound("power-impact", cue.key);
             await beat(260); if (gen !== generation) return;
@@ -192,8 +241,8 @@ export function createPresenter(store: Store, controller: Controller, hooks: Pre
           await goldArcs(pres.gold, gen); if (gen !== generation) return;
           await beat(); if (gen !== generation) return;
           show({ resolvingSeatId: null });
-        } else if (pres.gold.length) { holdGold(previous); display(view); await beat(SETTLE_MS); if (gen !== generation) return; await goldArcs(pres.gold, gen); if (gen !== generation) return; await beat(); if (gen !== generation) return; }
-        else { display(view); if (played && (pres.rounds.length || pres.formations.length)) { await beat(SETTLE_MS); if (gen !== generation) return; } }
+        } else if (pres.gold.length) { holdGold(previous); display(shown); await beat(SETTLE_MS); if (gen !== generation) return; await goldArcs(pres.gold, gen); if (gen !== generation) return; await beat(); if (gen !== generation) return; }
+        else { display(shown); if (played && (pres.rounds.length || pres.formations.length)) { await beat(SETTLE_MS); if (gen !== generation) return; } }
         for (const cue of pres.formations) {
           holdGold(previous);
           const p = cue.cardIds.map(cardPoint).find(Boolean);
@@ -203,9 +252,17 @@ export function createPresenter(store: Store, controller: Controller, hooks: Pre
           await beat(); if (gen !== generation) return;
         }
         for (const cue of pres.rounds) {
-          if (cue.kind === "score") { holdGold(previous); await beat(SETTLE_MS); if (gen !== generation) return; await scoreboard(cue, gen); } else await banner(cue, gen);
+          if (cue.kind === "score") {
+            holdGold(previous); await beat(SETTLE_MS); if (gen !== generation) return;
+            await scoreboard(cue, gen); if (gen !== generation) return;
+            // 发完奖池才切到结算后的投影，再播结算后的金币（偿债、君王付款、终局取偿债池）
+            if (settlement) display(view);
+            await goldArcs(pres.goldAfterScore, gen); if (gen !== generation) return;
+          } else await banner(cue, gen);
           if (gen !== generation) return;
         }
+        if (!scoreCue && pres.goldAfterScore.length) { await goldArcs(pres.goldAfterScore, gen); if (gen !== generation) return; }
+        if (store.get().display !== view) display(view);
         releaseGold();
         if (hasShow) { await beat(); if (gen !== generation) return; }
         // 阶段标签、等待行只在整个演出结束后才换到新帧。

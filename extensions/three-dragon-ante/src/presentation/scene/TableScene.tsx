@@ -4,10 +4,10 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { UIState } from "../app/store";
 import { privateGame } from "../app/store";
 import type { Controller } from "../app/controller";
-import { CARD, CENTER, cardPlacements, fitPlane, seatPlacements, tableShape, type Orientation } from "../model/layout";
+import { CARD, CENTER, cardPlacements, fitPlane, handLayerPlacement, isHeldByPending, seatPlacements, tableShape, type Orientation } from "../model/layout";
 import { SeatBlock } from "./SeatBlock";
 import { TableSurface } from "./TableSurface";
-import { CardLayer } from "./CardLayer";
+import { CardLayer, type KnownEntry } from "./CardLayer";
 import { CoinStack } from "./CoinStack";
 import { FieldLayer } from "./FieldLayer";
 import { t } from "../i18n";
@@ -48,6 +48,11 @@ export function TableScene({ state, controller, onFx, onOrientation, onLand }: T
   const view = state.display, game = view?.game ?? null, own = privateGame(view);
   const orientation = fit.orientation, spec = fit.spec, center = CENTER[orientation];
   const seats = useMemo(() => game ? seatPlacements(game, own?.selfSeatId ?? null, orientation) : [], [game, own?.selfSeatId, orientation]);
+  const placements = useMemo(() => game ? cardPlacements(game, orientation) : [], [game, orientation]);
+  // 上一帧每个节点的位姿与所在层，两层共用；渲染后把已消失的 key 清掉，同一张牌日后再出现仍算"新来的"
+  const known = useRef(new Map<string, KnownEntry>());
+  useEffect(() => { const keys = new Set(placements.map(p => p.key)); for (const key of [...known.current.keys()]) if (!keys.has(key)) known.current.delete(key); for (const p of placements) known.current.set(p.key, { pose: p.pose, layer: isHeldByPending(p, state.pending, own?.selfSeatId ?? null) ? "table" : p.layer }); });
+  const handAt = handLayerPlacement(orientation);
   const shape = tableShape(game?.seats.length ?? 3);
   const legalZone = controller.legalZone();
   const targetSeatId = state.show.power?.targetSeatIds?.[0] ?? game?.resolutionStack.find(step => step.status === "active")?.targetSeatId ?? null;
@@ -59,9 +64,8 @@ export function TableScene({ state, controller, onFx, onOrientation, onLand }: T
   // 翻注拼点：数字浮在前注牌上方
   const pips = useMemo(() => {
     if (!tally || tally.kind !== "reveal" || !game) return [];
-    const placements = cardPlacements(game, orientation);
     return tally.items.flatMap(item => { const p = placements.find(c => c.cardId === item.cardId); return p ? [{ ...item, x: p.pose.x, y: p.pose.y - CARD.h * p.pose.scale / 2 - 10 }] : []; });
-  }, [tally, game, orientation]);
+  }, [tally, placements]);
 
   // 拍桌：本家铭牌上落下手掌 + 震动
   const lastKnock = useRef(0);
@@ -132,10 +136,13 @@ export function TableScene({ state, controller, onFx, onOrientation, onLand }: T
             {holeShown > 0 ? <div className="tda-hole" style={{ left: center.hole.x, top: center.hole.y }} data-pile="hole"><CoinStack amount={holeShown} /><div className="tda-plate tda-hole-plate"><span>{t("hole", state.lang)}</span><span className="tda-num">{holeShown}</span></div></div> : null}
             {seats.map(placement => { const seat = game.seats.find(s => s.id === placement.id)!; return <SeatBlock key={placement.id} seat={seat} placement={placement} game={game} selfSeatId={own?.selfSeatId ?? null} lang={state.lang}
               legalZone={legalZone} dragOver={drag?.cardId ? drag.overZone : null} targetSeatId={targetSeatId} waiting={waitingIds.has(placement.id)} gold={hold?.seats[seat.id] ?? seat.gold} tally={seatTally.get(seat.id)} onZoneClick={zone => controller.placeSelected(zone)} />; })}
-            <CardLayer state={state} controller={controller} orientation={orientation} onCardPointerDown={onCardPointerDown} onCardLand={onCardLand} />
+            <CardLayer state={state} controller={controller} orientation={orientation} layer="table" placements={placements} seats={seats} known={known} onCardPointerDown={onCardPointerDown} onCardLand={onCardLand} />
             {pips.map(pip => <div key={pip.cardId} className={`tda-pip is-step${tally?.step ?? 1} is-${pip.mark}`} style={{ left: pip.x, top: pip.y }} aria-hidden="true"><b className="tda-num">{pip.value}</b>{tally?.step === 2 && pip.mark !== "none" ? <small>{t(pip.mark === "lead" ? "tallyLeader" : pip.mark === "tied" ? "tallyTied" : "tallyIneligible", state.lang)}</small> : null}</div>)}
           </> : null}
         </div>
+        {game ? <div className="tda-hand-layer" style={{ left: handAt.left, top: handAt.top, transform: `translateZ(${handAt.z}px)` }} data-hand-layer>
+          <CardLayer state={state} controller={controller} orientation={orientation} layer="hand" placements={placements} seats={seats} known={known} onCardPointerDown={onCardPointerDown} onCardLand={onCardLand} />
+        </div> : null}
       </div>
     </div>
     <canvas ref={canvas} className="tda-fx" aria-hidden="true" />

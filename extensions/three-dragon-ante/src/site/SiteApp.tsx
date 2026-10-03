@@ -43,7 +43,8 @@ function MatchScreen({ lang, opponents, onClose, onLanguage }: { lang: Language;
   const handle = useRef<LocalMatchHandle | null>(null);
   useEffect(() => {
     if (!host.current) return;
-    handle.current = createLocalMatch(host.current, { language: lang, opponents, onClose, onLanguage: value => { setLocalLang(value); onLanguage(value); } });
+    const receiptDelayMs = Number(new URLSearchParams(location.search).get("receiptDelay")) || undefined; // 测试钩子：模拟慢回执
+    handle.current = createLocalMatch(host.current, { language: lang, opponents, receiptDelayMs, onClose, onLanguage: value => { setLocalLang(value); onLanguage(value); } });
     return () => { handle.current?.destroy(); handle.current = null; };
   }, []);
   useEffect(() => { handle.current?.setLanguage(lang); }, [lang]);

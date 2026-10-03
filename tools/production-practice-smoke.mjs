@@ -79,10 +79,12 @@ try {
     }
     const playable = page.locator('.tda-card--hand.is-legal').last();
     const playedId = await playable.getAttribute('data-card');
-    // 扇面里的牌互相重叠，按坐标点击可能落在邻牌上；这里直接触发节点的 click（真实指针拖拽由 six-and-drag.mjs 覆盖）
-    await page.evaluate(id => document.querySelector(`[data-card="${id}"]`).click(), playedId);
+    // 真实坐标点击：扇面最后一张在最上层，点它的中心；再点牌阵槽
+    const box = await playable.boundingBox();
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
     await page.waitForFunction(id => document.querySelector(`[data-card="${id}"]`)?.classList.contains('is-selected'), playedId, { timeout: 4000 });
-    await page.evaluate(() => document.querySelector('[data-drop-zone="flight"][data-drop-seat="you"]').click());
+    const slot = await page.locator('[data-drop-zone="flight"][data-drop-seat="you"]').boundingBox();
+    await page.mouse.click(slot.x + slot.width / 2, slot.y + slot.height * 0.3); // 槽的上半段：下半段可能被手牌立板盖住
     await page.waitForFunction(() => document.querySelector('.tda-shell')?.getAttribute('data-pending-action') === 'false', null, { timeout: 10000 });
     // 牌离开手牌即可：某些能力（铜龙等）会立刻把刚打出的牌换进弃牌堆，所以落点可能是牌阵、弃牌顶，或已不在可见位置。
     await page.waitForFunction(id => { const zone = document.querySelector(`[data-card="${id}"]`)?.getAttribute('data-zone'); return zone === undefined || zone === null || zone === 'flight' || zone === 'discard'; }, playedId, { timeout: 10000 });
@@ -96,6 +98,26 @@ try {
       break;
     }
     await page.getByRole('button', { name: '离开', exact: true }).click();
+    // 慢回执：真实指针拖拽到前注区，回执延迟 60 / 300 ms（提交 ≠ 接受：牌先停在槽上方，接受后才落地）
+    for (const delay of [60, 300]) {
+      await page.goto(origin + base + 'index.html?receiptDelay=' + delay);
+      await page.getByRole('button', { name: '开始', exact: true }).click();
+      await page.locator('.tda-card--hand.is-legal').first().waitFor({ state: 'attached', timeout: 30000 });
+      await page.waitForTimeout(600);
+      const card = page.locator('.tda-card--hand.is-legal').last(); const id = await card.getAttribute('data-card');
+      const cb = await card.boundingBox(); const ante = await page.locator('[data-drop-zone="ante"][data-drop-seat="you"]').boundingBox();
+      await page.mouse.move(cb.x + cb.width / 2, cb.y + cb.height / 2); await page.mouse.down();
+      for (let i = 1; i <= 10; i++) { await page.mouse.move(cb.x + (ante.x + ante.width / 2 - cb.x) * i / 10, cb.y + (ante.y + ante.height / 2 - cb.y) * i / 10); await page.waitForTimeout(20); }
+      assert.equal(await page.locator('.tda-pointer').count(), 1, 'pointer arrow shows while dragging');
+      await page.mouse.up();
+      await page.waitForTimeout(2500);
+      const state = await page.evaluate(id => { const n = document.querySelector(`[data-card="${id}"]`); return { zone: n?.getAttribute('data-zone'), cls: n?.className, pending: document.querySelector('.tda-shell')?.getAttribute('data-pending-action') }; }, id);
+      assert.equal(state.zone, 'ante', `card committed with ${delay}ms receipt`);
+      assert.equal(state.pending, 'false');
+      assert.ok(!/is-entering|is-dropping|is-flying|is-pending/.test(state.cls), `no stuck animation class with ${delay}ms receipt: ${state.cls}`);
+      pass(`${name} drag commits an ante with a ${delay}ms receipt and the card settles`);
+    }
+    await page.goto(origin + base + 'index.html');
     await page.getByRole('button', { name: '开始', exact: true }).waitFor({ timeout: 10000 });
     await page.getByRole('button', { name: '开始', exact: true }).click();
     await page.locator('.tda-card--hand').first().waitFor({ state: 'attached', timeout: 30000 });
