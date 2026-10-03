@@ -52,8 +52,10 @@
 - 快照验证 HEAD `619ada56bbb2556e015d8775984baa416ab13692`；Node 22.17.1 与已装 Edge；原 8/8、2/2、20/20、4/4、fx3d 4/4 全过，363 个已跟踪文件哈希未变。记录：`RUNBOOKS/2026-10-04_environment-handoff.md`。
 - 原 403 已解除：当前有写权限账号已成功 `git push -u origin rebuild/presentation`，GitHub 分支为 `619ada5`；未合并 main。
 - 用户设立并授权三项持续上线目标，详见 GOAL §9。网站多人模式不登录，使用房间码/邀请+唯一名字；重连与新加入分开。
-- 线上已漂移到 card/Suite dev 241、stable Suite 1.3.14、独立旧三龙牌 0.7.22-dev。以现场散列为准，禁止将旧 paired worktree 全量发布覆盖 241。
+- 接手初期 card/Suite dev 为 241，切换前已到 243；stable Suite 1.3.14。独立旧三龙牌 0.7.22-dev 已被本轮 0.8.0-dev 更新。以现场散列为准，禁止将旧 paired worktree 全量发布覆盖其他功能。
 - 已核验 SSH、三龙牌服务健康与 WSS 预握手；现有 nginx 反代可沿用。服务源码相对快照多一条 stale-game leave 防护，新增 guest 接口时已保留。
-- 本轮新实现/发布版本 `0.8.0(-dev)`：guest 15/15、网站完整联机 14/14、入口矩阵 12/12；冻结源 cbcbb1a 换模型审计通过。Suite 实际桥夹具最终 10/10，旧后台缓存入口补丁 6/6。线上尚未切换，发布与真实枭熊验收未完成。留痕与最终回执：`RUNBOOKS/2026-10-04_owlbear-deploy.md`。
+- **2026-10-04 已发布**：独立网站/插件 `/three-dragon-ante/` 0.8.0、dev 0.8.0-dev，Suite stable/dev 牌桌定向更新；权威服务更新且 active，沿用原 nginx/unit/relay。部署源 `5a62b2ad87ff70cf6980b0267fc6ba525971eed0`，Suite 宿主实际 243（207f584）。当前最新 Git 提交可为后续纯文档留痕，不等于线上源码已另行重建。
+- guest 15/15、网站本地完整联机 14/14、入口矩阵 12/12、Suite 桥 10/10、旧后台入口 6/6、发布事务 17/17；最终包换模型审计通过，GitHub CI 37141298225 通过。实际公网网站 9/9，3 次前注、6 次出牌、5 次能力选择、1 次可见结算，错误/资源失败/外部请求 0。独立服务器复核 3900 文件 SHA 通过，5000 白名单外旧文件与 795 角色卡文件保持；SQLite 私有备份只在服务器，未下载。
+- 枭熊 manifest 已 HTTPS 发布，但安装与 GM/玩家真实房间验收仍待可操作的浏览器与两个账号，未把网站/夹具算为通过。发布与回退详见 `RUNBOOKS/2026-10-04_owlbear-deploy.md`；新发布元数据读取 `three-dragon-release.json` 和 manifest，独立 dev 历史 Suite 的 `release.json` 保留旧值，不作为本轮版本依据。
 - 本机预览 `http://127.0.0.1:4173/three-dragon-ante-dev/` 已接本地 5013 服务，独立预览数据库 `.local-data/preview-20261004.sqlite`；不连接生产玩家房间。
 - 浏览器连接组件目前缺少所需版本的 browser-service 文件，尚不能提供真实 GM/玩家双账号验收证据；本地 fixture 与线上网站测试不得替代它。

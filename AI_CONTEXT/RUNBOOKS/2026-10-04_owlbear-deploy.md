@@ -63,3 +63,43 @@
 - 新增显式运行的 `tools/three-dragon-live-website.mjs --origin ...`，只创建自己的 QA 名字房间，经真实浏览器 UI 验收跨频道入房、私牌、完整一轮、刷新/物理 WS 重建、主持继任和新浏览器离线名字恢复。本地预览 9/9：`.local-evidence/live-website/run-WLRLaH/result.json`。日志失败信息已按独立审计改成固定类别/计数，避免 AssertionError 或 URL 把手牌/凭据/房间标识写出；不留 raw frame 或截图。
 - 真实枭熊浏览器连接再次重试仍缺少所需版本的控制服务文件，未读取账号 profile/cookie，不以网站或夹具结论替代真实 GM/玩家验收。
 - 发布工具独立审计必改已修：失败服务状态仍可 inspect 并恢复旧 bundle；最终发布事务 17/17，证据 `U:/CodexWork/2026-10-04/three-dragon-release-selftest/run-g9s0nhd8/result.json`。现场 Python 3.9.22 的脚本只读 inspect 成功，脚本 SHA `df9d1967762eb0179d6933227ca86329c0addba0f64e8d8950c1c34e4a9096a7` 与本机一致；基线证据 `.local-evidence/deployment-preflight-20261004/release-inspect-python39.json`。Linux 原子交换独立临时目录 probe 通过，未切换生产目标。最终产物新 HEAD 绑定仍须在正式打包中验证。
+
+## 正式发布收口（已执行，真实枭熊验收尚未完成）
+
+### 冻结源与审计
+
+- 本轮发布源码 `5a62b2ad87ff70cf6980b0267fc6ba525971eed0`；Suite 宿主 `207f584347b6797c70eabaedff9825d8cdc36b88`（dev 243），stable 既有 manifest 1.3.14 保留。GitHub 同分支 push 成功，CI `37141298225` 成功；未 merge main、tag、force-push。
+- gpt-6.1-sol（GPT-6.1）独立终裁 **通过**，无开放必改。只读复核冻结 runtime、发布工具、实际 3902 项载荷 SHA、源 ZIP 的全部 378 跟踪文件与 HEAD 字节一致；1926 Suite overlay SHA 同源。Python 3.9 现场 inspect 和最终冻结重新打包两个条件均已解除。结论不覆盖真实枭熊身份验收。
+- 正式包 `U:/CodexWork/2026-10-04/three-dragon-release-final-5a62b2a/three-dragon-release.tar.gz`，178,865,831 bytes，SHA `7022448ebc13f11c6e4ed7f9686ed4e78e459af628d0d06a9978eaa4759d2add`。
+- 源 ZIP `three-dragon-source-5a62b2ad87ff.zip`，SHA `b9e7b1210dfaf785430136138423f33a1154cd0ec4bd391eb842fc2c7a3ec8d0`；server bundle SHA `2ee326bf88861934f868f1c8f04d619e5ed3b8494463b440606ce2e35345e361`；脚本 SHA 与上述审计值相同。正式独立解包验证 `U:/CodexWork/2026-10-04/three-dragon-release-validated-5a62b2a/verification.json`。
+
+### 切换与回退点
+
+- 上传后远端 tar/脚本 SHA 复核一致；现场再次确认 card/Suite dev 243、stable 1.3.14、旧独立 dev 0.7.22，随后以新鲜整树散列/权限基线执行 `apply`。
+- 发布 ID `20261004-5a62b2a-three-entry`；退出 0，receipt `status=applied`。只换三龙牌 bundle 并重启三龙牌服务，四个静态目录原子切换；server `active`。
+- 四目标独立回退目录：`/var/www/obr-plugins/.three-dragon-releases/20261004-5a62b2a-three-entry/rollback/<target>`，target 为 `three-dragon-ante-dev`、`three-dragon-ante`、`suite-dev`、`suite`。stable 独立目标原先不存在，回退恢复“不存在”；其余保存整树。控制目录 0700。
+- 原 bundle 和 SQLite 私有备份仅留服务器 `/var/backups/three-dragon-releases/20261004-5a62b2a-three-entry/`；私有 receipt 同目录 `receipt.json`。没有下载存档/备份或将玩家数据入库；回退从不覆写当前数据库。
+- 手工回退命令（需先核验无后续发布漂移）：`python3 /var/tmp/three-dragon-release/deploy-three-dragon-release.py rollback --release-id 20261004-5a62b2a-three-entry`。被中断的 preparing 发布使用同样 ID 的 `recover`；本次未触发。
+- 原始切换日志 `.local-evidence/deployment-20261004/apply-result.log`；公网入口表 `public-entries.json`。独立 dev 历史 Suite `release.json`/旧源包保留；当前三龙牌版本与精确来源以 manifest 和新 `three-dragon-release.json` 为准。
+
+### 上线核验结果
+
+| 目标 | 实际入口 | 结果 |
+|---|---|---|
+| 独立网站与正式扩展 | `https://obr.dnd.center/three-dragon-ante/`，manifest 同目录 | 200，manifest 0.8.0；四 HTML 与 API 健康均可达 |
+| 独立 dev | `https://obr.dnd.center/three-dragon-ante-dev/`，manifest 同目录 | 200，manifest 0.8.0-dev |
+| Suite stable 牌桌 | `https://obr.dnd.center/suite/three-dragon-ante.html` | 200，manifest/runtime/旧稳定模块原样保留 |
+| Suite dev 桥牌桌 | `https://obr.dnd.center/suite-dev/workbench-panels/table.html` | 200，243 宿主桥、非三龙牌功能保留 |
+| 权威服务 | `https://obr.dnd.center/three-dragon-api/v1/health` 与 WSS | health 200，真实网站认证/行动/重连通过 |
+
+- 独立只读服务器复核：**3900 发布文件 SHA 通过**；白名单外 5000 旧文件及 64 旧目录的散列/uid/gid/mode 保持，card 795 文件全部保持；nginx config、unit、relay 三模块及 nginx/relay 的 PID/ActiveState/启动标记完全保持。新 bundle SHA、0644 root:root、服务 active 与 receipt 一致，无意外新增文件。证据 `U:/CodexWork/2026-10-04/three-dragon-independent-verification-5a62b2a/evidence/result.json`；未读 SQLite/备份/房间。
+- 实际公网网站 **9/9**：新独立浏览器 desktop 正式网站创建、narrow dev 跨频道邀请加入、重名拒绝、私牌隔离、发牌/前注/翻注/出牌/能力/可见结算、刷新同手、真实 WSS 连接重建、8 秒自动主持继任、无凭据新浏览器按离线名字恢复。3 次前注、6 次出牌、5 次能力选择、1 次可见结算；71 个自身投影帧仅在 RAM 断言，错误/资源失败/外部请求均 0。证据 `.local-evidence/live-website/run-bxUHZV/result.json`，原始命令日志 `.local-evidence/deployment-20261004/live-website-result.log`。
+- 公网测试只创建合成 QA 房间，不读已有玩家牌局、不重启服务、不输出房间标识/凭据/手牌或截图；关闭后测试连接结束。此网站验收不是 Owlbear 房间验收。
+
+### 剩余验收与恢复开场
+
+1. 恢复浏览器控制连接，准备 GM 与玩家两个已登录账号。当前连接组件缺少所需服务文件，已请求用户准备；未读取账号 profile/cookie，也未通过其他手段绕过。
+2. 枭熊“扩展 → 添加”安装 `https://obr.dnd.center/three-dragon-ante/manifest.json`，也验 Suite 内入口。真实同房 GM + 玩家完成建桌/入座/发牌/前注/翻注/出牌/能力选择/结算，紧凑与全屏，刷新恢复；网络除自家和枭熊域外零请求。
+3. 用户独立审计提醒：按 `AI_CONTEXT/AUDIT.md` 中立开场词换模型只读复核，特别核对线上执行/真实账号证据；本轮换模型源码和产物审计已经通过，不替代真实验收。
+
+遗留双落 TODO 的真实枭熊段。总目标保持未完成，直到上述真实安装与双账号验收取得证据；已发布三入口、线上网站验证不回退为“尚未部署”。后续纯文档提交不改变发布源码 5a62b2a 或已有产物。

@@ -40,4 +40,4 @@ SQLite 只在服务器 `/var/backups/three-dragon-releases/<release-id>/` 内作
 
 ## 遗留
 
-最终 commit 绑定产物、独立审计结论、fresh baseline/各目标正式回退点、实际发布与公网验收尚待主代理执行。真实枭熊双账号验收另列，不由本地 fixture 代替。遗留应同时跟踪在 `AI_CONTEXT/TODO.md` 的三入口上线目标段。
+正式包已绑定 `5a62b2ad87ff70cf6980b0267fc6ba525971eed0` 与宿主 207f584，独立审计终裁通过。正式 apply、独立服务器复核与公网网站 9/9 已执行，完整源/包散列、各目标回退点和执行回执见同日 `2026-10-04_owlbear-deploy.md` 收口段。真实枭熊安装与双账号验收仍待浏览器连接恢复，遗留同时在 `AI_CONTEXT/TODO.md`；不由本地 fixture 或网站验收代替。

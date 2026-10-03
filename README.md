@@ -45,6 +45,14 @@ npm run dev:server
 
 生产构建使用 `VITE_TDA_API=/three-dragon-api/v1`，或在构建前配置 `.env.local`。真实枭熊扩展需要 HTTPS/WSS 地址与正确的 `TDA_ORIGIN`；部署说明见 `docs/THREE_DRAGON_SERVER_203.md`。默认构建基路径 `/three-dragon-ante-dev/`；设置 `THREE_DRAGON_CHANNEL=stable` 构建 `/three-dragon-ante/`。整个产物目录必须在对应基路径发布，入口为 `manifest.json`、`background.html`、`launcher.html`、`table.html` 和网站 `index.html`。
 
+## 线上入口（2026-10-04）
+
+- 网站：<https://obr.dnd.center/three-dragon-ante/>，支持本地机器人、房间码/邀请加名字多人和重连。
+- 独立枭熊扩展：在“扩展 → 添加”中填写 <https://obr.dnd.center/three-dragon-ante/manifest.json>；dev 频道为 <https://obr.dnd.center/three-dragon-ante-dev/manifest.json>。
+- Suite 内牌桌沿用已安装的 Suite 入口。进行中的稳定旧局保持原频道协议，新局使用权威服务。
+
+当前发布为 0.8.0 / 0.8.0-dev。版本及精确源提交读取 `manifest.json` 与 `three-dragon-release.json`；后者提供对应冻结源码 ZIP 路径。公网网站联机已验证，真实枭熊安装与 GM/玩家双账号验收仍待完成；完整回执见 `AI_CONTEXT/RUNBOOKS/2026-10-04_owlbear-deploy.md`。
+
 ## 验证
 
 ```sh
