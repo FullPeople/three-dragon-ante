@@ -3,6 +3,7 @@
 
 export interface SurfaceMaterials { wood: MaterialSet; felt: MaterialSet; leather: MaterialSet }
 export interface MaterialSet { color: string; normal: string; rough: string; tile: number; tint?: [number, number, number]; brightness?: number }
+export type SurfaceShape = "round" | "square";
 export interface SurfaceHandle { render(): void; destroy(): void; readonly ready: boolean }
 
 const VS = `#version 300 es
@@ -18,7 +19,11 @@ uniform vec3 uWoodTile;        // x: tile size, y/z unused
 uniform float uFeltTile, uLeatherTile;
 uniform vec3 uKeyDir;          // 定向光方向（指向光源）
 uniform vec3 uCandlePos;       // 点光位置（平面单位，z 为高度）
+uniform float uShape;          // 0 = 圆桌（椭圆），1 = 圆角方桌
 float sdRoundRect(vec2 p, vec2 b, float r){ vec2 q = abs(p) - b + r; return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r; }
+// 椭圆距离的一阶近似（IQ），足够画包边与倒角
+float sdEllipse(vec2 p, vec2 ab){ float k0 = length(p / ab); float k1 = length(p / (ab * ab)); return k0 * (k0 - 1.0) / max(k1, 1e-4); }
+float sdTable(vec2 p, vec2 hb, float corner){ return uShape < 0.5 ? sdEllipse(p, hb) : sdRoundRect(p, hb, corner); }
 vec3 toLinear(vec3 c){ return pow(c, vec3(2.2)); }
 vec3 toSrgb(vec3 c){ return pow(max(c, 0.0), vec3(1.0 / 2.2)); }
 vec3 shade(vec3 albedo, vec3 n, float rough, vec2 p){
@@ -45,10 +50,10 @@ vec3 unpackN(vec4 t){ vec3 n = t.xyz * 2.0 - 1.0; n.xy *= 1.15; return normalize
 void main(){
   vec2 p = vUv * uSize;                       // 平面坐标
   vec2 c = p - uSize * 0.5;                   // 以中心为原点
-  float tableSd = sdRoundRect(c, uSize * 0.5, 260.0);
+  float tableSd = sdTable(c, uSize * 0.5, 230.0);
   if (tableSd > 0.0) { outColor = vec4(0.0); return; }
   vec2 feltHalf = uSize * 0.5 - vec2(74.0, 64.0);
-  float feltSd = sdRoundRect(c, feltHalf, 210.0);
+  float feltSd = sdTable(c, feltHalf, 170.0);
   float bandW = 26.0;
   vec3 col;
   if (feltSd <= 0.0) {
@@ -96,7 +101,7 @@ function compile(gl: WebGL2RenderingContext, type: number, source: string): WebG
   return shader;
 }
 
-export function mountSurface(canvas: HTMLCanvasElement, materials: SurfaceMaterials, size: () => { w: number; h: number; pixelScale: number }): SurfaceHandle | null {
+export function mountSurface(canvas: HTMLCanvasElement, materials: SurfaceMaterials, size: () => { w: number; h: number; pixelScale: number; shape: SurfaceShape }): SurfaceHandle | null {
   let gl: WebGL2RenderingContext | null = null;
   try { gl = canvas.getContext("webgl2", { alpha: true, antialias: false, premultipliedAlpha: true, powerPreference: "low-power", preserveDrawingBuffer: true }); } catch { gl = null; }
   if (!gl) return null;
@@ -139,11 +144,11 @@ export function mountSurface(canvas: HTMLCanvasElement, materials: SurfaceMateri
   }
   function render() {
     if (destroyed) return;
-    const { w, h, pixelScale } = size();
+    const { w, h, pixelScale, shape } = size();
     const width = Math.max(2, Math.min(2560, Math.round(w * pixelScale))), height = Math.max(2, Math.min(2560, Math.round(h * pixelScale)));
     if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
     ctx.viewport(0, 0, width, height); ctx.useProgram(program);
-    ctx.uniform2f(uniforms("uSize"), w, h);
+    ctx.uniform2f(uniforms("uSize"), w, h); ctx.uniform1f(uniforms("uShape"), shape === "round" ? 0 : 1);
     slots.forEach(([name], i) => { ctx.activeTexture(ctx.TEXTURE0 + i); ctx.bindTexture(ctx.TEXTURE_2D, textures.get(name)!); ctx.uniform1i(uniforms(name), i); });
     const tint = materials.felt.tint ?? [0.16, 0.36, 0.27];
     ctx.uniform3f(uniforms("uFeltTint"), tint[0], tint[1], tint[2]);

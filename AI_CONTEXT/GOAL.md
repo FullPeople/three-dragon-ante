@@ -45,7 +45,7 @@
 
 1. **接缝固定**：新 UI 的输入是 `TableView`（`protocol.ts`），输出是 `TableUICommand`（`ui-command.ts`）；返回对象实现旧 `mountTableUI` 的全部方法（`update / gesture / language / restore / draft / waitingForReceipt / presentationBusy / getAnchor / suspend / resume / failed / destroy`）。宿主页面（`legacy-page.ts`、`server-page.ts`、本地对战）不感知内部实现。
 2. **隐私不变量**：渲染只拿投影；普通座位视图永不渲染他人手牌正面；全能视图只在主持本机；手势广播不带手牌数据；拖放/键盘提交不等于接受，必须等匹配的回执（`actionReceipt`）才落地。`privacy-selftest.mjs` 继续在 `npm test` 中。
-3. **流程时序规格（产品规则，必须延续）**：出牌落地 → 停 0.3 s → 能力说明层（玩家关闭）→ 结算动画 → 再停 0.3 s → 阶段标签才变；翻注四段（放置 250 ms → 翻开 360 ms → 最高牌闪 640 ms → 付款 470 ms，共 1720 ms）；能力提示 `power-ready / playable-no-power` 只用引擎给的 `handPowerHints`，UI 不自行推断。
+3. **流程时序规格（产品规则，必须延续；v1.2 第二轮纠错后）**：出牌（抽出 190 ms → 加速落下 260 ms → 尘土）→ 停 640 ms → 聚焦 420 ms（传说牌先起法阵 700 ms）→ 能力说明层（点击任意处关闭）→ 该牌独有特效脚本 → 金币 → 停 0.3 s；轮局结束：特殊牌阵说明层（点击关闭）→ 桌面拼点（数字浮现 700 ms → 打标 1000 ms）→ 计分板 → 发奖池 → 阶段标签才变；翻注四段（放置 250 ms → 翻开 360 ms → 最高牌闪 640 ms → 付款 470 ms，共 1720 ms）；能力提示 `power-ready / playable-no-power` 只用引擎给的 `handPowerHints`，UI 不自行推断。
 4. **零外部请求**：字体、纹理、音效全部打包自托管；浏览器冒烟断言 `external == []`。
 5. **`SOURCE.json` + `verify:source` 在重构开始后作废**：从 `package.json` 脚本与 CI 中移除 `verify:source`；`SOURCE.json` 保留为历史记录并在 `docs/EXTRACTION.md` 注明。
 6. **测试重建**：旧浏览器冒烟与 9 个 `*-selftest.mjs` 绑定旧 DOM；新 UI 完成后按新选择器重写 `test:browser` / `test:server-browser`；`npm test` 与 `npm run test:server` 保持原样并必须持续通过。

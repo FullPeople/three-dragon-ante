@@ -100,7 +100,8 @@ export function createController(store: Store, deps: ControllerDeps): Controller
     dismissPower() { const fn = powerDismiss; powerDismiss = null; fn?.(); },
     onPowerDismiss(fn) { powerDismiss = fn; },
     knock() {
-      const own = privateGame(store.get().view); if (!own || store.get().suspended) return;
+      const s = store.get(), own = privateGame(s.view); if (!own || s.suspended || Date.now() - s.knockAt < 1500) return;
+      store.set({ knockAt: Date.now() });
       gestureSequence = Math.max(gestureSequence + 1, Date.now());
       deps.gesture?.({ gameId: own.id, revision: own.revision, count: own.hand.length, hover: null, selected: [], sequence: gestureSequence, slap: true });
       store.set(s => ({ gestures: { ...s.gestures, [own.selfSeatId]: { gameId: own.id, revision: own.revision, count: own.hand.length, hover: null, selected: [], sequence: gestureSequence, slap: true } } }));
@@ -125,7 +126,7 @@ export function createController(store: Store, deps: ControllerDeps): Controller
     destroy() { dead = true; if (gestureTimer) clearTimeout(gestureTimer); gestureTimer = undefined; powerDismiss = null; },
     keyboard(event) {
       const s = store.get(), own = privateGame(s.view); if (!own?.hand.length) return;
-      if (s.show.power) { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); if (!event.repeat) this.dismissPower(); } return; }
+      if (s.show.power || s.show.formation) { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); if (!event.repeat) this.dismissPower(); } return; }
       const index = Math.max(0, own.hand.findIndex(c => c.id === s.keyboardCard));
       if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
         event.preventDefault(); if (s.keyboardHeld) return;

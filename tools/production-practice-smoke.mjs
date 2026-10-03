@@ -63,11 +63,11 @@ try {
     // 机器人跟注、翻注、进入出牌阶段
     await page.waitForFunction(() => ['play', 'choice'].includes(document.querySelector('.tda-shell')?.getAttribute('data-phase') || ''), null, { timeout: 30000 });
     pass(`${name} reveal completes and play phase begins`);
-    // 轮到自己时出牌：机器人的能力说明要人点"继续"，自己的能力选择要人确认；这里像玩家一样推进，直到有合法手牌可打
+    // 轮到自己时出牌：机器人的能力说明要人点击任意处关闭，自己的能力选择要人确认；这里像玩家一样推进，直到有合法手牌可打
     const deadline = Date.now() + 60000;
     while (true) {
       if (Date.now() > deadline) throw new Error(name + ': never reached an own play turn');
-      if (await page.locator('.tda-spotlight-actions button').count()) { await page.locator('.tda-spotlight-actions button').first().click(); await page.waitForTimeout(400); continue; }
+      if (await page.locator('.tda-spotlight, .tda-formation-spot').count()) { await page.locator('.tda-spotlight, .tda-formation-spot').first().click({ position: { x: 24, y: 24 } }); await page.waitForTimeout(400); continue; }
       if (await page.locator('.tda-choice').count()) {
         const option = page.locator('.tda-choice [data-option]:not([disabled])').first();
         if (await option.count()) { await option.click(); await page.locator('#confirm-action:not([disabled])').click({ timeout: 4000 }).catch(() => {}); }
@@ -79,8 +79,10 @@ try {
     }
     const playable = page.locator('.tda-card--hand.is-legal').last();
     const playedId = await playable.getAttribute('data-card');
-    await playable.click({ force: true, position: { x: 70, y: 40 } });
-    await page.locator('[data-drop-zone="flight"][data-drop-seat="you"]').click({ force: true });
+    // 扇面里的牌互相重叠，按坐标点击可能落在邻牌上；这里直接触发节点的 click（真实指针拖拽由 six-and-drag.mjs 覆盖）
+    await page.evaluate(id => document.querySelector(`[data-card="${id}"]`).click(), playedId);
+    await page.waitForFunction(id => document.querySelector(`[data-card="${id}"]`)?.classList.contains('is-selected'), playedId, { timeout: 4000 });
+    await page.evaluate(() => document.querySelector('[data-drop-zone="flight"][data-drop-seat="you"]').click());
     await page.waitForFunction(() => document.querySelector('.tda-shell')?.getAttribute('data-pending-action') === 'false', null, { timeout: 10000 });
     // 牌离开手牌即可：某些能力（铜龙等）会立刻把刚打出的牌换进弃牌堆，所以落点可能是牌阵、弃牌顶，或已不在可见位置。
     await page.waitForFunction(id => { const zone = document.querySelector(`[data-card="${id}"]`)?.getAttribute('data-zone'); return zone === undefined || zone === null || zone === 'flight' || zone === 'discard'; }, playedId, { timeout: 10000 });
@@ -89,7 +91,7 @@ try {
     await page.screenshot({ path: join(output, name + '.png') });
     // 退出回首页，再进一局（先像玩家一样关掉还在播放的说明层 / 待确认的选择）
     for (let i = 0; i < 30; i++) {
-      if (await page.locator('.tda-spotlight-actions button').count()) { await page.locator('.tda-spotlight-actions button').first().click(); await page.waitForTimeout(300); continue; }
+      if (await page.locator('.tda-spotlight, .tda-formation-spot').count()) { await page.locator('.tda-spotlight, .tda-formation-spot').first().click({ position: { x: 24, y: 24 } }); await page.waitForTimeout(300); continue; }
       if (await page.locator('.tda-choice').count()) { const option = page.locator('.tda-choice [data-option]:not([disabled])').first(); if (await option.count()) { await option.click(); await page.locator('#confirm-action:not([disabled])').click({ timeout: 4000 }).catch(() => {}); } await page.waitForTimeout(400); continue; }
       break;
     }

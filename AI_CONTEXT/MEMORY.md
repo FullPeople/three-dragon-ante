@@ -23,10 +23,12 @@
 
 ## B. 当前状态（最近为真；过时即更新）
 
+- **第二轮纠错（2026-10-03 晚）**：用户看过演示后九条纠错已实施（runbook `RUNBOOKS/2026-10-03_presentation-round2.md`）：等待时序重排 + 拼点 + 特殊牌阵说明层、手牌 / 指向器 / 两段落牌 + 尘土、每牌特效脚本 + 传说法阵、场地层、桌形随人数、拍桌、酒馆背景、选择面板瓦片、措辞统一"前注"。遗留：持续效果的循环音效素材。
 - **阶段 / 里程碑**：阶段 0–7 全部完成（评估、留痕、骨架、2.5D 场景、HUD、时序、材质与音效、枭熊页切换、删旧与测试重建、独立审计两轮 + 整改）；审计终裁"修好 N1 且多次稳定后判通过"，已满足。**push 待用户确认**。详见 `RUNBOOKS/2026-10-03_presentation-rebuild-kickoff.md` §7–§16。
 - **运行态**：本机 `D:\my_code\three-dragon-ante`，分支 `rebuild/presentation`，基线 `eb74f62`（main）。未 push。线上入口未动。`index.html` = 独立网站；`table.html` = 枭熊牌桌页（已挂新表现层）；`src/modules/threeDragonAnte` 旧稳定频道仍是旧 UI。
 - **验证基线**：typecheck / build 通过；`npm test` 8/8（含 presentation-selftest 5 项）；`test:server` 2/2；`test:browser` 14/14 连跑 5 次稳定；`test:server-browser` 4/4；全部本机 Edge。
 - **风险提醒**：① 真实枭熊房间与实体手机未验证；② vendor CSS 约 500 kB（fontsource 的全部 unicode-range 子集声明），可做字体子集化；③ 依赖漏洞（Vite / ws）未升级，另立任务；④ 枭熊紧凑弹窗只按 CSS 断点适配，未在真实弹窗尺寸下截图。
+- **GLSL 坑（2026-10-03）**：`half` 是 GLSL ES 保留字，用作参数名会让着色器静默编译失败并回退 CSS；冒烟测试断言 `surface==="webgl"` 会抓到。
 - **入场动画坑（2026-10-03）**：CardNode 的入场位姿用内联 CSS 变量覆盖，动画结束时必须把目标位姿写回；删属性会让所有卡牌掉到平面原点（React 不重写未变化的 style）。
 - **在办**：见 `TODO.md`。
 

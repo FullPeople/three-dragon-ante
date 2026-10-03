@@ -83,6 +83,8 @@ export function createLocalMatch(parent: HTMLElement, options: LocalMatchOptions
   function render() { if (destroyed) return; table.update(view()); scheduleBot(); }
   table = mountTableUI(host, {
     language: lang, hostKind: "local", id: () => `local:${generation}:${++serial}`,
+    // 拍桌：正在思考的机器人提前出手
+    gesture(value) { if (!value.slap || destroyed || paused() || presentationHeld || botTimer === undefined) return; cancelBot(); const plan = nextBot(); if (!plan) return; const gen = generation, gameId = game.id; botTimer = setTimeout(() => { botTimer = undefined; if (destroyed || gen !== generation || gameId !== game.id || paused() || table.presentationBusy()) return; const move = botMove(game, plan.seatId, `local:${generation}:${++serial}`); if (move) take(move, false); }, 320); },
     onPresentationChange(busy) { if (destroyed) return; const held = presentationHeld; presentationHeld = busy; if (busy) cancelBot(); else if (held) scheduleBot(); },
     send(command) {
       if (destroyed) return;

@@ -6,6 +6,8 @@
 ## 待办
 
 - [x] 第三方素材下载（用户 2026-10-03 同意）：Poly Haven dark_wood / medieval_wood / brown_leather / metal_plate，ambientCG Fabric034 / Paper006，Kenney Casino Audio；已压缩入库并登记 `docs/design/ASSETS.md`。
+- [ ] 持续效果（德鲁伊 / 祭司 / 龙巫妖…）的**持续音效**：需要 CC0 环境循环素材（Kenney 现有包没有），来源待用户批准；`FieldLayer` 已留位置。
+- [ ] 第二轮纠错后的独立审计（换模型）。
 - [ ] **去 AI 感复查**：按 `docs/design/ANTI_AI_FEEL.md` §3 逐项过一遍全部组件（横幅扫入动画、聚光层淡入是否算"动效过多"由用户定）；卡背纹章是否还显"AI 矢量味"待用户看截图后定。
 - [ ] 材质细化：毛毡色调 / 粗糙度、烛光位置与强度、桌沿倒角宽度；手机端 `pixelScale` 上限 1.4 是否够清晰。
 - [x] 阶段 1–7 完成（2026-10-03）：独立审计两轮，必修项 N1 已修并连跑 5 次稳定，审计口径下判通过。

@@ -5,7 +5,7 @@ import type { Controller } from "../app/controller";
 import { cardFaceURL } from "../../game/card-images";
 import { card } from "../../game/rules/cards";
 import { cardHint, cardName, joinNames, t } from "../i18n";
-import { familyFx } from "../app/presenter";
+import { familyFx } from "../fx/powers";
 
 function useNames(state: UIState) {
   const game = state.display?.game ?? state.view?.game ?? null, own = privateGame(state.display ?? state.view);
@@ -21,7 +21,6 @@ export function PhaseBanner({ state }: { state: UIState }) {
   else if (cue.kind === "ante") { title = t("bannerAnte", lang, { n: cue.gambit }); }
   else if (cue.kind === "end") { title = t("ended", lang); sub = t("bannerEnd", lang, { names: joinNames(cue.winners.map(name), lang) }); }
   else if (cue.kind === "purchase") { title = t("bannerPurchase", lang, { name: name(cue.seatId), n: cue.price }); }
-  else if (cue.kind === "reward") { title = t("bannerReward", lang, { name: name(cue.seatId), n: cue.amount }); }
   return <div className={`tda-banner tda-banner--${cue.kind}`} key={cue.key} role="status" aria-live="polite">
     <div className="tda-banner-scroll tda-parchment"><h2>{title}</h2>{sub ? <p>{sub}</p> : null}{cue.kind === "purchase" ? <img className="tda-banner-card" src={cardFaceURL(cue.cardId)} alt="" /> : null}</div>
   </div>;
@@ -42,7 +41,23 @@ export function PowerSpotlight({ state, controller }: { state: UIState; controll
       <h2>{cardName(value.id, lang)} <span className="tda-num">{value.strength}</span></h2>
       {groups.size ? <p className="tda-spotlight-targets">{[...groups].map(([label, names]) => `${label}${lang === "zh" ? "：" : ": "}${joinNames(names, lang)}`).join(" · ")}</p> : null}
       <p className="tda-spotlight-text">{cardHint(value, lang)}</p>
-      <div className="tda-spotlight-actions"><button type="button" className="tda-btn tda-btn--primary" onClick={event => { event.stopPropagation(); controller.dismissPower(); }}>{t("continue", lang)}</button></div>
+      <p className="tda-spotlight-hint" data-dismiss-hint>{t("tapToContinue", lang)}</p>
+    </div>
+  </div>;
+}
+
+export function FormationSpotlight({ state, controller }: { state: UIState; controller: Controller }) {
+  const cue = state.show.formation; if (!cue) return null;
+  const lang = state.lang, name = useNames(state);
+  const kind = cue.kind === "color" ? t("formationColor", lang) : cue.kind === "strength" ? t("formationStrength", lang) : cue.kind === "mortal" ? t("formationMortal", lang) : "";
+  const reward = cue.kind === "strength" ? t("formationRewardStrength", lang, { n: cue.amount }) : t("formationRewardColor", lang, { n: cue.amount });
+  return <div className="tda-formation-spot" role="dialog" aria-modal="true" aria-label={t("formationTitle", lang, { name: name(cue.seatId) })} onClick={() => controller.dismissPower()}>
+    <div className="tda-formation-board tda-parchment">
+      <h2>{t("formationTitle", lang, { name: name(cue.seatId) })}</h2>
+      {kind ? <p className="tda-formation-kind">{kind}</p> : null}
+      <div className="tda-formation-cards">{cue.cardIds.map(id => <img key={id} src={cardFaceURL(id)} alt={cardName(id, lang)} draggable={false} />)}</div>
+      <p className="tda-formation-reward">{reward}</p>
+      <p className="tda-spotlight-hint" data-dismiss-hint>{t("tapToContinue", lang)}</p>
     </div>
   </div>;
 }

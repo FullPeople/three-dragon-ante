@@ -9,16 +9,16 @@ import { WaitingLine } from "../hud/WaitingLine";
 import { ActionBar } from "../hud/ActionBar";
 import { ChoicePanel } from "../hud/ChoicePanel";
 import { CardInspector } from "../hud/CardInspector";
-import { EndPanel, PhaseBanner, PowerSpotlight, ScoreBoard } from "../hud/Overlays";
+import { EndPanel, FormationSpotlight, PhaseBanner, PowerSpotlight, ScoreBoard } from "../hud/Overlays";
 import { Lobby } from "../hud/Lobby";
 import { waitingLine, type PresentationFlags } from "../model/flow";
 import { t } from "../i18n";
 import type { FxLayer } from "../fx/particles";
 import type { Orientation } from "../model/layout";
 
-export interface TableAppProps { store: Store; controller: Controller; onFx(fx: FxLayer | null): void; onOrientation(orientation: Orientation): void; showTopBar: boolean }
+export interface TableAppProps { store: Store; controller: Controller; onFx(fx: FxLayer | null): void; onOrientation(orientation: Orientation): void; showTopBar: boolean; onLand?(key: string, zone: string): void }
 
-export function TableApp({ store, controller, onFx, onOrientation, showTopBar }: TableAppProps) {
+export function TableApp({ store, controller, onFx, onOrientation, showTopBar, onLand }: TableAppProps) {
   const state = useStore(store);
   const view = state.view, display = state.display, game = display?.game ?? null, own = privateGame(display);
   const flowGame = (state.flow ?? display)?.game ?? null;
@@ -47,7 +47,7 @@ export function TableApp({ store, controller, onFx, onOrientation, showTopBar }:
       <FlowRail game={flowGame} lang={lang} flags={flags} />
       <WaitingLine line={line} game={flowGame} selfSeatId={own?.selfSeatId ?? null} />
     </div>
-    <TableScene state={state} controller={controller} onFx={onFx} onOrientation={onOrientation} />
+    <TableScene state={state} controller={controller} onFx={onFx} onOrientation={onOrientation} onLand={onLand} />
     <ActionBar state={state} controller={controller} />
     {state.helpOpen ? <aside className="tda-help tda-parchment" role="dialog" aria-label={t("help", lang)}>
       <h3>{t("helpFlow", lang)}</h3><p>{t("helpFlowText", lang)}</p>
@@ -60,6 +60,7 @@ export function TableApp({ store, controller, onFx, onOrientation, showTopBar }:
     <PhaseBanner state={state} />
     <ScoreBoard state={state} />
     <PowerSpotlight state={state} controller={controller} />
+    <FormationSpotlight state={state} controller={controller} />
     <EndPanel state={state} controller={controller} />
     <Editor state={state} controller={controller} />
     <Lobby state={state} controller={controller} />

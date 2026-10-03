@@ -51,7 +51,7 @@ export interface TableUISurface {
 
 export function mountTableUI(root: HTMLElement, deps: TableUIDeps): TableUISurface {
   let soundOn = true; try { soundOn = localStorage.getItem("three-dragon-ante.sound.v2") !== "off"; } catch {}
-  const initial: UIState = { lang: deps.language, hostKind: deps.hostKind ?? "obr", mode: deps.mode ?? "full", view: null, display: null, flow: null, selected: [], hovered: null, keyboardCard: null, keyboardHeld: false, drag: null, pending: null, sending: false, localMessage: "", inspect: null, show: emptyShow(), busy: false, soundOn, gestures: {}, slowSeatIds: [], suspended: false, helpOpen: false, goldHold: null };
+  const initial: UIState = { lang: deps.language, hostKind: deps.hostKind ?? "obr", mode: deps.mode ?? "full", view: null, display: null, flow: null, selected: [], hovered: null, keyboardCard: null, keyboardHeld: false, drag: null, pending: null, sending: false, localMessage: "", inspect: null, show: emptyShow(), busy: false, soundOn, gestures: {}, slowSeatIds: [], suspended: false, helpOpen: false, goldHold: null, knockAt: 0 };
   const store: Store = createStore(initial);
   let fx: FxLayer | null = null, orientation: Orientation = "landscape", destroyed = false, notifiedBusy = false;
   const audio = createAudio(root, () => store.get().soundOn);
@@ -63,7 +63,9 @@ export function mountTableUI(root: HTMLElement, deps: TableUIDeps): TableUISurfa
   const presenter = createPresenter(store, controller, { fx: () => fx, root: () => root, onBusy: busy => { if (busy !== notifiedBusy) { notifiedBusy = busy; deps.onPresentationChange?.(busy); } }, sound: (kind, key) => audio.play(kind, key) });
   root.classList.add("tda-root");
   const reactRoot: Root = createRoot(root);
-  const render = () => flushSync(() => reactRoot.render(createElement(TableApp, { store, controller, onFx: value => { fx = value; }, onOrientation: value => { orientation = value; }, showTopBar: deps.topBar !== false })));
+  const render = () => flushSync(() => reactRoot.render(createElement(TableApp, { store, controller, onFx: value => { fx = value; }, onOrientation: value => { orientation = value; }, showTopBar: deps.topBar !== false, onLand: (key, zone) => audio.play("thud", `${key}:${zone}:${store.get().view?.game?.revision ?? 0}`) })));
+  // 本家拍桌：声音在这里，震动与手掌在场景层
+  let knockSeen = 0; store.subscribe(() => { const at = store.get().knockAt; if (at && at !== knockSeen) { knockSeen = at; audio.play("slap", `knock:${at}`); } });
   render();
   const gestureTimers = new Map<string, ReturnType<typeof setTimeout>>();
   const slowTimers = new Map<string, ReturnType<typeof setTimeout>>();

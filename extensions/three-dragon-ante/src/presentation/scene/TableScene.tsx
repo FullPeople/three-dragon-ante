@@ -1,21 +1,41 @@
-/** 2.5D 牌桌：透视视口 → 倾斜平面 → 桌面 / 座位 / 中央牌堆 / 卡牌层；特效画布覆盖其上。 */
+/** 2.5D 牌桌：透视视口 → 倾斜平面 → 桌面 / 座位 / 中央牌堆 / 场地层 / 卡牌层 / 拼点数字；特效画布覆盖其上。
+ * 拖动是"指向器"：手牌抬起，一条弧线箭头从牌指向指针；松手在合法区即打出。落地时尘土 + 声音。 */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { UIState } from "../app/store";
 import { privateGame } from "../app/store";
 import type { Controller } from "../app/controller";
-import { CARD, CENTER, fitPlane, seatPlacements, type Orientation } from "../model/layout";
+import { CARD, CENTER, cardPlacements, fitPlane, seatPlacements, tableShape, type Orientation } from "../model/layout";
 import { SeatBlock } from "./SeatBlock";
 import { TableSurface } from "./TableSurface";
 import { CardLayer } from "./CardLayer";
 import { CoinStack } from "./CoinStack";
-import { cardFaceURL } from "../../game/card-images";
+import { FieldLayer } from "./FieldLayer";
 import { t } from "../i18n";
 import { mountFx, type FxLayer } from "../fx/particles";
 
-export interface TableSceneProps { state: UIState; controller: Controller; onFx(fx: FxLayer | null): void; onOrientation(orientation: Orientation): void }
+export interface TableSceneProps { state: UIState; controller: Controller; onFx(fx: FxLayer | null): void; onOrientation(orientation: Orientation): void; onLand?(key: string, zone: string): void }
 
-export function TableScene({ state, controller, onFx, onOrientation }: TableSceneProps) {
+/** 指向器：二次贝塞尔上的 chevron 列，越靠近指针越大，末端箭头。 */
+function PointerArrow({ from, to, legal }: { from: { x: number; y: number }; to: { x: number; y: number }; legal: boolean }) {
+  const dx = to.x - from.x, dy = to.y - from.y, dist = Math.hypot(dx, dy);
+  const ctrl = { x: (from.x + to.x) / 2 - dx * 0.08, y: Math.min(from.y, to.y) - Math.max(60, dist * 0.35) };
+  const at = (k: number) => ({ x: (1 - k) * (1 - k) * from.x + 2 * (1 - k) * k * ctrl.x + k * k * to.x, y: (1 - k) * (1 - k) * from.y + 2 * (1 - k) * k * ctrl.y + k * k * to.y });
+  const n = Math.max(4, Math.min(18, Math.round(dist / 28)));
+  const chevrons = [];
+  for (let i = 1; i < n; i++) {
+    const k = i / n, p = at(k), q = at(Math.min(1, k + 0.02)), ang = Math.atan2(q.y - p.y, q.x - p.x) * 180 / Math.PI, s = 6 + 7 * k;
+    chevrons.push(<path key={i} className="tda-pointer-chev" d={`M${-s} ${-s * 0.7} L${s * 0.4} 0 L${-s} ${s * 0.7} L${-s * 0.5} 0 Z`} transform={`translate(${p.x} ${p.y}) rotate(${ang})`} />);
+  }
+  const tail = at(0.96), ang = Math.atan2(to.y - tail.y, to.x - tail.x) * 180 / Math.PI;
+  return <svg className={`tda-pointer${legal ? " is-legal" : " is-illegal"}`} aria-hidden="true">
+    {chevrons}
+    <path className="tda-pointer-head" d="M-18 -13 L10 0 L-18 13 L-10 0 Z" transform={`translate(${to.x} ${to.y}) rotate(${ang})`} />
+  </svg>;
+}
+
+export function TableScene({ state, controller, onFx, onOrientation, onLand }: TableSceneProps) {
   const host = useRef<HTMLDivElement>(null), canvas = useRef<HTMLCanvasElement>(null);
+  const fxRef = useRef<FxLayer | null>(null);
   const [fit, setFit] = useState(() => fitPlane(1440, 820));
   useLayoutEffect(() => {
     const el = host.current; if (!el) return;
@@ -23,16 +43,34 @@ export function TableScene({ state, controller, onFx, onOrientation }: TableScen
     measure(); const observer = new ResizeObserver(measure); observer.observe(el); return () => observer.disconnect();
   }, []);
   useEffect(() => { onOrientation(fit.orientation); }, [fit.orientation]);
-  useEffect(() => { const c = canvas.current, h = host.current; if (!c || !h) return; const fx = mountFx(c, h); onFx(fx); return () => { fx.destroy(); onFx(null); }; }, []);
+  useEffect(() => { const c = canvas.current, h = host.current; if (!c || !h) return; const fx = mountFx(c, h); fxRef.current = fx; onFx(fx); return () => { fx.destroy(); fxRef.current = null; onFx(null); }; }, []);
 
   const view = state.display, game = view?.game ?? null, own = privateGame(view);
   const orientation = fit.orientation, spec = fit.spec, center = CENTER[orientation];
   const seats = useMemo(() => game ? seatPlacements(game, own?.selfSeatId ?? null, orientation) : [], [game, own?.selfSeatId, orientation]);
+  const shape = tableShape(game?.seats.length ?? 3);
   const legalZone = controller.legalZone();
   const targetSeatId = state.show.power?.targetSeatIds?.[0] ?? game?.resolutionStack.find(step => step.status === "active")?.targetSeatId ?? null;
   const waitingIds = new Set(game?.waitingSeatIds ?? []);
   const hold = state.goldHold;
   const stakesShown = hold?.stakes ?? game?.stakes ?? 0, holeShown = hold?.hole ?? game?.hole ?? 0;
+  const tally = state.show.tally;
+  const seatTally = new Map(tally?.kind === "score" ? tally.items.map(item => [item.seatId, item]) : []);
+  // 翻注拼点：数字浮在前注牌上方
+  const pips = useMemo(() => {
+    if (!tally || tally.kind !== "reveal" || !game) return [];
+    const placements = cardPlacements(game, orientation);
+    return tally.items.flatMap(item => { const p = placements.find(c => c.cardId === item.cardId); return p ? [{ ...item, x: p.pose.x, y: p.pose.y - CARD.h * p.pose.scale / 2 - 10 }] : []; });
+  }, [tally, game, orientation]);
+
+  // 拍桌：本家铭牌上落下手掌 + 震动
+  const lastKnock = useRef(0);
+  useEffect(() => {
+    if (!state.knockAt || state.knockAt === lastKnock.current) return; lastKnock.current = state.knockAt;
+    const fx = fxRef.current, el = host.current?.querySelector<HTMLElement>(`[data-seat-plate="${own ? CSS.escape(own.selfSeatId) : "-"}"]`);
+    if (!fx) return; const r = el?.getBoundingClientRect(); const point = r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : (() => { const h = host.current!.getBoundingClientRect(); return { x: h.left + h.width / 2, y: h.top + h.height * 0.7 }; })();
+    fx.shake(520); void fx.slap(point);
+  }, [state.knockAt]);
 
   // 拖动：手牌节点按下后超过 6px 才算拖动，否则保留点击语义。
   const dragRef = useRef<{ cardId: string; startX: number; startY: number; active: boolean; pointerId: number } | null>(null);
@@ -67,16 +105,24 @@ export function TableScene({ state, controller, onFx, onOrientation }: TableScen
     for (const el of document.elementsFromPoint(x, y)) { const zone = (el as HTMLElement).dataset?.dropZone; if ((zone === "ante" || zone === "flight") && (el as HTMLElement).dataset.dropSeat === selfSeatId) return zone; }
     return null;
   }
+  // 落地：尘土（横向铺开）+ 轻震 + 声音（声音由宿主层播放）
+  function onCardLand(key: string, el: HTMLElement, zone: string) {
+    const fx = fxRef.current; const r = el.getBoundingClientRect();
+    if (fx && r.width) { fx.dust({ x: r.left + r.width / 2, y: r.top + r.height * 0.72 }, zone === "flight" ? 1.1 : 0.9); fx.shake(180); }
+    onLand?.(key, zone);
+  }
 
   const drag = state.drag;
-  const dragCard = drag ? own?.hand.find(c => c.id === drag.cardId) : null;
   const hostRect = host.current?.getBoundingClientRect();
-  return <div ref={host} className={`tda-table tda-table--${orientation}`} data-orientation={orientation} style={{ "--scale": fit.scale, "--tilt": `${spec.tilt}deg`, "--plane-w": spec.w, "--plane-h": spec.h } as React.CSSProperties}>
+  let pointer: { from: { x: number; y: number }; to: { x: number; y: number }; legal: boolean } | null = null;
+  if (drag && hostRect) { const el = host.current?.querySelector<HTMLElement>(`[data-card="${CSS.escape(drag.cardId)}"]`); const r = el?.getBoundingClientRect(); if (r) pointer = { from: { x: r.left + r.width / 2 - hostRect.left, y: r.top - hostRect.top + 8 }, to: { x: drag.x - hostRect.left, y: drag.y - hostRect.top }, legal: drag.legal }; }
+  return <div ref={host} className={`tda-table tda-table--${orientation} tda-table--${shape}`} data-orientation={orientation} data-shape={shape} style={{ "--scale": fit.scale, "--tilt": `${spec.tilt}deg`, "--plane-w": spec.w, "--plane-h": spec.h } as React.CSSProperties}>
     <div className="tda-stage">
       <div className="tda-viewport">
         <div className="tda-plane">
-          <TableSurface width={spec.w} height={spec.h} scale={fit.scale} />
+          <TableSurface width={spec.w} height={spec.h} scale={fit.scale} shape={shape} />
           {game ? <>
+            <FieldLayer game={game} seats={seats} fx={fxRef.current} lang={state.lang} host={host.current} />
             <div className="tda-pile tda-pile--deck" style={{ left: center.deck.x - CARD.w / 2 - 8, top: center.deck.y - CARD.h / 2 - 8 }} data-pile="deck"><span className="tda-slot-label">{t("deck", state.lang)} · {game.deckCount}</span></div>
             <div className="tda-pile tda-pile--discard" style={{ left: center.discard.x - CARD.w / 2 - 8, top: center.discard.y - CARD.h / 2 - 8 }} data-pile="discard" onClick={() => { const top = game.discard[game.discard.length - 1]; if (top) controller.inspect(top.id, true); }}><span className="tda-slot-label">{t("discard", state.lang)} · {game.discard.length}</span></div>
             <div className="tda-stakes" style={{ left: center.stakes.x, top: center.stakes.y }} data-pile="stakes">
@@ -85,13 +131,14 @@ export function TableScene({ state, controller, onFx, onOrientation }: TableScen
             </div>
             {holeShown > 0 ? <div className="tda-hole" style={{ left: center.hole.x, top: center.hole.y }} data-pile="hole"><CoinStack amount={holeShown} /><div className="tda-plate tda-hole-plate"><span>{t("hole", state.lang)}</span><span className="tda-num">{holeShown}</span></div></div> : null}
             {seats.map(placement => { const seat = game.seats.find(s => s.id === placement.id)!; return <SeatBlock key={placement.id} seat={seat} placement={placement} game={game} selfSeatId={own?.selfSeatId ?? null} lang={state.lang}
-              legalZone={legalZone} dragOver={drag?.cardId ? drag.overZone : null} targetSeatId={targetSeatId} waiting={waitingIds.has(placement.id)} gold={hold?.seats[seat.id] ?? seat.gold} onZoneClick={zone => controller.placeSelected(zone)} />; })}
-            <CardLayer state={state} controller={controller} orientation={orientation} onCardPointerDown={onCardPointerDown} />
+              legalZone={legalZone} dragOver={drag?.cardId ? drag.overZone : null} targetSeatId={targetSeatId} waiting={waitingIds.has(placement.id)} gold={hold?.seats[seat.id] ?? seat.gold} tally={seatTally.get(seat.id)} onZoneClick={zone => controller.placeSelected(zone)} />; })}
+            <CardLayer state={state} controller={controller} orientation={orientation} onCardPointerDown={onCardPointerDown} onCardLand={onCardLand} />
+            {pips.map(pip => <div key={pip.cardId} className={`tda-pip is-step${tally?.step ?? 1} is-${pip.mark}`} style={{ left: pip.x, top: pip.y }} aria-hidden="true"><b className="tda-num">{pip.value}</b>{tally?.step === 2 && pip.mark !== "none" ? <small>{t(pip.mark === "lead" ? "tallyLeader" : pip.mark === "tied" ? "tallyTied" : "tallyIneligible", state.lang)}</small> : null}</div>)}
           </> : null}
         </div>
       </div>
     </div>
     <canvas ref={canvas} className="tda-fx" aria-hidden="true" />
-    {drag && dragCard && hostRect ? <div className={`tda-drag-ghost${drag.legal ? " is-legal" : ""}`} style={{ left: drag.x - hostRect.left, top: drag.y - hostRect.top }} aria-hidden="true"><img src={cardFaceURL(dragCard.id)} alt="" draggable={false} /></div> : null}
+    {pointer ? <PointerArrow from={pointer.from} to={pointer.to} legal={pointer.legal} /> : null}
   </div>;
 }

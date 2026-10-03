@@ -36,18 +36,25 @@
 .tda-actionbar-prompt { min-width: 0; font-family: var(--font-display); font-size: 16px; }
 .tda-actionbar-buttons { display: flex; gap: 10px; flex-shrink: 0; }
 
-.tda-choice { position: absolute; left: 50%; top: 14%; z-index: 70; transform: translateX(-50%); width: min(760px, calc(100% - 32px)); max-height: 56%; overflow: auto; padding: 16px 20px 14px; }
-.tda-choice-title { margin: 0 0 4px; font-family: var(--font-display); font-size: 17px; line-height: 1.4; }
-.tda-choice-by { margin: 0 0 10px; font-size: 13px; color: #5a4328; }
-.tda-choice-options { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
-.tda-choice-card { position: relative; width: 92px; padding: 0; border: 0; background: none; border-radius: 5px; box-shadow: var(--shadow-card); transition: transform 120ms; }
-.tda-choice-card img { display: block; width: 100%; aspect-ratio: 1250 / 2208; object-fit: cover; border-radius: 5px; }
-.tda-choice-card small { display: block; text-align: center; font-size: 11px; color: #5a4328; }
-.tda-choice-card:hover:not(:disabled) { transform: translateY(-3px); }
-.tda-choice-card.is-selected { transform: translateY(-6px); box-shadow: var(--shadow-card), 0 0 0 3px #8a6a2a; }
-.tda-choice-card:disabled { opacity: .45; }
-.tda-choice-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; }
-.tda-choice-count { font-size: 13px; color: #5a4328; }
+.tda-choice { position: absolute; left: 50%; top: 14%; z-index: 70; transform: translateX(-50%); width: min(820px, calc(100% - 32px)); max-height: 60%; overflow: auto; padding: 14px 18px 12px; }
+.tda-choice-head { display: flex; flex-direction: column; gap: 2px; margin-bottom: 10px; }
+.tda-choice-title { margin: 0; font-size: 14px; line-height: 1.45; color: #2a1d12; }
+.tda-choice-by { margin: 0; font-family: var(--font-display); font-size: 14px; font-weight: 700; color: #4a3522; }
+/* 选项瓦片：卡牌与文字同一尺寸，一眼对齐 */
+.tda-choice-options { display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; }
+.tda-tile { position: relative; width: 96px; height: 170px; padding: 0; border: 1px solid #4a3522; border-radius: 5px; background: #e2d2ae; color: var(--ink); box-shadow: var(--shadow-card); transition: transform 120ms; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; overflow: hidden; }
+.tda-tile--card img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.tda-tile-strength { position: absolute; left: 4px; top: 4px; min-width: 24px; padding: 0 5px; border-radius: 2px; background: #15100b; color: var(--parchment); font-size: 14px; line-height: 22px; text-align: center; }
+.tda-tile-owner { position: absolute; left: 0; right: 0; bottom: 0; padding: 2px 0; font-size: 11px; text-align: center; background: rgba(21, 16, 11, .85); color: var(--parchment); }
+.tda-tile--text { background-color: #5a3e2e; background-image: var(--tex-leather); background-size: 300px; background-blend-mode: multiply; color: var(--parchment); padding: 8px; }
+.tda-tile-big { font-size: 34px; line-height: 1; }
+.tda-tile-small { font-size: 11px; line-height: 1.3; text-align: center; color: var(--parchment-dim); }
+.tda-tile:hover:not(:disabled) { transform: translateY(-3px); }
+.tda-tile.is-selected { transform: translateY(-6px); box-shadow: var(--shadow-card), 0 0 0 3px #8a6a2a; }
+.tda-tile--text.is-selected { background-color: #c9a24d; background-image: var(--tex-oak); background-blend-mode: overlay; color: #15100b; } .tda-tile--text.is-selected .tda-tile-small { color: #3a2a18; }
+.tda-tile:disabled { opacity: .45; cursor: default; }
+.tda-choice-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; }
+.tda-choice-count { font-family: var(--font-display); font-size: 14px; color: #4a3522; }
 
 .tda-inspector { position: absolute; right: 14px; top: 108px; z-index: 65; width: min(270px, 25%); display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
 .tda-inspector.is-pinned { pointer-events: auto; }
@@ -80,7 +87,16 @@
 .tda-spotlight-copy h2 { margin: 0 0 8px; font-family: var(--font-display); font-size: clamp(22px, 3vw, 36px); line-height: 1.2; }
 .tda-spotlight-targets { margin: 0 0 12px; font-size: 14px; color: #4a3522; }
 .tda-spotlight-text { margin: 0; font-size: clamp(15px, 1.5vw, 19px); line-height: 1.65; white-space: pre-line; }
-.tda-spotlight-actions { margin-top: 16px; }
+.tda-spotlight-hint { margin: 16px 0 0; font-size: 13px; letter-spacing: .12em; color: #7a5a3a; }
+/* 特殊牌阵说明层 */
+.tda-formation-spot { position: absolute; inset: 0; z-index: 80; display: grid; place-items: center; padding: 16px; cursor: pointer; background: rgba(8, 5, 3, .78); animation: tda-fade-in 300ms both; }
+.tda-formation-board { width: min(760px, 100%); padding: 18px 24px; text-align: center; animation: tda-spot-rise 500ms var(--ease-out) both; }
+.tda-formation-board h2 { margin: 0; font-family: var(--font-display); font-size: clamp(22px, 3vw, 32px); }
+.tda-formation-kind { margin: 4px 0 12px; font-family: var(--font-display); font-size: 16px; color: #4a3522; }
+.tda-formation-cards { display: flex; justify-content: center; gap: 12px; }
+.tda-formation-cards img { width: clamp(90px, 14vw, 150px); aspect-ratio: 1250 / 2208; object-fit: cover; border-radius: 6px; box-shadow: var(--shadow-card); }
+.tda-formation-reward { margin: 14px 0 0; font-size: 18px; font-weight: 700; color: #4a3522; }
+.tda-formation-reward .tda-num { font-size: 26px; }
 @keyframes tda-fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes tda-spot-rise { from { transform: translateY(30px); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes tda-slide-in { from { transform: translateX(30px); opacity: 0; } to { transform: none; opacity: 1; } }
@@ -136,7 +152,7 @@
   .tda-help { left: 10px; right: 10px; top: 128px; width: auto; }
   .tda-spotlight { grid-template-columns: minmax(110px, 30%) minmax(0, 1fr); padding: 14px 12px; gap: 14px; }
   .tda-spotlight-copy { padding: 12px 14px; }
-  .tda-choice { top: 128px; max-height: 60%; padding: 12px; } .tda-choice-card { width: 70px; }
+  .tda-choice { top: 128px; max-height: 60%; padding: 12px; } .tda-tile { width: 74px; height: 131px; } .tda-tile-big { font-size: 26px; }
   .tda-score-row { grid-template-columns: 60px minmax(0, 1fr) 80px; padding: 6px; gap: 6px; } .tda-score-card { width: 38px; }
 }
 

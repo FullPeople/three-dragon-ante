@@ -32,6 +32,8 @@
 | `textures/metal_plate/color.webp` | https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/metal_plate/metal_plate_diff_1k.jpg | CC0 (Poly Haven) | nameplates / hud chrome | resized to 768px, webp q80 | 47628 | `7e7bb59905066db4…` |
 | `textures/metal_plate/normal.webp` | https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/metal_plate/metal_plate_nor_gl_1k.jpg | CC0 (Poly Haven) | nameplates / hud chrome | resized to 768px, webp q88 | 91670 | `dfec9d6ca9b7eec7…` |
 | `textures/metal_plate/rough.webp` | https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/metal_plate/metal_plate_rough_1k.jpg | CC0 (Poly Haven) | nameplates / hud chrome | resized to 768px, webp q80 | 103448 | `8298d90290f0832e…` |
+| `textures/tavern/saloon.webp` | https://dl.polyhaven.org/file/ph-assets/HDRIs/extra/Tonemapped%20JPG/cowboy_town_saloon.jpg | CC0 (Poly Haven) | tavern backdrop (landscape) | crop x4300-8192 y900-3100 of 8k tonemapped JPG, resized 1920px, brightness .72, color .85, blur 1.2, webp q78 | 108594 | `235f6688575ccae0…` |
+| `textures/tavern/saloon-tall.webp` | https://dl.polyhaven.org/file/ph-assets/HDRIs/extra/Tonemapped%20JPG/cowboy_town_saloon.jpg | CC0 (Poly Haven) | tavern backdrop (portrait) | crop x5600-7400 y600-3400, resized 900x1400, same grading, webp q78 | 66174 | `cb4989d441e93118…` |
 
 Kenney 音效包 zip SHA-256：`f36250766ac5bc378c13708ddf12a23a8e54a3251f8d482c7536e51b5dbafa18`（下载于 2026-10-03，本地留存 `.local-evidence/downloads/`，不入库）。
 

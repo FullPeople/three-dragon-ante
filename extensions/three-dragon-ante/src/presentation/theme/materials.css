@@ -5,6 +5,8 @@
   --tex-leather: url("../assets/textures/brown_leather/color.webp");
   --tex-paper: url("../assets/textures/paper/color.webp");
   --tex-metal: url("../assets/textures/metal_plate/color.webp");
+  --tex-tavern: url("../assets/textures/tavern/saloon.webp");
+  --tex-tavern-tall: url("../assets/textures/tavern/saloon-tall.webp");
   --bevel: inset 0 1px 0 rgba(255, 240, 210, .14), inset 0 -1px 0 rgba(0, 0, 0, .55), inset 1px 0 0 rgba(255, 240, 210, .06), inset -1px 0 0 rgba(0, 0, 0, .35);
   --bevel-paper: inset 0 1px 0 rgba(255, 255, 255, .55), inset 0 -1px 0 rgba(60, 40, 20, .35);
 }

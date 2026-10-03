@@ -3,12 +3,15 @@ import { useSyncExternalStore } from "react";
 import type { TableView } from "../../game/protocol";
 import type { GameAction, OmniscientView, PublicView, ScoreReport, SeatView } from "../../game/rules/types";
 import type { HandGesture } from "../../game/gesture";
-import type { PowerCue, RoundCue, RevealCue } from "../model/cues";
+import type { FormationCue, PowerCue, RoundCue, RevealCue } from "../model/cues";
 import type { Lang } from "../i18n";
 
 export interface PendingAction { actionId: string; tableId: string; gameId: string; revision: number; cardId?: string; zone?: "ante" | "flight"; action: GameAction; retryable: boolean }
 export interface DragState { cardId: string; x: number; y: number; legal: boolean; overZone: "ante" | "flight" | null }
 export type RevealPhase = "placing" | "revealing" | "price" | "payment" | "discard";
+/** 桌面拼点：每个条目一个浮现的数字；step 1 数字出现，step 2 打标（领出 / 胜 / 并列划掉 / 不能获胜）。 */
+export interface TallyItem { seatId: string; cardId?: string; value: number; mark: "none" | "lead" | "win" | "tied" | "out" }
+export interface TallyState { kind: "reveal" | "score"; step: 1 | 2; items: TallyItem[] }
 export interface ShowState {
   reveal: RevealCue | null;
   revealPhase: RevealPhase | null;
@@ -18,6 +21,11 @@ export interface ShowState {
   banner: RoundCue | null;
   score: { report: ScoreReport; step: number; maxStep: number } | null;
   scoring: boolean;
+  /** 特殊牌阵说明层（玩家点击关闭） */
+  formation: FormationCue | null;
+  tally: TallyState | null;
+  /** 刚落地、正要发动能力的那张牌：抬起聚焦 */
+  focusCardId: string | null;
 }
 export interface UIState {
   lang: Lang;
@@ -46,9 +54,11 @@ export interface UIState {
   helpOpen: boolean;
   /** 演出期间冻结的金币数字：直到金币弧线落地才跳到新值。 */
   goldHold: { seats: Record<string, number>; stakes: number; hole: number } | null;
+  /** 本家最近一次拍桌的时间戳（节流与表现） */
+  knockAt: number;
 }
 
-export const emptyShow = (): ShowState => ({ reveal: null, revealPhase: null, revealTopIds: [], power: null, resolvingSeatId: null, banner: null, score: null, scoring: false });
+export const emptyShow = (): ShowState => ({ reveal: null, revealPhase: null, revealTopIds: [], power: null, resolvingSeatId: null, banner: null, score: null, scoring: false, formation: null, tally: null, focusCardId: null });
 
 export interface Store {
   get(): UIState;

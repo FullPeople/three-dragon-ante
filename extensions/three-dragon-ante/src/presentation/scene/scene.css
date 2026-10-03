@@ -1,13 +1,17 @@
 /* 2.5D 牌桌场景。平面内尺寸为"平面单位"，由 .tda-stage 的 --scale 统一缩放。无渐变、无发光。 */
-.tda-table { position: relative; width: 100%; height: 100%; overflow: hidden; isolation: isolate; background-color: #1a110a; background-image: var(--tex-planks); background-size: 640px; background-blend-mode: multiply; }
-.tda-table::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: rgba(8, 4, 2, .42); }
+/* 酒馆背景：Poly Haven CC0 全景（cowboy_town_saloon）的吧台一侧裁图，压暗、轻微虚化，让桌面在前景 */
+.tda-table { position: relative; width: 100%; height: 100%; overflow: hidden; isolation: isolate; background-color: #1a110a; background-image: var(--tex-tavern); background-size: cover; background-position: 50% 42%; }
+.tda-table--portrait { background-image: var(--tex-tavern-tall); background-position: 50% 30%; }
+.tda-table::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: rgba(8, 4, 2, .38); }
 .tda-stage { position: absolute; left: 50%; top: 46%; width: calc(var(--plane-w) * 1px); height: calc(var(--plane-h) * 1px); transform: translate(-50%, -50%) scale(var(--scale)); transform-origin: 50% 50%; }
 .tda-table--portrait .tda-stage { top: 47%; }
 .tda-viewport { position: absolute; inset: 0; perspective: 1600px; perspective-origin: 50% 30%; }
 .tda-plane { position: absolute; inset: 0; transform: rotateX(var(--tilt)); transform-style: preserve-3d; transform-origin: 50% 50%; }
 
 /* 桌面：WebGL 法线贴图渲染；不可用时 CSS 照片材质兜底 */
-.tda-surface { position: absolute; inset: 0; border-radius: 260px / 180px; overflow: hidden; filter: drop-shadow(0 40px 30px rgba(0, 0, 0, .6)); }
+.tda-surface { position: absolute; inset: 0; border-radius: 230px; overflow: hidden; filter: drop-shadow(0 40px 30px rgba(0, 0, 0, .6)); }
+.tda-surface[data-shape="round"] { border-radius: 50%; }
+.tda-surface[data-shape="round"] .tda-felt-fallback::after { border-radius: 50%; }
 .tda-surface-gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .tda-felt-fallback { display: none; position: absolute; inset: 0; background-color: #4a2d19; background-image: var(--tex-oak); background-size: 900px; background-blend-mode: multiply; box-shadow: inset 0 0 0 30px #2a1711; }
 .tda-felt-fallback::after { content: ""; position: absolute; inset: 64px 74px; border-radius: 210px / 150px; background-color: #1b3b2e; box-shadow: inset 0 0 0 3px #0e1d17, inset 0 0 40px rgba(0, 0, 0, .6); }
@@ -15,10 +19,14 @@
 
 /* 区域槽 */
 .tda-slot { position: absolute; border: 1px solid rgba(239, 227, 200, .22); border-radius: 10px; pointer-events: none; transition: border-color 160ms, background-color 160ms; }
-.tda-slot-label { position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%); white-space: nowrap; font-family: var(--font-display); font-size: 15px; letter-spacing: .1em; color: rgba(239, 227, 200, .45); pointer-events: none; }
+.tda-slot-label { position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%) rotate(calc(-1 * var(--seat-rot, 0deg))); white-space: nowrap; font-family: var(--font-display); font-size: 15px; letter-spacing: .1em; color: rgba(239, 227, 200, .45); pointer-events: none; }
 .tda-slot.is-legal { pointer-events: auto; cursor: pointer; border: 2px solid #ead38f; }
 .tda-slot.is-over { background-color: rgba(234, 211, 143, .14); }
-.tda-flight-strength { position: absolute; right: 10px; top: 6px; font-size: 24px; color: var(--parchment); }
+/* 牌阵总点数：黄铜铭牌常显，压在牌阵槽右侧 */
+.tda-strength-plate { position: absolute; transform: translate(-50%, -50%) translateZ(26px); padding: 2px 10px; gap: 6px; font-size: 13px; white-space: nowrap; }
+.tda-strength-plate .tda-num { font-size: 22px; line-height: 1; }
+.tda-strength-plate.is-changed .tda-num { color: #5a1f1a; }
+.tda-strength-plate.is-tally { background-color: #ead38f; }
 .tda-formation { position: absolute; left: 10px; top: 6px; padding: 2px 8px; border-radius: 2px; border: 1px solid #ead38f; background: rgba(20, 11, 6, .85); color: #ead38f; font-size: 13px; }
 .tda-formation--strength { border-color: var(--tide); color: var(--tide); } .tda-formation--mortal { border-color: var(--arcane); color: var(--arcane); } .tda-formation--archmage { top: 32px; border-color: var(--arcane); color: var(--arcane); }
 .tda-pile { position: absolute; width: 156px; height: 263px; border: 1px solid rgba(239, 227, 200, .2); border-radius: 10px; }
@@ -38,16 +46,22 @@
 .tda-seat--self .tda-ribbon { transform: translate(0, -50%) translateZ(26px); }
 .tda-ribbon--acting { background-color: #c9a24d; background-image: var(--tex-oak); background-blend-mode: overlay; color: #15100b; }
 .tda-ribbon--committed { background-color: #1f3a2b; }
-.tda-coins-anchor { position: absolute; width: 0; height: 0; }
-.tda-coins { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
-.tda-coin { position: absolute; left: -16px; top: -11px; width: 32px; height: 22px; object-fit: cover; border-radius: 50%; box-shadow: 0 2px 0 #4a3a12, 0 4px 3px rgba(0, 0, 0, .55); }
-.tda-coins--big .tda-coin { width: 40px; height: 27px; left: -20px; top: -14px; }
+.tda-coins-anchor { position: absolute; width: 0; height: 0; transform-style: preserve-3d; }
+.tda-coins { position: absolute; left: 0; top: 0; transform-origin: 0 0; transform-style: preserve-3d; }
+.tda-coin { position: absolute; left: -15px; top: -15px; width: 30px; height: 30px; object-fit: contain; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .6)); }
+.tda-coins--big .tda-coin { width: 36px; height: 36px; left: -18px; top: -18px; }
 
 /* 卡牌 */
 .tda-card-layer { position: absolute; inset: 0; transform-style: preserve-3d; pointer-events: none; }
 .tda-card { position: absolute; left: -70px; top: -123.5px; width: 140px; height: 247px; transform-style: preserve-3d; pointer-events: auto;
-  transform: translate3d(calc(var(--x) * 1px), calc(var(--y) * 1px), calc(var(--z) * 1px)) rotateZ(var(--rot)) scale(var(--s)) rotateX(var(--stand, 0deg));
+  /* 先立起（rotateX）再在立面内旋转（rotateZ）：所有手牌是同一组平行平面，preserve-3d 下不会互相切片 */
+  transform: translate3d(calc(var(--x) * 1px), calc(var(--y) * 1px), calc(var(--z) * 1px)) rotateX(var(--stand, 0deg)) rotateZ(var(--rot)) scale(var(--s));
   transition: transform var(--t-flight) var(--ease-flight), opacity 220ms, filter 220ms; will-change: transform; }
+/* 手牌：悬浮 / 选中要快，信息立刻出现；离开手牌时类名换成 --flight / --ante，自动改用飞行时长 */
+.tda-card--hand { transition: transform 150ms var(--ease-out), opacity 220ms, filter 220ms; }
+/* 两段式落牌：抽出（快出慢停）→ 加速落下（慢起快落） */
+.tda-card.is-lifting { transition: transform 190ms cubic-bezier(.2, .8, .3, 1); }
+.tda-card.is-dropping { transition: transform 260ms cubic-bezier(.6, 0, 1, .5); }
 .tda-card.is-standing { --stand: calc(-1 * var(--tilt)); }
 .tda-card-flip { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform var(--t-flip) var(--ease-flight); }
 .is-face-down .tda-card-flip { transform: rotateY(180deg); }
@@ -59,22 +73,56 @@
 .tda-card::after { content: ""; position: absolute; inset: 0; border-radius: 8px; pointer-events: none; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .07), inset 0 -2px 0 rgba(0, 0, 0, .35); }
 .tda-card--hand.is-legal { cursor: grab; }
 .tda-card--hand:not(.is-legal) .tda-card-face { filter: saturate(.7) brightness(.8); }
-.tda-card.is-dragging { opacity: .25; }
+.tda-card.is-dragging { cursor: grabbing; }
 .tda-card.is-pending { opacity: .85; }
 .tda-card.is-legal .tda-card-face { box-shadow: var(--shadow-card), 0 0 0 2px rgba(234, 211, 143, .55); }
 .tda-card.is-selected .tda-card-face { box-shadow: var(--shadow-card), 0 0 0 3px #ead38f; }
 .tda-card.is-power-ready .tda-card-face { box-shadow: var(--shadow-card), 0 0 0 3px var(--crown); }
 .tda-card.is-top .tda-card-face { box-shadow: var(--shadow-card), 0 0 0 4px var(--crown); }
 .tda-card.is-top { --z: 40; }
+.tda-card.is-focus .tda-card-face { box-shadow: 0 26px 30px rgba(0, 0, 0, .7), 0 0 0 3px var(--crown); }
+
+/* 拼点数字：浮在前注牌上方 */
+.tda-pip { position: absolute; transform: translate(-50%, -100%) translateZ(40px); display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 2px 10px; border: 1px solid #0d0705; border-radius: 2px; background-color: #c9a24d; background-image: var(--tex-oak); background-size: 300px; background-blend-mode: overlay; color: #15100b; box-shadow: var(--bevel), 0 3px 4px rgba(0, 0, 0, .6); animation: tda-pip-rise 320ms var(--ease-out) both; pointer-events: none; }
+.tda-pip b { font-size: 28px; line-height: 1; }
+.tda-pip small { font-size: 11px; letter-spacing: .1em; }
+.tda-pip.is-step2.is-lead { background-color: #ead38f; transform: translate(-50%, -100%) translateZ(40px) scale(1.18); }
+.tda-pip.is-step2.is-tied b { text-decoration: line-through; text-decoration-thickness: 3px; color: #5a1f1a; }
+.tda-pip.is-step2.is-none { opacity: .55; }
+@keyframes tda-pip-rise { from { opacity: 0; transform: translate(-50%, -60%) translateZ(40px); } to { opacity: 1; } }
+/* 总点数铭牌在轮局拼点时的标记 */
+.tda-strength-plate.is-tally { transform: translate(-50%, -50%) translateZ(26px) scale(1.25); transition: transform 300ms var(--ease-out); }
+.tda-strength-plate.is-tally.is-win, .tda-strength-plate.is-tally.is-lead { background-color: #ead38f; transform: translate(-50%, -50%) translateZ(26px) scale(1.45); }
+.tda-strength-plate.is-tally.is-tied .tda-num { text-decoration: line-through; text-decoration-thickness: 3px; color: #5a1f1a; }
+.tda-strength-plate.is-tally.is-out { filter: saturate(.3); opacity: .6; }
+.tda-strength-plate.is-tally.is-none { opacity: .55; }
+
+/* 场地层：持续效果 */
+.tda-field-tint { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: multiply; animation: tda-field-in 800ms both; }
+.tda-field-tint.is-druid { background: rgba(120, 190, 110, .28); }
+.tda-field-tint.is-priest { background: rgba(255, 214, 140, .22); mix-blend-mode: screen; }
+.tda-field-tint.is-dracolich { background: rgba(150, 90, 190, .30); }
+.tda-field { position: absolute; transform: translate(-50%, -50%); pointer-events: none; animation: tda-field-in 800ms both; }
+.tda-field.is-leaving { animation: tda-field-out 800ms both; }
+.tda-field-ring { position: absolute; inset: 0; border-radius: 50%; border: 2px dashed var(--fx); opacity: .85; animation: tda-field-spin 14s linear infinite; }
+.tda-field-ring--inner { inset: 14%; border-style: solid; border-width: 1px; animation-direction: reverse; animation-duration: 20s; opacity: .55; }
+.tda-field.is-ember { --fx: var(--ember); } .tda-field.is-tide { --fx: var(--tide); } .tda-field.is-grove { --fx: var(--grove); } .tda-field.is-arcane { --fx: var(--arcane); } .tda-field.is-crown { --fx: var(--crown); }
+.tda-field-label { position: absolute; left: 50%; bottom: -14px; transform: translate(-50%, 100%) translateZ(26px); white-space: nowrap; padding: 2px 10px; border: 1px solid var(--fx); border-radius: 2px; background: rgba(20, 11, 6, .88); color: var(--fx); font-size: 12px; letter-spacing: .06em; }
+@keyframes tda-field-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes tda-field-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes tda-field-spin { to { transform: rotate(360deg); } }
 .tda-card.is-resolving .tda-card-face { box-shadow: var(--shadow-card), 0 0 0 3px var(--arcane); }
 .tda-card-tag { position: absolute; left: 6px; top: 6px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%; background: rgba(20, 11, 6, .9); color: var(--crown); font-size: 14px; border: 1px solid #ead38f; }
 .tda-card-tag--rider { left: auto; right: 6px; color: var(--tide); }
 
 /* 特效画布与拖动影子 */
 .tda-fx { position: absolute; inset: 0; pointer-events: none; z-index: 50; }
-.tda-drag-ghost { position: absolute; z-index: 60; width: 150px; aspect-ratio: 1250 / 2208; transform: translate(-50%, -62%) rotate(-5deg) scale(1.04); pointer-events: none; filter: drop-shadow(0 28px 22px rgba(0, 0, 0, .6)); }
-.tda-drag-ghost img { display: block; width: 100%; height: 100%; border-radius: 8px; object-fit: cover; }
-.tda-drag-ghost.is-legal img { box-shadow: 0 0 0 3px #ead38f; }
+/* 指向器：从抬起的手牌到指针的弧线箭头（杀戮尖塔式）。实色 chevron，无发光 */
+.tda-pointer { position: absolute; inset: 0; z-index: 60; pointer-events: none; overflow: visible; }
+.tda-pointer-chev { fill: #c9a24d; stroke: #15100b; stroke-width: 1; }
+.tda-pointer.is-illegal .tda-pointer-chev { fill: #6b5a48; }
+.tda-pointer-head { fill: #ead38f; stroke: #15100b; stroke-width: 1.2; }
+.tda-pointer.is-illegal .tda-pointer-head { fill: #6b5a48; }
 
 .tda-table--portrait .tda-slot-label { font-size: 15px; }
 .tda-table--portrait .tda-seat-plate { font-size: 18px; }

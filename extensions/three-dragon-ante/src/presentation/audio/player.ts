@@ -7,8 +7,9 @@ const FILES: Record<string, string> = {
   draw: snd("draw"), play: snd("play"), flip: snd("flip"), shuffle: snd("shuffle"), coin: snd("coin"), gain: snd("gain"), pay: snd("pay"), slap: snd("knock"), turn: snd("turn"), round: snd("round"),
   gameover: snd("shuffle"), victory: snd("gain"), verdict: snd("knock"), phase: snd("turn"),
   "power-ember": snd("round"), "power-tide": snd("round"), "power-grove": snd("round"), "power-arcane": snd("round"), "power-crown": snd("round"), "power-impact": snd("gain"),
+  thud: snd("play"), spotlight: snd("turn"), sigil: snd("round"), grab: snd("draw"), swap: snd("flip"), slash: snd("knock"), tally: snd("turn"), mark: snd("gain"),
 };
-const GAIN: Record<string, number> = { coin: .7, gain: .7, pay: .6, draw: .6, play: .8, flip: .8, slap: .9, turn: .45, round: .55, shuffle: .6 };
+const GAIN: Record<string, number> = { coin: .7, gain: .7, pay: .6, draw: .6, play: .8, flip: .8, slap: .9, turn: .45, round: .55, shuffle: .6, thud: .9, spotlight: .4, sigil: .5, grab: .5, swap: .6, slash: .7, tally: .4, mark: .6 };
 
 export function createAudio(host: HTMLElement, enabled: () => boolean): AudioPlayer {
   const recent = new Set<string>();
