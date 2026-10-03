@@ -1,13 +1,14 @@
 import {build} from 'rolldown';
 import {createRequire} from 'node:module';
 import {createServer} from 'node:http';
-import {mkdtempSync,readFileSync,writeFileSync,existsSync} from 'node:fs';
+import {mkdtempSync,readFileSync,writeFileSync,existsSync,mkdirSync} from 'node:fs';
 import {resolve,join,dirname,extname} from 'node:path';
 import {tmpdir} from 'node:os';
 import {chromium,browserLaunchOptions} from './browser-runtime.mjs';
 import {pathToFileURL} from 'node:url';
 import assert from 'node:assert/strict';
-const root=resolve('.'),base=join(root,'extensions/three-dragon-ante/src/game'),out=mkdtempSync(join(tmpdir(),'tda-server-browser-'));
+const root=resolve('.'),base=join(root,'extensions/three-dragon-ante/src/game'),evidence=resolve(root,'.local-evidence');
+mkdirSync(evidence,{recursive:true});const out=mkdtempSync(join(evidence,'server-browser-'));
 const {createTableService}=await import(pathToFileURL(resolve(process.env.TDA_SERVER_OUT||'dist-server','service.mjs')));
 const staticServer=createServer((req,res)=>{const path=new URL(req.url,'http://localhost').pathname;
  if(path==='/app.js'){res.setHeader('Content-Type','text/javascript');res.end(readFileSync(join(out,'app.js')));return;}
@@ -25,7 +26,7 @@ const pass=s=>{checks.push(s);console.log('PASS '+s);};
 try{
  for(let i=0;i<4;i++){
   const actor={id:'browser-'+i,connectionId:'browser-connection-'+i,role:i===0||i===3?'GM':'PLAYER',name:'Player '+i};actors.push(actor);
-  const context=actor.context=await browser.newContext({viewport:i===2?{width:390,height:844}:{width:1280,height:900},hasTouch:i===2,isMobile:i===2,reducedMotion:'reduce'});
+  const context=actor.context=await browser.newContext({locale:'zh-CN',viewport:i===2?{width:390,height:844}:{width:1280,height:900},hasTouch:i===2,isMobile:i===2,reducedMotion:'reduce'});
   await context.exposeBinding('__tdaCall',async(_,{method,args})=>{
    if(method==='room.getMetadata')return structuredClone(metadata);
    if(method==='room.setMetadata'){metadata={...metadata,...args[0]};await Promise.all(actors.map(a=>emit(a,'roomMetadata',metadata)));return;}
