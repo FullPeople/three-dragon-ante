@@ -53,15 +53,29 @@ try {
     assert.equal(leak.ids, 0); assert.equal(leak.faceUp, 0); assert.ok(leak.backs >= 2);
     pass(`${name} opponents show ${leak.backs} anonymous face-down backs and no card ids`);
     // 暗置：选最后一张合法牌，点自己的暗置槽；回执落地后 pending 标记清空
-    const legal = page.locator('.tda-card--hand.is-legal').last();
-    const cardId = await legal.getAttribute('data-card');
-    await legal.click({ force: true, position: { x: 70, y: 40 } });
-    await page.locator('[data-drop-zone="ante"][data-drop-seat="you"]').click({ force: true });
-    await page.waitForFunction(() => document.querySelector('.tda-shell')?.getAttribute('data-pending-action') === 'false', null, { timeout: 10000 });
-    assert.equal(await page.evaluate(id => document.querySelector(`[data-card="${id}"]`)?.getAttribute('data-zone'), cardId), 'ante');
+    const anteOnce = async () => {
+      await page.locator('.tda-card--hand.is-legal').first().waitFor({ state: 'attached', timeout: 30000 });
+      const legal = page.locator('.tda-card--hand.is-legal').last();
+      const cardId = await legal.getAttribute('data-card');
+      await legal.click({ force: true, position: { x: 70, y: 40 } });
+      await page.locator('[data-drop-zone="ante"][data-drop-seat="you"]').click({ force: true });
+      await page.waitForFunction(() => document.querySelector('.tda-shell')?.getAttribute('data-pending-action') === 'false', null, { timeout: 10000 });
+      assert.equal(await page.evaluate(id => document.querySelector(`[data-card="${id}"]`)?.getAttribute('data-zone'), cardId), 'ante');
+    };
+    await anteOnce();
     pass(`${name} ante is committed through the real action path`);
-    // 机器人跟注、翻注、付前注：付款期间必须真的有金币精灵在飞（奖池锚点是 0×0，曾经让所有金币飞行静默跳过）
-    await page.waitForFunction(() => document.querySelectorAll('.tda-coin-fly').length > 0, null, { timeout: 30000 });
+    // 机器人跟注、翻注、付前注：付款期间必须真的有金币精灵在飞（奖池锚点是 0×0，曾经让所有金币飞行静默跳过）。
+    // 翻注全并列时没有付款、要重新前注（data-reveal="discard"）：像玩家一样再暗置一次，最多 4 轮。
+    let coinsSeen = false;
+    for (let round = 0; round < 4 && !coinsSeen; round++) {
+      await page.waitForFunction(() => document.querySelectorAll('.tda-coin-fly').length > 0 || document.querySelector('.tda-shell')?.getAttribute('data-reveal') === 'discard', null, { timeout: 30000 });
+      coinsSeen = await page.evaluate(() => document.querySelectorAll('.tda-coin-fly').length > 0);
+      if (!coinsSeen) {
+        await page.waitForFunction(() => document.querySelector('.tda-shell')?.getAttribute('data-reveal') === '' && document.querySelector('.tda-shell')?.getAttribute('data-phase') === 'ante', null, { timeout: 30000 });
+        await page.waitForTimeout(400); await anteOnce();
+      }
+    }
+    assert.ok(coinsSeen, 'coins fly during an ante payment within 4 reveals');
     pass(`${name} coins visibly fly during the ante payment`);
     await page.waitForFunction(() => ['play', 'choice'].includes(document.querySelector('.tda-shell')?.getAttribute('data-phase') || ''), null, { timeout: 30000 });
     pass(`${name} reveal completes and play phase begins`);

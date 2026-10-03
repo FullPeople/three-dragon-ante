@@ -59,7 +59,7 @@ export function mountTableUI(root: HTMLElement, deps: TableUIDeps): TableUISurfa
   const controller = createController(store, { send: deps.send, gesture: deps.gesture, id: deps.id, onLanguage: deps.onLanguage });
   root.dataset.mode = deps.mode ?? "full";
   // 宿主与测试夹具从挂载根读取的状态镜像。
-  store.subscribe(() => { const s = store.get(); root.dataset.pendingAction = s.pending ? "true" : "false"; root.dataset.omniscient = String(!!(s.view?.game && "omniscient" in s.view.game && (s.view.game as { omniscient?: boolean }).omniscient)); root.dataset.busy = String(s.busy); });
+  store.subscribe(() => { const s = store.get(); root.dataset.pendingAction = s.pending ? "true" : "false"; root.dataset.omniscient = String(!!(s.view?.game && "omniscient" in s.view.game && (s.view.game as { omniscient?: boolean }).omniscient)); root.dataset.busy = String(s.busy); root.dataset.reveal = s.show.revealPhase ?? ""; });
   (controller as unknown as { _setDrag(v: UIState["drag"]): void })._setDrag = value => store.set({ drag: value });
   const presenter = createPresenter(store, controller, { fx: () => fx, fx3d: () => fx3d, root: () => root, onBusy: busy => { if (busy !== notifiedBusy) { notifiedBusy = busy; deps.onPresentationChange?.(busy); } }, sound: (kind, key) => audio.play(kind, key) });
   root.classList.add("tda-root");

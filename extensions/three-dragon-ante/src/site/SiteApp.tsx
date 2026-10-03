@@ -45,8 +45,11 @@ function MatchScreen({ lang, opponents, onClose, onLanguage }: { lang: Language;
     if (!host.current) return;
     // 测试钩子：模拟慢回执，只在本机地址生效
     const localHost = ["localhost", "127.0.0.1", "[::1]"].includes(location.hostname);
-    const receiptDelayMs = localHost ? Number(new URLSearchParams(location.search).get("receiptDelay")) || undefined : undefined;
-    handle.current = createLocalMatch(host.current, { language: lang, opponents, receiptDelayMs, onClose, onLanguage: value => { setLocalLang(value); onLanguage(value); } });
+    const params = new URLSearchParams(location.search);
+    const receiptDelayMs = localHost ? Number(params.get("receiptDelay")) || undefined : undefined;
+    // 测试夹具：固定随机种子（只在本地主机生效），便于复现同一副牌
+    const seed = localHost ? Number(params.get("seed")) || undefined : undefined;
+    handle.current = createLocalMatch(host.current, { language: lang, opponents, receiptDelayMs, seed, onClose, onLanguage: value => { setLocalLang(value); onLanguage(value); } });
     return () => { handle.current?.destroy(); handle.current = null; };
   }, []);
   useEffect(() => { handle.current?.setLanguage(lang); }, [lang]);

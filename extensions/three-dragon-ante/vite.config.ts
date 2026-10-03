@@ -21,6 +21,7 @@ export default defineConfig({
   } }],
   build: {target:['chrome109','edge109','firefox102','safari15.4'], outDir: "dist", emptyOutDir: true, rollupOptions: {
     input: { site: resolve(root, "index.html"), background: resolve(root, "background.html"), table: resolve(root, "table.html"), launcher: resolve(root, "launcher.html") },
-    output: { manualChunks: id => id.includes("node_modules") ? "vendor" : undefined },
+    // three.js 只被牌桌（mount）引用，单独成包：background / launcher 不加载它
+    output: { manualChunks: id => id.includes("node_modules/three/") ? "three" : id.includes("node_modules") ? "vendor" : undefined },
   } },
 });
