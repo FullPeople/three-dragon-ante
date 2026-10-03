@@ -1,5 +1,3 @@
-* text=auto eol=lf
-*.png binary
-*.webp binary
-*.jpg binary
-*.woff2 binary
+# Preserve the extracted upstream bytes, including existing line endings.
+# This keeps SOURCE.json verification identical on Windows and Linux clones.
+* -text
