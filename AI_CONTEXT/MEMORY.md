@@ -46,3 +46,13 @@
 ---
 
 > 维护：本文件是**蒸馏正本**，不求全（全在 RUNBOOKS + 私有记忆）。引用具体文件/字段前先核对现实（留痕会过时）。
+
+## C. 2026-10-04 接手与持续上线
+
+- 快照验证 HEAD `619ada56bbb2556e015d8775984baa416ab13692`；Node 22.17.1 与已装 Edge；原 8/8、2/2、20/20、4/4、fx3d 4/4 全过，363 个已跟踪文件哈希未变。记录：`RUNBOOKS/2026-10-04_environment-handoff.md`。
+- 原 403 已解除：当前有写权限账号已成功 `git push -u origin rebuild/presentation`，GitHub 分支为 `619ada5`；未合并 main。
+- 用户设立并授权三项持续上线目标，详见 GOAL §9。网站多人模式不登录，使用房间码/邀请+唯一名字；重连与新加入分开。
+- 线上已漂移到 card/Suite dev 241、stable Suite 1.3.14、独立旧三龙牌 0.7.22-dev。以现场散列为准，禁止将旧 paired worktree 全量发布覆盖 241。
+- 已核验 SSH、三龙牌服务健康与 WSS 预握手；现有 nginx 反代可沿用。服务源码相对快照多一条 stale-game leave 防护，新增 guest 接口时已保留。
+- 本轮新实现/发布版本 `0.8.0(-dev)`，当前仍在测试与集成，尚未声明线上完成。留痕与最终回执：`RUNBOOKS/2026-10-04_owlbear-deploy.md`。
+- 浏览器连接组件目前缺少所需版本的 browser-service 文件，尚不能提供真实 GM/玩家双账号验收证据；本地 fixture 与线上网站测试不得替代它。

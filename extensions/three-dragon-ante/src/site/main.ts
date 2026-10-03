@@ -1,4 +1,4 @@
-/** 独立网站入口（index.html）。不引用枭熊 SDK、不连服务器、不读写任何线上牌局。 */
+/** 独立网站入口（index.html）：本地对战与权威服务在线房间。没有枭熊身份依赖。 */
 import { createRoot } from "react-dom/client";
 import { createElement } from "react";
 import "../presentation/theme/fonts";

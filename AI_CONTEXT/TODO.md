@@ -18,7 +18,7 @@
 - [x] 阶段 2 收尾：六人桌、真实拖拽、减少动态、详视与选择面板位置、favicon / 图标（2026-10-03）。
 - [x] 阶段 4 时序对齐：落地帧 → 说明 → 效果与金币（commit `2c2df3f`）。
 - [x] `test:browser` 改测新 `index.html`；`test:server-browser` 改新选择器。
-- [ ] **push 被拒**：用户 2026-10-03 授权"修复完之后推送"，但 `git push -u origin rebuild/presentation` 返回 403——Git Credential Manager 里的 GitHub 账号 `pzy197684` 对 `FullPeople/three-dragon-ante` 无写权限（本机未装 gh）。需用户：给该账号写权限 / 在凭据管理器换成有权限的账号 / 或改推到自己的 fork；之后重跑 push。是否合并 main 由用户定。
+- [x] **原 push 被拒已解除（2026-10-04）**：有写权限账号已将 `619ada5` 推至 `origin/rebuild/presentation`，未合并 main。历史原因：用户 2026-10-03 授权"修复完之后推送"，但 `git push -u origin rebuild/presentation` 返回 403——Git Credential Manager 里的 GitHub 账号 `pzy197684` 对 `FullPeople/three-dragon-ante` 无写权限（本机未装 gh）。需用户：给该账号写权限 / 在凭据管理器换成有权限的账号 / 或改推到自己的 fork；之后重跑 push。是否合并 main 由用户定。
 - [ ] **three.js 特效层 fx3d（用户 2026-10-03 批准）**：地基已交付（runbook `2026-10-03_fx3d-kickoff.md` §2）；待办：设计定稿 → 图元工具箱 → 家族签名 → 单牌变体 → 传说牌定制 → 持续 / 环境 → 尘土与手；MIT 署名文件待随首个移植图元一起加入 `docs/design/ASSETS.md` 与 THIRD_PARTY 说明。
 - [ ] 字体子集化：vendor CSS 约 500 kB 来自 fontsource 全部 unicode-range 子集声明；可改为只保留 chinese-simplified + latin 子集或自建子集。
 - [ ] 枭熊真实房间验收（双账号、紧凑弹窗、全屏模态）；实体手机。
@@ -39,3 +39,12 @@
 ## 已完成（节选）
 
 - [x] 2026-10-03 现状评估与决策（`docs/2026-10-03-presentation-assessment.md`、`AI_CONTEXT/GOAL.md`）。
+
+## 2026-10-04 持续上线目标
+
+- [ ] guest 服务：房间码/唯一名字、并发抢名、重连凭据/离线恢复、私牌、持久化、旧 Owlbear 兼容，专项测试与独立审计。
+- [ ] 独立多人网站：创建/入房/邀请/重连，与原本地机器人对战同时可用；真实浏览器双页完整流程与断线恢复。
+- [ ] 独立三龙牌扩展 HTTPS 发布；Suite dev 与旧稳定入口定向集成；保留旧频道进行中的牌局及其他 241 功能。
+- [ ] 权威服务更新与远端回退点；沿用当前 nginx/WSS，部署后独立核验静态入口、实际文件散列和服务健康。
+- [ ] 真实枭熊 GM + 玩家房间、紧凑弹窗/全屏与网络请求验收。浏览器控制组件缺失所需版本，待可用后完成，夹具不算验收。
+- [ ] 新功能完成后按 `AUDIT.md` 做换模型独立审计；无对应工具时保持只读审计证据与未验证范围，不自宣最终安全。

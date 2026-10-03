@@ -1,0 +1,263 @@
+// Real website UI + WebSocket + a temporary SQLite service. No Owlbear SDK fixture and no production data.
+import assert from 'node:assert/strict';
+import { createServer, request as httpRequest } from 'node:http';
+import { readFileSync, existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { resolve, join, extname } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { createRequire } from 'node:module';
+import { build } from 'vite';
+import { chromium, browserLaunchOptions } from './browser-runtime.mjs';
+
+const root = resolve(import.meta.dirname, '..'), base = '/three-dragon-ante-dev/';
+mkdirSync(join(root, '.local-evidence'), { recursive: true });
+const out = mkdtempSync(join(root, '.local-evidence', 'site-multiplayer-')), dist = join(out, 'site');
+const checks = [], errors = [], external = [], resourceFailures = [], actors = [], connections = new Map();
+const gameplay = { antes: 0, plays: 0, choices: 0, visibleSettlements: 0 };
+const connectionOnly = process.argv.includes('--connection-only') || process.argv.includes('--reconnect-only');
+const pass = label => { checks.push(label); console.log('PASS ' + label); };
+const wait = async (check, label, timeout = 20000) => {
+  const end = Date.now() + timeout;
+  while (!await check()) { if (Date.now() > end) throw Error('Timed out: ' + label); await new Promise(done => setTimeout(done, 30)); }
+};
+await build({ configFile: join(root, 'vite.config.ts'), logLevel: 'warn', plugins: [{
+  name: 'local-site-api-only', enforce: 'pre',
+  transform(code, id) { if (id.endsWith('/server-endpoint.ts') || id.endsWith('\\server-endpoint.ts')) return code.replaceAll('import.meta.env?.VITE_TDA_API', JSON.stringify('/three-dragon-api/v1')); },
+}], build: { outDir: dist, emptyOutDir: true } });
+const { createTableService } = await import(pathToFileURL(resolve(process.env.TDA_SERVER_OUT || join(root, 'dist-server'), 'service.mjs')));
+const WebSocket = createRequire(join(root, 'server/three-dragon/package.json'))('ws');
+let service, upstreamPort;
+const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.webp': 'image/webp', '.png': 'image/png', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.woff': 'font/woff', '.ogg': 'audio/ogg' };
+const staticServer = createServer((req, res) => {
+  const pathname = new URL(req.url || '/', 'http://localhost').pathname;
+  if (pathname.startsWith('/three-dragon-api/v1/')) {
+    const upstream = httpRequest({ hostname: '127.0.0.1', port: upstreamPort, path: req.url, method: req.method, headers: req.headers }, response => { res.writeHead(response.statusCode, response.headers); response.pipe(res); });
+    upstream.on('error', () => { if (!res.headersSent) res.writeHead(502); res.end(); }); req.pipe(upstream); return;
+  }
+  if (!pathname.startsWith(base)) { res.writeHead(404); res.end(); return; }
+  const file = resolve(dist, decodeURIComponent(pathname.slice(base.length)) || 'index.html');
+  if ((!file.startsWith(dist + '/') && !file.startsWith(dist + '\\')) || !existsSync(file)) { res.writeHead(404); res.end(); return; }
+  res.setHeader('Content-Type', types[extname(file)] || 'application/octet-stream'); res.end(readFileSync(file));
+});
+staticServer.on('upgrade', (req, socket, head) => {
+  const upstream = httpRequest({ hostname: '127.0.0.1', port: upstreamPort, path: req.url, headers: req.headers });
+  upstream.on('upgrade', (response, backend, backendHead) => {
+    socket.write('HTTP/1.1 101 Switching Protocols\r\n' + Object.entries(response.headers).map(([key, value]) => key + ': ' + value).join('\r\n') + '\r\n\r\n');
+    if (backendHead.length) socket.write(backendHead); if (head.length) backend.write(head);
+    const key = req.headers['user-agent']; const entry = { socket, backend }; connections.set(key, entry);
+    socket.on('error', () => backend.destroy()); backend.on('error', () => socket.destroy());
+    socket.on('close', () => { backend.destroy(); if (connections.get(key) === entry) connections.delete(key); });
+    backend.on('close', () => socket.destroy()); socket.pipe(backend); backend.pipe(socket);
+  });
+  upstream.on('error', () => socket.destroy()); upstream.end();
+});
+await new Promise(done => staticServer.listen(0, '127.0.0.1', done));
+const origin = 'http://127.0.0.1:' + staticServer.address().port;
+async function startService() {
+  service = createTableService({ database: join(out, 'game.sqlite'), origin });
+  await new Promise(done => service.server.listen(upstreamPort || 0, '127.0.0.1', done)); upstreamPort = service.server.address().port;
+}
+await startService();
+const browser = await chromium.launch({ ...browserLaunchOptions(), headless: true, args: ['--no-proxy-server', '--enable-webgl', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const state = () => { const row = service.db.prepare('SELECT state FROM rooms ORDER BY updated DESC LIMIT 1').get(); return row ? JSON.parse(row.state) : null; };
+const active = actor => actor.page.evaluate(() => JSON.parse(sessionStorage.getItem('three-dragon-site-active.v1')));
+function wirePacket(actor, raw) {
+  const packet = JSON.parse(raw.toString());
+  if (packet.type === 'view') actor.wire = packet.view;
+  else if (packet.type === 'patch' && actor.wire) {
+    const patch = (before, value) => { const after = { ...before, ...value.set }; for (const key of value.remove) delete after[key]; return after; };
+    const next = patch(actor.wire, packet.patch); next.game = packet.gamePatch ? patch(actor.wire.game, packet.gamePatch) : packet.game; actor.wire = next;
+  }
+  const game = actor.wire?.game;
+  if (game) {
+    assert.equal(game.omniscient, undefined, 'guest cannot receive an omniscient projection');
+    assert.equal(game.deck, undefined, 'guest cannot receive the deck');
+    for (const seat of game.seats) assert.equal(seat.hand, undefined, 'opponent seats contain public hand counts only');
+    actor.privateFrames++;
+  }
+}
+async function actor(label, narrow = false) {
+  const value = { label, privateFrames: 0, wsAttempts: 0, wire: null }, context = await browser.newContext({ userAgent: 'TDA-site-browser-' + label, locale: 'zh-CN', viewport: narrow ? { width: 390, height: 844 } : { width: 1280, height: 900 }, isMobile: narrow, hasTouch: narrow, reducedMotion: 'reduce' });
+  value.context = context; value.page = await context.newPage(); actors.push(value);
+  context.on('request', request => { if (!request.url().startsWith(origin + '/')) external.push(request.url()); });
+  await context.route('**/*', route => route.request().url().startsWith(origin + '/') ? route.continue() : route.abort());
+  value.page.on('pageerror', error => errors.push(value.label + ': ' + error.message));
+  value.page.on('response', response => { if (response.status() >= 400 && !response.url().includes('/three-dragon-api/') && !response.url().endsWith('/favicon.ico')) resourceFailures.push(response.status() + ' ' + response.url()); });
+  value.page.on('websocket', socket => { value.wsAttempts++; assert.ok(socket.url().startsWith(origin.replace('http', 'ws') + '/'), 'all WebSockets stay on the local test origin'); socket.on('framereceived', event => { try { wirePacket(value, event.payload); } catch (error) { errors.push(value.label + ': ' + error.message); } }); });
+  return value;
+}
+async function connected(actor) { await actor.page.locator('.site-online-match[data-connected="true"]').waitFor({ timeout: 30000 }); }
+async function dismiss(actor) {
+  for (const selector of ['.tda-spotlight', '.tda-formation-spot']) {
+    const overlay = actor.page.locator(selector).first();
+    if (await overlay.isVisible()) { await overlay.click({ position: { x: 20, y: 20 } }); return true; }
+  }
+  return false;
+}
+async function submitCard(actor, kind = 'ante') {
+  while (await dismiss(actor)) await actor.page.waitForTimeout(100);
+  await actor.page.waitForFunction(kind => document.querySelector('.tda-shell')?.getAttribute('data-phase') === kind && document.querySelector('.tda-shell')?.getAttribute('data-busy') === 'false' && document.querySelectorAll('.tda-card--hand.is-legal').length > 0, kind);
+  const ready = actor.wire?.game?.handPowerHints?.filter(hint => hint.state === 'power-ready').map(hint => hint.cardId) || [];
+  const preferred = kind === 'play' ? ready.find(id => /^(blue-|bronze-|red-|white-|copper-trickster|silver-seer|prophet|sorcerer|kobold|illusionist)/.test(id)) : null;
+  const card = preferred ? actor.page.locator('.tda-card--hand.is-legal[data-card="' + preferred + '"]') : actor.page.locator('.tda-card--hand.is-legal').last(), id = await card.getAttribute('data-card');
+  const revision = state().game.revision; await card.focus(); await actor.page.keyboard.press('Space'); await actor.page.keyboard.press('Enter');
+  await wait(() => state().game.revision > revision, kind + ' via website keyboard');
+  await actor.page.waitForFunction(() => document.querySelector('.tda-shell')?.getAttribute('data-pending-action') === 'false'); return id;
+}
+async function rejectedOldToken(roomId, token) {
+  await new Promise((done, reject) => {
+    const socket = new WebSocket(origin.replace('http', 'ws') + '/three-dragon-api/v1/socket', { origin });
+    const timer = setTimeout(() => { socket.terminate(); reject(Error('Old token rejection timed out')); }, 10000);
+    socket.on('open', () => socket.send(JSON.stringify({ type: 'auth', room: roomId, token })));
+    socket.on('message', () => { clearTimeout(timer); socket.terminate(); reject(Error('Old token accepted')); });
+    socket.on('close', code => { clearTimeout(timer); if (code !== 1008) reject(Error('Old token closed with unexpected code ' + code)); else done(); }); socket.on('error', reject);
+  });
+}
+async function finishGambit(peers) {
+  const end = Date.now() + 180000;
+  while (Date.now() < end) {
+    for (const actor of peers) { await dismiss(actor); if (await actor.page.locator('.tda-score').isVisible()) gameplay.visibleSettlements++; }
+    if (state().game.lastGambit?.number >= 1 && gameplay.choices > 0 && gameplay.visibleSettlements > 0) return;
+    if (state().game.stage === 'ended') throw Error('Game ended before a visible settlement with an ability choice');
+    let moved = false;
+    for (const actor of peers) {
+      const current = state().game, own = actor.wire?.game;
+      if (own?.revision !== current.revision || await actor.page.locator('.tda-shell').getAttribute('data-busy') !== 'false') continue;
+      const action = own.actions?.[0]; if (!action) continue;
+      if (action.kind === 'choose') {
+        if (!await actor.page.locator('.tda-choice').isVisible()) continue;
+        const options = action.choice.options.filter(option => option.id !== 'skip' && !['KEEP_CARD', 'SKIP_POWER', 'DO_NOT_COPY'].includes(option.code));
+        const select = (options.length ? options : action.choice.options).slice(0, Math.max(action.choice.min, Math.min(1, action.choice.max)));
+        for (const option of select) await actor.page.locator('.tda-choice [data-option="' + option.id + '"]').click();
+        await actor.page.locator('#confirm-action:not([disabled])').click();
+        await wait(() => state().game.revision > current.revision, 'ability choice from website'); gameplay.choices++;
+      } else {
+        await submitCard(actor, action.kind); gameplay[action.kind === 'ante' ? 'antes' : 'plays']++;
+      }
+      moved = true; break;
+    }
+    if (!moved) await new Promise(done => setTimeout(done, 100));
+  }
+  throw Error('Timed out: full website gambit, ability choice and visible settlement');
+}
+try {
+  const owner = await actor('owner'), player = await actor('player', true), duplicate = await actor('duplicate');
+  await owner.page.goto(origin + base);
+  assert.equal(await owner.page.getByRole('button', { name: '开始', exact: true }).count(), 1);
+  await owner.page.locator('#guest-name').fill('甲'); await owner.page.getByRole('button', { name: '创建房间', exact: true }).click(); await connected(owner);
+  const originalOwner = await active(owner), roomCode = await owner.page.getByTestId('online-room-code').textContent();
+  assert.match(roomCode, /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{8}$/);
+  const invitation = await owner.page.getByRole('textbox', { name: '邀请链接', exact: true }).inputValue();
+  assert.equal(new URL(invitation).search, '?room=' + roomCode); assert.ok(!invitation.includes(originalOwner.session.token));
+  pass('website creates a unique coded room and a token-free invite while preserving the local match');
+  await player.page.goto(invitation); assert.equal(await player.page.locator('#guest-room-code').inputValue(), roomCode);
+  await player.page.locator('#guest-name').fill('乙'); await player.page.getByRole('button', { name: '加入房间', exact: true }).click(); await connected(player);
+  await wait(() => state()?.table.seats.length === 2, 'both named seats'); const originalPlayer = await active(player);
+  await duplicate.page.goto(invitation); await duplicate.page.locator('#guest-name').fill(' 甲 '); const beforeDuplicate = JSON.stringify(state());
+  await duplicate.page.getByRole('button', { name: '加入房间', exact: true }).click(); await duplicate.page.getByRole('alert').filter({ hasText: '名字已占用' }).waitFor();
+  assert.equal(JSON.stringify(state()), beforeDuplicate); assert.equal(await duplicate.page.locator('.site-online-match').count(), 0);
+  await duplicate.page.getByRole('button', { name: '重连房间', exact: true }).click(); await duplicate.page.getByRole('alert').filter({ hasText: '名字已占用' }).waitFor();
+  assert.equal(JSON.stringify(state()), beforeDuplicate);
+  pass('invite joins a narrow browser; ordinary and explicit name-only duplicate entry cannot claim an online seat');
+  await owner.page.locator('.tda-setup input[type="number"]').first().fill('500');
+  await owner.page.locator('#deck-choice').selectOption('wheel-of-fate-v1'); await owner.page.getByRole('button', { name: '开始', exact: true }).click();
+  await wait(() => state()?.game?.variant.deckId === 'wheel-of-fate-v1', 'authoritative deal');
+  for (const actor of [owner, player]) {
+    await actor.page.locator('.tda-card--hand[data-card]').first().waitFor({ state: 'attached' });
+    await wait(() => actor.wire?.game?.hand?.length > 0, 'private frame');
+    const mine = actor.wire.game.selfSeatId, actual = state().game.seats.find(seat => seat.id === mine).hand;
+    assert.deepEqual(actor.wire.game.hand, actual);
+    const leak = await actor.page.evaluate(mine => ({ ids: document.querySelectorAll('.tda-card--hand[data-card]:not([data-seat="' + mine + '"])').length, faceUp: [...document.querySelectorAll('.tda-card--hand:not([data-seat="' + mine + '"])')].filter(node => !node.classList.contains('is-face-down')).length }), mine);
+    assert.equal(leak.ids, 0); assert.equal(leak.faceUp, 0); assert.equal(await actor.page.locator('#omniscient-toggle').isVisible(), false);
+  }
+  pass('two browser deals have exact own hands, anonymous opponents and no omniscient capability');
+  let finalActor = owner;
+  if (!connectionOnly) {
+  await submitCard(player); await submitCard(owner);
+  await wait(() => state().game.stage !== 'ante', 'reveal accepted');
+  for (const actor of [owner, player]) await wait(async () => { await dismiss(actor); return ['play', 'choice'].includes(await actor.page.locator('.tda-shell').getAttribute('data-phase')); }, 'visible ante reveal');
+  const current = [owner, player].find(actor => actor.wire?.game?.selfSeatId === state().game.seats[state().game.active].id);
+  await submitCard(current, 'play');
+  gameplay.antes = 2; gameplay.plays = 1;
+  pass('named clients submit both antes, reveal and a legal play through the complete website UI and action ACKs');
+  const revision = state().game.revision, hand = [...state().game.seats.find(seat => seat.id === originalPlayer.session.memberId).hand];
+  await player.page.reload(); await connected(player); await player.page.locator('.tda-card--hand[data-card]').first().waitFor();
+  assert.equal((await active(player)).session.memberId, originalPlayer.session.memberId); assert.equal(state().game.revision, revision);
+  assert.deepEqual(state().game.seats.find(seat => seat.id === originalPlayer.session.memberId).hand, hand);
+  assert.equal(state().table.hostPlayerId, originalOwner.session.memberId);
+  pass('refresh restores the same private hand and seat without redealing or handing away the owner');
+  const transport = connections.get('TDA-site-browser-player'); assert.ok(transport); transport.backend.destroy(); transport.socket.destroy();
+  await wait(() => !connections.has('TDA-site-browser-player'), 'physical transport lost');
+  await wait(() => connections.has('TDA-site-browser-player') && player.wire?.game?.revision === revision, 'automatic transport reconnect', 30000); await connected(player);
+  assert.equal((await active(player)).session.memberId, originalPlayer.session.memberId); assert.equal(state().game.revision, revision);
+  pass('a severed TCP/WebSocket transport reconnects automatically to the same authoritative seat');
+  const durable = JSON.stringify(state()); await service.close(); await startService();
+  await wait(() => service.stats().sockets === 2, 'both clients reconnect after server restart', 30000);
+  await connected(owner); await connected(player); assert.equal(JSON.stringify(state()), durable);
+  pass('server restart restores persisted SQLite state and both live browser sessions');
+  await owner.page.getByRole('button', { name: '返回首页', exact: true }).click();
+  await wait(() => state().table.hostPlayerId === originalPlayer.session.memberId, 'automatic owner succession after disconnect', 30000);
+  assert.equal(state().game.revision, revision); assert.deepEqual(state().game.seats.find(seat => seat.id === originalPlayer.session.memberId).hand, hand);
+  await owner.page.getByRole('button', { name: '加入房间', exact: true }).click(); await owner.page.getByRole('alert').filter({ hasText: '名字已占用' }).waitFor();
+  await owner.page.getByRole('button', { name: '重连房间', exact: true }).click(); await connected(owner);
+  const ownerReconnected = await active(owner); assert.equal(ownerReconnected.session.memberId, originalOwner.session.memberId); assert.notEqual(ownerReconnected.session.token, originalOwner.session.token);
+  await rejectedOldToken(originalOwner.room.id, originalOwner.session.token); assert.equal(state().table.hostPlayerId, originalPlayer.session.memberId);
+  pass('owner disconnect preserves the game and transfers ownership; explicit cached reconnect rotates and revokes the old token');
+  await owner.page.getByRole('button', { name: '返回首页', exact: true }).click(); await wait(() => service.stats().sockets === 1, 'owner fully offline');
+  const fresh = await actor('fresh'); await fresh.page.goto(invitation); await fresh.page.locator('#guest-name').fill('甲');
+  await fresh.page.getByRole('button', { name: '加入房间', exact: true }).click(); await fresh.page.getByRole('alert').filter({ hasText: '名字已占用' }).waitFor();
+  await fresh.page.getByRole('button', { name: '重连房间', exact: true }).click(); await connected(fresh);
+  assert.equal((await active(fresh)).session.memberId, originalOwner.session.memberId); await rejectedOldToken(originalOwner.room.id, ownerReconnected.session.token);
+  assert.equal(state().game.revision, revision);
+  pass('code plus name explicitly restores an offline seat in a fresh browser without an account or a saved capability');
+  await finishGambit([player, fresh]);
+  assert.ok(gameplay.choices >= 1); assert.ok(state().game.lastGambit?.number >= 1); assert.ok(gameplay.visibleSettlements >= 1);
+  pass('both named seats continue a complete gambit through real ability choices and a visible authoritative settlement');
+  finalActor = fresh;
+  }
+  if (process.argv.includes('--reconnect-only')) {
+    await owner.page.getByRole('button', { name: '返回首页', exact: true }).click(); await wait(() => service.stats().sockets === 1, 'owner offline before fresh browser recovery');
+    const fresh = await actor('fresh'); await fresh.page.goto(invitation); await fresh.page.locator('#guest-name').fill('甲');
+    await fresh.page.getByRole('button', { name: '重连房间', exact: true }).click(); await connected(fresh); finalActor = fresh;
+  }
+  if (!process.argv.includes('--connection-only')) {
+    const beforeStaleReconnect = JSON.stringify(state());
+    const expiredSession = await owner.page.evaluate(code => JSON.parse(localStorage.getItem('three-dragon-site-session.v1:' + code + ':甲')), roomCode);
+    assert.ok(expiredSession); const attemptsBeforeRefresh = owner.wsAttempts;
+    await owner.page.evaluate(saved => sessionStorage.setItem('three-dragon-site-active.v1', JSON.stringify(saved)), expiredSession); await owner.page.reload();
+    await owner.page.locator('.site-room-identity [role="status"]').filter({ hasText: '连接已失效，请返回首页重连' }).waitFor();
+    assert.equal(await owner.page.getByRole('button', { name: '重试连接', exact: true }).count(), 0); await owner.page.waitForTimeout(1600);
+    assert.equal(owner.wsAttempts, attemptsBeforeRefresh + 1); assert.equal(JSON.stringify(state()), beforeStaleReconnect);
+    await owner.page.getByRole('button', { name: '返回首页', exact: true }).click();
+    await owner.page.getByRole('button', { name: '重连房间', exact: true }).click();
+    await owner.page.getByRole('alert').filter({ hasText: '名字已占用' }).waitFor(); assert.equal(JSON.stringify(state()), beforeStaleReconnect);
+    const rotatingSession = await active(finalActor); await finalActor.page.getByRole('button', { name: '返回首页', exact: true }).click(); await wait(() => service.stats().sockets === 1, 'rotated-name seat fully offline');
+    await owner.page.getByRole('button', { name: '重连房间', exact: true }).click(); await connected(owner);
+    const recovered = await active(owner); assert.equal(recovered.session.memberId, originalOwner.session.memberId); assert.notEqual(recovered.session.token, rotatingSession.session.token);
+    await rejectedOldToken(originalOwner.room.id, rotatingSession.session.token); assert.equal(JSON.stringify(state()), beforeStaleReconnect);
+    finalActor = owner;
+    pass('refresh with an expired stored session stops after one rejected WebSocket auth, shows the expiry and recovers through an explicit home reconnect');
+    pass('explicit reconnect with an expired saved token falls back once to an offline name and still rejects an online name without changing the seat');
+  }
+  const replacing = await actor('replacing'), sameCapability = await active(finalActor);
+  await replacing.context.addInitScript(saved => sessionStorage.setItem('three-dragon-site-active.v1', JSON.stringify(saved)), sameCapability);
+  const beforeReplacement = JSON.stringify(state()); await replacing.page.goto(invitation); await connected(replacing);
+  await finalActor.page.locator('.site-room-identity [role="status"]').filter({ hasText: '座位已在其他窗口连接' }).waitFor();
+  assert.equal(await finalActor.page.getByRole('button', { name: '重试连接', exact: true }).count(), 0);
+  const stableConnection = connections.get('TDA-site-browser-replacing'); assert.ok(stableConnection);
+  await replacing.page.waitForTimeout(2500);
+  assert.equal(await finalActor.page.locator('.site-online-match').getAttribute('data-connected'), 'false');
+  assert.equal(connections.has('TDA-site-browser-' + finalActor.label), false); assert.equal(connections.get('TDA-site-browser-replacing'), stableConnection);
+  assert.equal(JSON.stringify(state()), beforeReplacement); assert.equal((await active(replacing)).session.memberId, sameCapability.session.memberId);
+  pass('a duplicate saved-capability window replaces the old connection once; the old window stops retrying and the new window stays stable');
+  for (const actor of [player, replacing]) { assert.equal(await actor.page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false); await actor.page.screenshot({ path: join(out, actor.label + '.png') }); }
+  assert.deepEqual(errors, []); assert.deepEqual(external, []); assert.deepEqual(resourceFailures, []);
+  pass('desktop and narrow online pages have no page errors, failed assets, horizontal overflow or external requests');
+  writeFileSync(join(out, 'result.json'), JSON.stringify({ checks, gameplay, connectionOnly, errors, external, resourceFailures, privateFrames: actors.reduce((sum, actor) => sum + actor.privateFrames, 0), realOwlbearRoom: false, scope: 'Isolated production website build; real desktop/narrow browsers, local WebSocket proxy and temporary SQLite. No production room or real Owlbear account.' }, null, 2) + '\n'); console.log(out);
+} catch (error) {
+  for (const actor of actors) if (!actor.page.isClosed()) await actor.page.screenshot({ path: join(out, actor.label + '-failure.png') }).catch(() => {});
+  writeFileSync(join(out, 'failure.json'), JSON.stringify({ error: String(error), checks, errors, external, resourceFailures }, null, 2)); console.log(out); throw error;
+} finally {
+  await browser.close(); await service.close();
+  for (const { socket, backend } of connections.values()) { socket.destroy(); backend.destroy(); }
+  await new Promise(done => staticServer.close(done));
+}

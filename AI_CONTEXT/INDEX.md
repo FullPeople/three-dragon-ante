@@ -1,7 +1,7 @@
 # AI_CONTEXT/INDEX.md — 三龙牌 冷启动中枢
 
 > `AI_CONTEXT/` = 本项目跨 AI 事实源**薄指针层**。通用纪律见全局（自动加载）。本文件是项目侧冷启动第一读。
-> 第二读：`AI_CONTEXT/GOAL.md`（当前总目标：表现层破坏性重构）。
+> 第二读：`AI_CONTEXT/GOAL.md`（当前总目标见 §9：三入口持续上线）。2026-10-04 用户已授权本次实现、推送、服务与定向部署及真实枭熊验收，无需逐步确认；下文旧授权限制以 GOAL §9 和 DOMAIN §4 为准。
 
 ## 1. 项目身份
 
@@ -21,9 +21,9 @@
 | 前端开发 | `npm run dev` → `http://127.0.0.1:5173/three-dragon-ante-dev/` |
 | 构建 / 预览 | `npm run build`（含 `tsc --noEmit`）→ `extensions/three-dragon-ante/dist/`；`npm run preview` 端口 4173 |
 | 服务端 | `npm run build:server` → `dist-server/`；`npm run dev:server` 监听 `127.0.0.1:5013`，数据库 `.local-data/game.sqlite` |
-| 规则/控制器回归 | `npm test`（7 个入口，纯 Node） |
+| 规则/控制器回归 | `npm test`（8 个入口，纯 Node）；新增 `test:guest-server` 专项 |
 | 服务端回归 | `npm run test:server`（真实本地 WebSocket + SQLite） |
-| 浏览器冒烟 | `npm run test:browser`、`npm run test:server-browser`（Windows 用已安装 Edge；旧 UI 选择器，重构后需重建） |
+| 浏览器冒烟 | `npm run test:browser`、`npm run test:server-browser`（Windows 用已安装 Edge；当前新表现层选择器）；新增 `test:site-multiplayer` |
 | 来源字节校验 | `npm run verify:source`（对 `SOURCE.json`；重构开始后作废，见 GOAL §4） |
 | 证据目录 | `.local-evidence/`（gitignore） |
 | 凭证 | `.env.local`（不进 git；明文不记录）。本地对战与练习不需要任何凭证 |

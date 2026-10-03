@@ -1,16 +1,10 @@
-import {withRequestTimeout} from '../../../../src/request-timeout';
+import {serverPost} from './server-endpoint';
+export {serverBase,serverPost} from './server-endpoint';
 import OBR from '@owlbear-rodeo/sdk';
 import {SERVER_GRANT,SERVER_ROOM_KEY,serverRoom,type ServerRoom,type ServerSession} from './server-protocol';
-export const serverBase=import.meta.env?.VITE_TDA_API||'https://obr.dnd.center/three-dragon-api/v1';
 const key=(room:string,player:string)=>'three-dragon-server-session:'+room+':'+player;
 export function readServerSession(room:string,player:string):ServerSession|null {try{const s=JSON.parse(localStorage.getItem(key(room,player))||'null');return s?.roomId===room&&/^[a-f0-9]{64}$/.test(s.token)?s:null;}catch{return null;}}
 export function writeServerSession(session:ServerSession,player:string){localStorage.setItem(key(session.roomId,player),JSON.stringify(session));}
-export async function serverPost(path:string,data:unknown,token?:string){
- return withRequestTimeout(12000,undefined,async signal=>{
- const response=await fetch(serverBase+path,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(data),signal});
- const value=await response.json();if(!response.ok)throw Error(value.error||'requestFailed');return value;
- });
-}
 export async function registerServerSession(room:ServerRoom,player:string,name:string){
  const old=readServerSession(room.id,player);if(old)return old;
  const session:ServerSession=await serverPost('/rooms/'+room.id+'/sessions',{joinKey:room.joinKey,externalId:player,name});writeServerSession(session,player);return session;

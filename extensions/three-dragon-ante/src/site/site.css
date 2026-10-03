@@ -26,3 +26,35 @@
 .site-howto-body h2:first-child { margin-top: 0; }
 .site-howto-body p { margin: 6px 0; line-height: 1.7; }
 @media (max-width: 640px) { .site-hero { padding: 28px 18px; } .site-controls { gap: 16px 24px; } .site-foot { flex-direction: column; align-items: center; } .site-howto-body { padding: 18px 16px; } }
+
+/* 在线宿主控件。沿用现有纸张/皮革材质，牌桌本身由 mountTableUI 渲染。 */
+.site-home { padding-top: 24px; }
+.site-online-form { margin-top: 20px; padding-bottom: 24px; border-bottom: 1px solid rgba(60, 40, 20, .35); }
+.site-online-form h2, .site-local-heading { margin: 0 0 12px; font-family: var(--font-display); font-size: 20px; }
+.site-local-heading { margin-top: 24px; }
+.site-room-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.site-room-fields .site-field { justify-items: stretch; text-align: left; }
+.site-room-fields input, .site-room-tools input { min-width: 0; width: 100%; min-height: 38px; padding: 6px 10px; border: 1px solid #4a3522; border-radius: 2px; background: #eee3c8; color: var(--ink); font-family: var(--font-body); }
+#guest-room-code { font-family: var(--font-latin); }
+.site-room-note, .site-room-error { margin: 12px 0 0; font-size: 12px; color: #5a4328; }
+.site-room-error { color: #842b20; }
+.site-online-form .site-actions { margin-top: 14px; gap: 8px; }
+.site-online-match { position: fixed; inset: 0; display: flex; flex-direction: column; background: #120b07; }
+.site-room-bar { flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 6px 14px; color: var(--parchment); background-color: #5a3e2e; background-image: var(--tex-leather); background-size: 420px; background-blend-mode: multiply; border-bottom: 1px solid #0d0705; }
+.site-room-identity, .site-room-tools { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.site-room-identity { flex-wrap: wrap; font-size: 13px; }
+.site-room-identity strong { font-family: var(--font-latin); }
+.site-room-tools { gap: 6px; }
+.site-room-tools input { width: 170px; min-height: 30px; font-size: 12px; }
+.site-room-tools .tda-btn { min-height: 30px; white-space: nowrap; }
+.site-online-host { position: relative; min-height: 0; flex: 1 1 auto; }
+.site-online-table { position: absolute; inset: 0; }
+.site-online-table #close, .site-online-table #display-mode, .site-online-table #omniscient-toggle { display: none; }
+@media (max-width: 640px) {
+  .site-room-fields { gap: 10px; }
+  .site-room-bar { padding: 6px 10px; }
+  .site-room-identity { width: 100%; gap: 12px; }
+  .site-room-tools { width: 100%; }
+  .site-room-tools input { flex: 1; width: 0; }
+  .site-room-tools .tda-btn { padding: 4px 8px; font-size: 12px; }
+}

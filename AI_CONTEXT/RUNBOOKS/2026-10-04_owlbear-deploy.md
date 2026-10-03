@@ -1,0 +1,45 @@
+# Runbook · 三龙牌三入口上线（2026-10-04）
+
+## 授权与目标
+
+用户 2026-10-04 明确授权持续推进、不再逐步询问，三项交付：独立 Owlbear 扩展、Suite 内三龙牌、独立多人网站；统一使用用户现有服务器。网站房间码/邀请链接+名字入房和重连，无账号身份识别，房间内名字唯一。规则引擎与私牌边界继续保留，另一机器的表现层/fx3d 工作不触碰。
+
+## 已核验与已执行
+
+- §1–§2 快照全部验证通过，见同日 environment-handoff runbook。
+- `git fetch origin` 后 `git push -u origin rebuild/presentation` 成功；远端创建分支，验证 HEAD `619ada5`。GitHub 当前账号拥有 repo 写权限。未修改 remote/credential、未 force-push、未合并 main。
+- 本地预览 `http://127.0.0.1:4173/three-dragon-ante-dev/` 维持运行；当前预览来自原验证产物。
+- SSH 指定既有部署 key，以 BatchMode + StrictHostKeyChecking 连接成功；不记录私钥内容。
+- 现场线上基线：card 1.0.241、Suite dev 1.0.241-dev（Suite source b48783c）、stable Suite 1.3.14（639c8217）、旧独立三龙牌 0.7.22-dev。旧文档版本不用于覆盖线上。
+- `obr-three-dragon` active、127.0.0.1:5013；local/public health 200；public WSS TLS/升级握手 101 且 Accept 校验通过。现有反代沿用，不需为同源 API 修改 nginx 或 systemd 配置。
+- Suite 工作台三龙牌 iframe 依赖 panel-sdk/panel-rpc 桥，直接换独立 table.html 会丢失宿主桥。集成从现场对应 source 独立工作树构建，只定向覆盖三龙牌 panel 与其资源；不发布旧 paired worktree 的全量 Suite。
+- 生产对应 Suite 服务源码比快照多 stale-game leave 防护；新增 guest API 时已保留，main.mjs 除行尾外一致。
+- 已写 guest 服务与网站宿主；服务端 build 通过，专项测试、浏览器测试、桥接集成与审计仍在进行。
+
+## 新接口与实现边界
+
+- `POST /guest/rooms {name}` 创建房间并入座；`POST /guest/rooms/:code/sessions {name,reconnectToken?,reconnect?:true}` 加入/重连。
+- 普通加入同名始终拒绝；显式重连先用缓存 token，没有 token 仅恢复离线同名座位；短期发行租约防尚未 WS 连接的并发抢名。token 轮换，单名字单活动操控连接。
+- guest 主持仅管理牌桌，禁止 inspect/omniscient/edit；旧 `/rooms`/grants 与枭熊身份边界不放宽。
+- 新 SDK 无依赖的 server-endpoint 模块供网站和旧客户端共用；默认同源 `/three-dragon-api/v1`，所有资源自托管。
+- stable Suite 直接弹窗路径增加已有稳定局路由，沿用稳定旧协议，避免热迁移。
+- 版本 `0.8.0(-dev)`；新增 guest/server 与 website/browser CI gates。规则语义、卡图、私牌编码未改。
+
+## 证据与遗留
+
+- 只读线上散列/受保护服务基线：`.local-evidence/deployment-preflight-20261004/server-baseline.json`；WSS：`wss-preauth.json`。
+- 原构建与测试：`.local-evidence/handoff-2026-10-04/`。
+- 原始预览服务保持。新的具体测试结果、源 commit、产物散列、每目标回退点、切换与线上验收在完成后追加本记录。
+- 真实枭熊双账号暂缺：浏览器 runtime 请求的服务组件版本文件不存在。未读取浏览器账号凭据，不用 fixture 冒充真实房间。
+- 遗留双落 `TODO.md` 的 2026-10-04 目标段；未关闭真实枭熊和独立审计。
+
+## 上线候选验证与审计整改
+
+- 新匿名服务专项完整 15/15：`.local-evidence/guest-server/run-Ulsuwz/result.json`。真实本地 HTTP/WS/SQLite，覆盖并发 NFKC 重名、租约、六席/私牌、保存回滚/幂等、凭据轮换、重启、离线/主动主持继任、旧 Owlbear 共存、stale leave、1011 暂时保存失败与 1013 容量恢复。
+- 新网站最终完整 14/14：`.local-evidence/site-multiplayer-UJe91Q/result.json`。同源生产构建、真实桌面/390px浏览器、临时 SQLite/TCP/WS，3 次前注、6 次出牌、2 次能力选择、1 次可见权威结算；错误、资源失败、外部请求均 0。含刷新/强断/服务重启/主持继任/旧凭据/离线名字恢复/同token重复窗口/1008拒绝终态。
+- 旧规则/控制器 8/8 与原服务测试 2/2 在新实现后通过；typecheck 0。入口共存矩阵 12/12，证据 `.local-evidence/page-route/run-9Eh5dg/result.json`。
+- 换模型审计已启动（gpt-6.1-sol，仅只读）；不将开发结论当成独立审计。发现并修复：过期缓存凭据显式重连的单次名字 fallback、1008无效认证终态、4001替换窗口不再自动抢回、TimeoutError映射、Suite active stable局优先且独立入口保持 valid server 优先、初次暂时存储/容量失败用可重试关闭码并不泄漏活跃房间缓存。专项证据已覆盖，等待冻结源复审结论。
+- 初次桥夹具 7/7，真实 WorkbenchPanel/panel-sdk/panel-rpc + 本地服务；最终 source 冻结后须同源重建并重验扩展后的桥矩阵。
+- F 盘空间不足引起首轮 overlay 写资产失败；本轮失败产物未删除，已移到 U 的专属失败目录保存。当前大产物与隔离集成源改放 U。自动审批拒绝过清理动作，理由“blocked by policy”；未继续尝试删除其他内容。
+
+这些均不是双账号真实枭熊房间验收，真实验收仍待浏览器连接组件恢复。线上发布尚未执行，原服务/静态入口未切换。

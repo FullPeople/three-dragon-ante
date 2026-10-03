@@ -3,7 +3,7 @@ import type {TableUICommand} from './ui-command';
 import {applyObjectPatch,type ServerSession} from './server-protocol';
 import {unpackPublic,unpackSeat} from './wire';
 import {unpackOmniscient} from './local-view';
-import {serverBase} from './server-session';
+import {serverBase} from './server-endpoint';
 import type {HandGesture} from './gesture';
 export class ServerTableClient {
  private socket?:WebSocket;private stopped=false;private timer?:ReturnType<typeof setTimeout>;private retry=0;private seq=0;private wire:any;
@@ -15,7 +15,7 @@ export class ServerTableClient {
  get view(){return this.viewValue;}
  start(){this.stopped=false;this.connect();}
  private connect(){
-  if(this.stopped)return;let authenticated=false;const ws=this.socket=new WebSocket(serverBase.replace(/^http/,'ws')+'/socket');
+  if(this.stopped)return;let authenticated=false;const ws=this.socket=new WebSocket(new URL(serverBase+'/socket',location.href).href.replace(/^http/,'ws'));
   ws.onopen=()=>ws.send(JSON.stringify({type:'auth',room:this.session.roomId,token:this.session.token}));
   ws.onmessage=event=>{if(this.socket!==ws)return;try{
    const packet=JSON.parse(event.data);
@@ -31,7 +31,7 @@ export class ServerTableClient {
     if(packet.id!==this.pending?.id)return;clearTimeout(this.commandTimer);this.pending=undefined;this.apply(packet.page);
    }else if(packet.type==='gestures')for(const item of packet.values||[])this.gesture(item.seatId,item.gesture);
   }catch{this.message='protocolMismatch';this.apply();}};
-  ws.onclose=()=>{if(this.socket!==ws||this.stopped)return;this.viewValue={...this.viewValue,connected:false,message:'connecting'};this.changed(this.viewValue);if(this.pending)this.stalled();this.timer=setTimeout(()=>this.connect(),Math.min(8000,500*2**Math.min(4,this.retry++)));};
+  ws.onclose=event=>{if(this.socket!==ws||this.stopped)return;if(event.code===4001||event.code===1008&&!authenticated){this.stopped=true;clearTimeout(this.commandTimer);this.pending=undefined;this.viewValue={...this.viewValue,connected:false,pending:false,message:event.code===4001?'sessionReplaced':'notAllowed'};this.changed(this.viewValue);return;}this.viewValue={...this.viewValue,connected:false,message:'connecting'};this.changed(this.viewValue);if(this.pending)this.stalled();this.timer=setTimeout(()=>this.connect(),Math.min(8000,500*2**Math.min(4,this.retry++)));};
   ws.onerror=()=>{};
  }
  private apply(historyPage?:TableView['historyPage']){
@@ -44,7 +44,7 @@ export class ServerTableClient {
  }
  async command(command:TableUICommand){
   if(command.type==='retry'){
-   if(this.socket?.readyState!==WebSocket.OPEN){clearTimeout(this.timer);this.socket?.close();this.connect();return;}
+   if(this.socket?.readyState!==WebSocket.OPEN){clearTimeout(this.timer);this.socket?.close();this.stopped=false;this.connect();return;}
    if(this.pending){this.socket.send(JSON.stringify({type:'command',...this.pending}));return;}
    if('action'in command&&command.action)command={type:'action',action:command.action};else{this.socket.send(JSON.stringify({type:'sync'}));return;}
   }
