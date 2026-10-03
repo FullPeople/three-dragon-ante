@@ -51,3 +51,15 @@
 - 查证旧生产独立扩展源 dfc4f4d 的后台仍打开 `index.html?instance=<UUID>&mode=full/compact`。新网站 index 只在嵌入 iframe 且具备该签名时同源跳到 table，完整保留查询与 hash；普通网站/邀请仍保持原入口。补丁独立审计无必改，生产构建入口专项 6/6：`.local-evidence/site-entry/run-BWBitj/result.json`，牌桌目标被拦截，仅证明跳转。
 - 本地预览已接本地权威服务，`TDA_ORIGIN=http://127.0.0.1:4173`，独立数据库 `.local-data/preview-20261004.sqlite`；代理 health 200。没有写 `.env` 文件或连接生产房间。
 - 最新 typecheck/build 通过，原服务再次 2/2；原浏览器与 fx3d 冻结回归正在完成。缓存补丁冻结后重新生成 source archive，Suite 牌桌输出不包含 site 入口，仍须核对新清单来源。
+
+## 发布准备与最新现场基线
+
+- `d7bb7a96dd8095dfc01d72d6f0a17e2f9a8858b3` 已成功推至原分支；GitHub Actions `37139887599` 全部通过（构建、原回归、新 guest/website、入口矩阵、fx3d）。本机原浏览器 20/20、服务浏览器 4/4、fx3d 4/4 最新重跑也通过，日志 `16-browser-release.log` 至 `18-fx3d-release.log`。
+- 临近发布只读刷新发现其他发布已将 card/Suite dev 更新到 243；实际 Suite source `207f584347b6797c70eabaedff9825d8cdc36b88`、Web source `fbccf5725e93e605b016858d3f45d35bddb27f08`。稳定 Suite 与三龙牌服务散列未变。禁止覆盖旧 241 整站；最终 overlay 从 243 宿主读版本，按最新整树基线定向合并。
+- 243 比较证据 `U:/CodexWork/2026-10-04/three-dragon-suite-source/.local-evidence/host243-compatibility.json`：24 个桥/旧局/服务相关 blob 相同，实际 WorkbenchPanel 也相同；新增 Owner/access 权限检查排除 panelRpc，因此沿用此前 10/10 真实桥夹具证据，明确这是相同桥源码兼容结论。
+- 新增本地发布打包工具与远端受控脚本：仅四目标与三龙牌 bundle，强制包 SHA、逐文件清单、路径与 symlink 防护，源 archive 用冻结 Git 跟踪文件；仅允许无密钥 `.env.example` 模板，不包含 `.claude`、真实存档或私有环境。每目标完整新备份、切换意图回执、old/new 散列恢复，保存 mode/uid/gid；SQLite 备份仅远端私有目录，rollback/recover 从不覆写当前数据库。nginx/unit/relay/card 为保护基线。
+- 发布事务夹具最终 16/16：`U:/CodexWork/2026-10-04/three-dragon-release-selftest/run-70qcvgsz/result.json`，本地合成树/SQLite，不宣称 Linux 原子交换和真实权限已验收。正式包需工具提交后绑定最终 HEAD；d7 流程验证包保留，不用作正式发布。
+- 线上运行时为 Node 22.13.1，本机 Node 22.17.1 完成构建。保留共享 Node，候选服务在生产机器临时目录的 port-zero/合成 SQLite 隔离运行时检查 4/4，证据 `.local-evidence/deployment-preflight-20261004/runtime-smoke-result.json`；未重启或访问生产房间数据库。部署后的真实网站 WSS 仍须完整验证。
+- 新增显式运行的 `tools/three-dragon-live-website.mjs --origin ...`，只创建自己的 QA 名字房间，经真实浏览器 UI 验收跨频道入房、私牌、完整一轮、刷新/物理 WS 重建、主持继任和新浏览器离线名字恢复。本地预览 9/9：`.local-evidence/live-website/run-WLRLaH/result.json`。日志失败信息已按独立审计改成固定类别/计数，避免 AssertionError 或 URL 把手牌/凭据/房间标识写出；不留 raw frame 或截图。
+- 真实枭熊浏览器连接再次重试仍缺少所需版本的控制服务文件，未读取账号 profile/cookie，不以网站或夹具结论替代真实 GM/玩家验收。
+- 发布工具独立审计必改已修：失败服务状态仍可 inspect 并恢复旧 bundle；最终发布事务 17/17，证据 `U:/CodexWork/2026-10-04/three-dragon-release-selftest/run-g9s0nhd8/result.json`。现场 Python 3.9.22 的脚本只读 inspect 成功，脚本 SHA `df9d1967762eb0179d6933227ca86329c0addba0f64e8d8950c1c34e4a9096a7` 与本机一致；基线证据 `.local-evidence/deployment-preflight-20261004/release-inspect-python39.json`。Linux 原子交换独立临时目录 probe 通过，未切换生产目标。最终产物新 HEAD 绑定仍须在正式打包中验证。
