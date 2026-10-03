@@ -35,10 +35,12 @@ export interface Controller {
   cancelKeyboard(): void;
   /** 由挂载层注册：能力说明层被关闭时的回调 */
   onPowerDismiss(fn: () => void): void;
+  /** 清掉手势节流定时器，销毁后不再向宿主发任何手势 */
+  destroy(): void;
 }
 
 export function createController(store: Store, deps: ControllerDeps): Controller {
-  let gestureTimer: ReturnType<typeof setTimeout> | undefined, gestureSequence = Date.now(), lastGesture = "";
+  let gestureTimer: ReturnType<typeof setTimeout> | undefined, gestureSequence = Date.now(), lastGesture = "", dead = false;
   let powerDismiss: (() => void) | null = null;
   const receiptCompatible = () => store.get().view?.actionReceiptVersion === 1;
   const locked = () => {
@@ -65,9 +67,9 @@ export function createController(store: Store, deps: ControllerDeps): Controller
     return dispatch({ id: deps.id?.() ?? crypto.randomUUID(), revision: own.revision, seatId: own.selfSeatId, kind: a.kind, cardId }, cardId, zone);
   }
   function publish() {
-    if (!deps.gesture || gestureTimer) return;
+    if (!deps.gesture || gestureTimer || dead) return;
     gestureTimer = setTimeout(() => {
-      gestureTimer = undefined; const s = store.get(), own = privateGame(s.view); if (!own || s.suspended) return;
+      gestureTimer = undefined; const s = store.get(), own = privateGame(s.view); if (dead || !own || s.suspended) return;
       const hover = own.hand.findIndex(c => c.id === s.hovered);
       const value = { gameId: own.id, revision: own.revision, count: own.hand.length, hover: hover < 0 ? null : hover, selected: own.hand.flatMap((c, i) => s.selected.includes(c.id) || s.drag?.cardId === c.id || s.keyboardHeld && s.keyboardCard === c.id ? [i] : []), sequence: 0 };
       const signature = JSON.stringify(value); if (signature === lastGesture) return; lastGesture = signature;
@@ -120,6 +122,7 @@ export function createController(store: Store, deps: ControllerDeps): Controller
     toggleSound() { const next = !store.get().soundOn; try { localStorage.setItem("three-dragon-ante.sound.v2", next ? "on" : "off"); } catch {} store.set({ soundOn: next }); },
     cancelKeyboard() { store.set({ keyboardHeld: false }); publish(); },
     publishGesture: publish,
+    destroy() { dead = true; if (gestureTimer) clearTimeout(gestureTimer); gestureTimer = undefined; powerDismiss = null; },
     keyboard(event) {
       const s = store.get(), own = privateGame(s.view); if (!own?.hand.length) return;
       if (s.show.power) { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); if (!event.repeat) this.dismissPower(); } return; }

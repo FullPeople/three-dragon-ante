@@ -120,4 +120,22 @@
 | 低8 | TODO 与 MEMORY 矛盾 | TODO 勾选同步 |
 
 **整改后验证**：typecheck / build；`npm test` 8/8（新增 presentation-selftest 5 项）；`test:server` 2/2；`test:browser` 14/14（含出牌与隐私断言）；`test:server-browser` 4/4；`six-and-drag.mjs` 断言通过。
-**复查**：整改提交后回同一审计会话复查，裁决见下。
+**复查裁决（同一审计会话，Claude Opus 5.5）：有条件通过。** 中1–中4 确认已修；新发现并整改：
+
+| # | 发现 | 整改 |
+|---|---|---|
+| N1（中，必修） | 冒烟测试断言打出的牌最后落在牌阵（`data-zone==='flight'`），但铜龙一类能力会立刻把它换下送进弃牌堆，随机种子下 4 次挂 1 次 | 断言改为"离开本家手牌，且节点在牌阵 / 弃牌堆 / 已不可见"；连跑 5 次全绿 |
+| N2（低） | 被立刻替换的牌在下一帧牌阵里找不到，`landingFrame` 返回 null | 未改，记入 `TODO.md` |
+| N3（低） | 手势节流定时器在 `destroy()` 后仍可能触发并向宿主发手势 | controller 增 `destroy()`：清定时器、置 `dead`、丢弃回调；`mount.destroy()` 调用 |
+| 中2 残留 | 自测只覆盖 `pendingPose`，没覆盖 CardLayer 的"按住"判定 | 判定抽成纯函数 `isHeldByPending()`，CardLayer 与自测共用；自测 2 覆盖手牌 / 暗置 / 牌阵按住、弃牌放行、他人牌与无 pending 不按 |
+| 中1 残留 | 金币弧线循环内部没有代际检查 | `goldArcs(flows, gen)` 每段弧前查代际 |
+
+审计原话："修好 N1 并重跑 test:browser 多次都稳定之后，可以判通过。" N1 已修并 5/5 稳定，按此口径**阶段 7 判通过**；N2 为低项遗留。
+
+**整改后验证**（见 §16）。
+
+## 16. 阶段 7 收尾验证与遗留
+
+- typecheck / build 通过；`presentation-selftest` 5/5；`npm test`；`test:server`；`test:browser` 连跑 5/5；`test:server-browser` 4/4（结果以 commit 信息为准）。
+- 遗留（双落 `TODO.md`）：N2 落地帧对被替换牌为 null；翻注四段 1720 ms 无自动化断言；字体子集化；真实枭熊房间 / 实体手机验收；`src/modules/threeDragonAnte` 去留；在线多人与依赖升级另立项。
+- **push 待用户确认**；是否合并 main 由用户定。

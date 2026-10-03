@@ -134,6 +134,11 @@ export function cardPlacements(view: PublicView | SeatView | OmniscientView, ori
   return result;
 }
 
+/** 待确认判定：本家未回执的那张牌，不论投影把它画在手牌、暗置还是牌阵，都要按住；只有进了弃牌堆才放行。 */
+export function isHeldByPending(placement: Pick<CardPlacement, "cardId" | "seatId" | "zone">, pending: { cardId?: string } | null, selfSeatId: string | null): boolean {
+  return !!pending?.cardId && !!selfSeatId && placement.cardId === pending.cardId && placement.seatId === selfSeatId && placement.zone !== "discard";
+}
+
 /** 待确认卡牌的位姿：只要本家有未回执的提交，这张牌就停在目标区域上方，
  *  不管投影把它画在哪（投影可能先于回执到达）。回执匹配后 pending 清空，牌才落到真实位姿。 */
 export function pendingPose(view: PublicView | SeatView | OmniscientView, orientation: Orientation, pending: { cardId: string; zone?: "ante" | "flight" }): Pose | null {

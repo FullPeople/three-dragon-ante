@@ -59,8 +59,9 @@ export function createPresenter(store: Store, controller: Controller, hooks: Pre
   function setBusy(value: boolean) { if (store.get().busy !== value) { store.set({ busy: value }); hooks.onBusy(value); } }
   const flight = (from: { x: number; y: number } | null, to: { x: number; y: number } | null, amount: number, duration: number) => new Promise<void>(resolve => { const fx = hooks.fx(); if (!from || !to || !fx) return void setTimeout(resolve, duration); fx.arc(from, to, Math.min(5, Math.max(1, Math.ceil(amount / 3))), resolve, duration); setTimeout(resolve, duration + 300); });
 
-  async function goldArcs(flows: readonly PublicGoldFlow[]) {
-    for (const flow of flows) { hooks.sound("coin", flow.key); await flight(endpoint(flow.fromSeatId), endpoint(flow.toSeatId), flow.amount, 620); }
+  async function goldArcs(flows: readonly PublicGoldFlow[], gen: number) {
+    // 每段金币弧之间都查代际：清场后剩下的弧不再播，也不再出声。
+    for (const flow of flows) { if (gen !== generation) return; hooks.sound("coin", flow.key); await flight(endpoint(flow.fromSeatId), endpoint(flow.toSeatId), flow.amount, 620); }
   }
 
   async function runReveal(item: QueueItem, gen: number) {
@@ -145,11 +146,11 @@ export function createPresenter(store: Store, controller: Controller, hooks: Pre
             const p = cardPoint(cue.cardId); if (p) { hooks.fx()?.burst(p, familyFx(cue.family), 1.2); hooks.sound("power-impact", cue.key); }
             await beat(420); if (gen !== generation) return;
           }
-          await goldArcs(pres.gold); if (gen !== generation) return;
+          await goldArcs(pres.gold, gen); if (gen !== generation) return;
           releaseGold();
           await beat(); if (gen !== generation) return;
           show({ resolvingSeatId: null });
-        } else if (pres.gold.length) { holdGold(previous); display(view); await beat(SETTLE_MS); if (gen !== generation) return; await goldArcs(pres.gold); if (gen !== generation) return; releaseGold(); await beat(); if (gen !== generation) return; }
+        } else if (pres.gold.length) { holdGold(previous); display(view); await beat(SETTLE_MS); if (gen !== generation) return; await goldArcs(pres.gold, gen); if (gen !== generation) return; releaseGold(); await beat(); if (gen !== generation) return; }
         else { display(view); if (played && pres.rounds.length) { await beat(SETTLE_MS); if (gen !== generation) return; } }
         for (const cue of pres.rounds) {
           if (cue.kind === "score") { holdGold(previous); await beat(SETTLE_MS); if (gen !== generation) return; await scoreboard(cue, gen); } else await banner(cue, gen);

@@ -131,7 +131,7 @@ export function mountTableUI(root: HTMLElement, deps: TableUIDeps): TableUISurfa
     failed() { const s = store.get(); store.set({ sending: false, localMessage: "requestFailed", pending: s.pending ? { ...s.pending, retryable: true } : null, view: s.view ? { ...s.view, pending: false, connected: false } : null }); presenter.clear(); },
     destroy() {
       if (destroyed) return; destroyed = true;
-      presenter.destroy(); audio.destroy(); for (const timer of gestureTimers.values()) clearTimeout(timer); for (const timer of slowTimers.values()) clearTimeout(timer);
+      presenter.destroy(); controller.destroy(); audio.destroy(); for (const timer of gestureTimers.values()) clearTimeout(timer); for (const timer of slowTimers.values()) clearTimeout(timer);
       // 宿主常在另一个 React 树的 effect 清理里销毁牌桌；同步 unmount 会被 React 19 推迟并在开发模式告警，
       // 所以放到下一个宏任务，且不再手动清空容器（否则推迟的 removeChild 会找不到节点）。
       setTimeout(() => reactRoot.unmount(), 0); root.classList.remove("tda-root");

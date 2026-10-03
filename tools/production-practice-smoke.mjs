@@ -82,8 +82,10 @@ try {
     await playable.click({ force: true, position: { x: 70, y: 40 } });
     await page.locator('[data-drop-zone="flight"][data-drop-seat="you"]').click({ force: true });
     await page.waitForFunction(() => document.querySelector('.tda-shell')?.getAttribute('data-pending-action') === 'false', null, { timeout: 10000 });
-    await page.waitForFunction(id => document.querySelector(`[data-card="${id}"]`)?.getAttribute('data-zone') === 'flight', playedId, { timeout: 10000 });
-    pass(`${name} a card is played into the flight through the real action path`);
+    // 牌离开手牌即可：某些能力（铜龙等）会立刻把刚打出的牌换进弃牌堆，所以落点可能是牌阵、弃牌顶，或已不在可见位置。
+    await page.waitForFunction(id => { const zone = document.querySelector(`[data-card="${id}"]`)?.getAttribute('data-zone'); return zone === undefined || zone === null || zone === 'flight' || zone === 'discard'; }, playedId, { timeout: 10000 });
+    assert.equal(await page.locator(`.tda-card--hand[data-card="${playedId}"]`).count(), 0, 'played card left the hand');
+    pass(`${name} a card is played through the real action path and leaves the hand`);
     await page.screenshot({ path: join(output, name + '.png') });
     // 退出回首页，再进一局（先像玩家一样关掉还在播放的说明层 / 待确认的选择）
     for (let i = 0; i < 30; i++) {

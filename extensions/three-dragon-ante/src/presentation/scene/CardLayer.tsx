@@ -2,7 +2,7 @@
  * 翻注时同一位置的节点先面朝下再翻开，避免"凭空出现"。 */
 import { useMemo, useRef } from "react";
 import type { CardPlacement, Orientation, Pose } from "../model/layout";
-import { CENTER, cardPlacements, pendingPose, seatPlacements } from "../model/layout";
+import { CENTER, cardPlacements, isHeldByPending, pendingPose, seatPlacements } from "../model/layout";
 import { CardNode } from "./CardNode";
 import type { UIState } from "../app/store";
 import { privateGame } from "../app/store";
@@ -47,7 +47,7 @@ export function CardLayer({ state, controller, orientation, onCardPointerDown }:
     if (isOwnHand && cardId && (state.selected.includes(cardId) || state.keyboardHeld && state.keyboardCard === cardId)) pose = { ...pose, y: pose.y - 36, z: pose.z + 30 };
     else if (isOwnHand && cardId && state.hovered === cardId) pose = { ...pose, y: pose.y - 18, z: pose.z + 20, scale: pose.scale * 1.04 };
     // 提交 ≠ 接受：只要回执还没到，这张牌停在目标区上方，哪怕投影已经把它画进牌阵。
-    const pendingHere = !!state.pending?.cardId && cardId === state.pending.cardId && !!own && placement.seatId === own.selfSeatId && placement.zone !== "discard";
+    const pendingHere = isHeldByPending(placement, state.pending, own?.selfSeatId ?? null);
     if (pendingHere && game && state.pending?.cardId) { const held = pendingPose(game, orientation, { cardId: state.pending.cardId, zone: state.pending.zone }); if (held) pose = held; }
     const faceDownOverride = cardId && placement.zone === "ante" && revealIds.has(cardId) && reveal === "placing" ? true : undefined;
     const label = cardId ? (() => { try { const value = card(cardId); return `${cardName(cardId, state.lang)} · ${t("cardStrength", state.lang, { n: value.strength })}`; } catch { return undefined; } })() : undefined;

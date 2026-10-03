@@ -15,7 +15,7 @@ const out = mkdtempSync(join(tmpdir(), 'tda-presentation-'));
 const abs = p => JSON.stringify(resolve(base, p));
 const entry = `
 export { createGame, applyAction, eligibleActions, projectSeat } from ${abs('game/rules/index.ts')};
-export { cardPlacements, pendingPose } from ${abs('presentation/model/layout.ts')};
+export { cardPlacements, pendingPose, isHeldByPending } from ${abs('presentation/model/layout.ts')};
 export { createStore, emptyShow } from ${abs('presentation/app/store.ts')};
 export { createController } from ${abs('presentation/app/controller.ts')};
 export { createPresenter, landingFrame, SETTLE_MS, BEAT_MS } from ${abs('presentation/app/presenter.ts')};
@@ -60,7 +60,15 @@ assert.ok(events.some(e => e.code === 'CARD_PLAYED' && e.cardIds?.[0] === ready)
   assert.ok(held, 'a pending pose exists while the receipt is outstanding');
   assert.equal(held.z, 60); assert.notEqual(held.y, inFlight.pose.y);
   assert.equal(m.pendingPose(nextView.game, 'landscape', { cardId: ready }), null, 'no zone means nothing to hold');
-  pass('pending card keeps its waiting pose even when the projection already shows it in the flight');
+  // CardLayer 用的判定：本家那张牌在手牌 / 暗置 / 牌阵都按住，弃牌堆放行，别人的牌和没有 pending 时不按
+  const pending = { cardId: ready, zone: 'flight' };
+  for (const zone of ['hand', 'ante', 'flight']) assert.ok(m.isHeldByPending({ cardId: ready, seatId: leader, zone }, pending, leader), `held in ${zone}`);
+  assert.ok(!m.isHeldByPending({ cardId: ready, seatId: leader, zone: 'discard' }, pending, leader), 'released once discarded');
+  const other = seats.find(x => x.id !== leader).id;
+  assert.ok(!m.isHeldByPending({ cardId: ready, seatId: other, zone: 'flight' }, pending, leader), 'another seat\'s card is never held');
+  assert.ok(!m.isHeldByPending(inFlight, null, leader), 'nothing is held without a pending action');
+  assert.ok(!m.isHeldByPending({ cardId: 'other', seatId: leader, zone: 'flight' }, pending, leader), 'only the pending card is held');
+  pass('pending card keeps its waiting pose in any projected zone until the receipt arrives');
 }
 
 // --- 3) 落地帧 ---
