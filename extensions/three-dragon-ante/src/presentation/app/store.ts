@@ -40,6 +40,7 @@ export interface UIState {
   gestures: Record<string, HandGesture>;
   slowSeatIds: string[];
   suspended: boolean;
+  helpOpen: boolean;
 }
 
 export const emptyShow = (): ShowState => ({ reveal: null, revealPhase: null, revealTopIds: [], power: null, resolvingSeatId: null, banner: null, score: null, scoring: false });

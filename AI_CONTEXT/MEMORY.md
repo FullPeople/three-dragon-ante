@@ -8,6 +8,10 @@
 
 ## A. 长期决策 / 反复踩的坑
 
+- **2026-10-03 · 用户对第一版的审美纠偏（必须遵守）**：① 文字不要 AI 腔——不写口号、氛围句、"轮到你·把一张手牌放到…"式引导句、"拖动或点选…"式操作说明；提示只用名词 / 动词短语。② 视觉不要高光渐变的 AI 感——不管文字、按钮还是面板，一律无渐变、无文字发光、无彩色光晕。③ 材质朝 Unreal 式真实写照（木 / 石 / 林、法线浮雕）靠拢。判别清单与规则见 `docs/design/ANTI_AI_FEEL.md`；写新 UI 前先对照它自检。
+- **材质混合坑**：`background-blend-mode: multiply` 叠深色照片会黑成一团（metal_plate 菱纹板 + 黄铜色几乎不可读）；黄铜质感改用 `dark_wood` 颜色图 + 黄铜底色 `overlay`。铁片纹理保留在 `.mat-metal` 备用。
+- **GLSL 静默失败坑**：`surface-gl.ts` 编译失败只 `console.warn` 后回退 CSS，截图看不出区别；诊断脚本 `.local-evidence/shots/gl-diag.mjs` 会打印 `surface: webgl WxH` 或 `css-fallback`，改着色器后必须跑一次。
+
 - **2026-10-03 · 表现层破坏性重构定案**（用户拍板，细节在 `GOAL.md`）：写实风 2.5D；显著特效；流程进展与等待明确；不用 AI 美术；卡图不变；删历史回放与 41 项练习；独立网站为核心、枭熊为次要；规则/协议/控制器/服务端不动。
 - **为什么放弃 Three.js**：旧 stage 是正交固定视角，本质 2.5D，却付出 three 独立包、SwiftShader 软件渲染测试、区域标签随座位旋转倒置、手机端另起 DOM 手牌的代价；DOM 分层 2.5D 可直接复用真实卡面 `<img>`、无障碍与测试选择器更简单。
 - **为什么卡牌层用"单一层 + 按 id 保持节点"**：旧 stage 的核心正确性来自"每个卡牌 id 一个 mesh，跨投影 reconcile"，这样投影一到就能平滑飞行且不会凭空捏造对手手牌；新 DOM 实现延续同一模型（`CardLayer` 按 id 复用节点，只改 transform）。
@@ -21,7 +25,7 @@
 
 - **阶段 / 里程碑**：阶段 0 完成；阶段 1 完成（新包骨架 + 网站入口 + 本地对战宿主）；阶段 2 第一版完成（2.5D 场景、座位、卡牌层、拖放/键盘、流程轨/等待行/行动栏/选择面板/详视/横幅/聚光/计分板），桌面与手机截图通过；详见 `RUNBOOKS/2026-10-03_presentation-rebuild-kickoff.md` §7–§11。
 - **运行态**：本机 `D:\my_code\three-dragon-ante`，分支 `rebuild/presentation`，基线 `eb74f62`（main）。未 push。线上入口未动。独立网站入口 `index.html`（`src/site/main.ts`）；枭熊牌桌页 `table.html` 仍跑旧 UI。
-- **风险提醒**：① 旧浏览器冒烟（`test:browser` 仍指向 practice.html 旧 UI，可过）与 9 个 selftest 在阶段 6 删旧文件后必须重建；② 旧 UI 与 three 仍在包内，`index.html` 的 site chunk 不含它们；③ 第三方纹理/音效尚未下载（待用户确认），桌面材质目前是 CSS 渐变占位；④ 演出时序 v1 未完全对齐 GOAL §4.3（金币数字在落地时就变）。
+- **风险提醒**：① 旧浏览器冒烟（`test:browser` 仍指向 practice.html 旧 UI，可过）与 9 个 selftest 在阶段 6 删旧文件后必须重建；② 旧 UI 与 three 仍在包内，`index.html` 的 site chunk 不含它们；③ 演出时序 v1 未完全对齐 GOAL §4.3（金币数字在落地时就变）；④ CC0 素材已入库（2.5 MB 贴图 + 10 条音效），桌面走 WebGL 法线贴图、无 WebGL 时 CSS 照片材质兜底。
 - **入场动画坑（2026-10-03）**：CardNode 的入场位姿用内联 CSS 变量覆盖，动画结束时必须把目标位姿写回；删属性会让所有卡牌掉到平面原点（React 不重写未变化的 style）。
 - **在办**：见 `TODO.md`。
 

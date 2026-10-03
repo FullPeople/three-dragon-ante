@@ -5,7 +5,9 @@
 
 ## 待办
 
-- [ ] **第三方素材下载需用户确认**：桌面木纹 / 皮革 / 毛毡 / 黄铜纹理（Poly Haven 或 ambientCG，CC0）、音效（Kenney Casino Audio / Interface Sounds，CC0）。确认后下载、压缩为 webp/ogg、登记 `docs/design/ASSETS.md`。在此之前场景用 CSS 材质占位。（2026-10-03 立）
+- [x] 第三方素材下载（用户 2026-10-03 同意）：Poly Haven dark_wood / medieval_wood / brown_leather / metal_plate，ambientCG Fabric034 / Paper006，Kenney Casino Audio；已压缩入库并登记 `docs/design/ASSETS.md`。
+- [ ] **去 AI 感复查**：按 `docs/design/ANTI_AI_FEEL.md` §3 逐项过一遍全部组件（横幅扫入动画、聚光层淡入是否算"动效过多"由用户定）；卡背纹章是否还显"AI 矢量味"待用户看截图后定。
+- [ ] 材质细化：毛毡色调 / 粗糙度、烛光位置与强度、桌沿倒角宽度；手机端 `pixelScale` 上限 1.4 是否够清晰。
 - [ ] 阶段 1–7 按 `GOAL.md` §6 推进；每阶段收口写 runbook，阶段 2/4/6 各做一次独立审计。（阶段 1 已完成，阶段 2 第一版已完成，2026-10-03）
 - [ ] **阶段 2 收尾**：6 人桌布局截图核对；真机拖放验证（目前截图走的是点选 + 点区域）；选择面板不要盖住手牌（移到桌面中部或右侧）；手机端详视改为底部抽屉且不压手牌；favicon 与新扩展图标；减少动态偏好路径验证。
 - [ ] **阶段 4 时序对齐**：GOAL §4.3 要求说明关闭后才发生卡牌效果与金币变更；当前 presenter v1 在落地时就显示新投影（含金币数字），需把"效果投影"拆成落地帧与结算帧。

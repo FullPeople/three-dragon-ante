@@ -74,3 +74,22 @@
 
 ## 12. 是否需要独立审计
 本阶段为骨架落地，建议在阶段 2 收尾（6 人桌 + 拖放 + 时序）后做第一次独立审计；中立开场词见 `AUDIT.md`。
+
+## 13. 第二轮（同日）· 去 AI 感 + 真实材质
+
+**触发**：用户看过第一版截图后要求：文案去 AI 腔；视觉去高光渐变；材质朝 Unreal 式写照 + 法线浮雕；并同意下载 CC0 素材。
+
+**研究**：网上"AI slop / AI 味"判别文章 7 篇 + 游戏 UI 材质参考 + SVG/WebGL 法线光照资料，提炼为 `docs/design/ANTI_AI_FEEL.md`（信号清单、本项目自检、12 条规则、材质做法）。
+
+**素材**（全部 CC0，登记 `docs/design/ASSETS.md`，原始 zip 与哈希留在 `.local-evidence/downloads/`）：Poly Haven `dark_wood`（桌面）、`medieval_wood`（地板）、`brown_leather`（包边 / 卡背 / 皮革条）、`metal_plate`（备用）；ambientCG `Fabric034`（毛毡，灰底着色器染绿）、`Paper006`（纸面板）；Kenney Casino Audio 10 条。Pillow 压成 webp（表面材质 1024px，UI 材质 768px），AO 图弃用；贴图合计 2.5 MB。
+
+**代码**：
+- `scene/surface-gl.ts` + `scene/TableSurface.tsx`：WebGL2 片元着色器，圆角矩形 SDF 划分橡木沿 / 皮革压边 / 毛毡，三组颜色 + 法线 + 粗糙度贴图，一盏定向光 + 一盏暖色点光，sRGB ↔ 线性，接触阴影与暗角；只在尺寸 / 贴图变化时画一帧。无 WebGL 回退 CSS 照片材质。
+- `theme/materials.css`：照片材质变量与 `.mat-*`；`base.css` / `scene.css` / `hud.css` / `site.css` 全部重写为无渐变、无发光、1px 倒角；黄铜 = `dark_wood` + 黄铜底色 `overlay`。
+- `i18n.ts`：全部提示改为短语；删 `siteTagline` / `dragHint` / `continueHint`；聚光层改"继续"按钮；键盘说明移入新的帮助面板（顶栏"帮助"）。
+- `CardBack.tsx`：皮革照片 + 平涂两色纹章。`audio/player.ts`：接真实音效；`presenter.ts` 在出牌 / 抽牌落地时发物理音。
+- `ChoicePanel` 在聚光层 / 计分板打开时隐藏。
+
+**验证**：typecheck / build 通过；`gl-diag.mjs` 报 `surface: webgl 1144x699`（修掉一处 GLSL 参数类型错误后）；桌面 + 手机走查全程通过，外部请求 0、错误 0；截图 `.local-evidence/shots/site/`。
+
+**遗留**：见 `TODO.md`（去 AI 感逐项复查、材质细化、6 人桌、拖放真机、时序对齐）。

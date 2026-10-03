@@ -1,0 +1,16 @@
+/* 照片材质（CC0，登记见 docs/design/ASSETS.md）。只贴图，不叠渐变；体积感靠 1px 内嵌倒角。 */
+:root {
+  --tex-oak: url("../assets/textures/dark_wood/color.webp");
+  --tex-planks: url("../assets/textures/medieval_wood/color.webp");
+  --tex-leather: url("../assets/textures/brown_leather/color.webp");
+  --tex-paper: url("../assets/textures/paper/color.webp");
+  --tex-metal: url("../assets/textures/metal_plate/color.webp");
+  --bevel: inset 0 1px 0 rgba(255, 240, 210, .14), inset 0 -1px 0 rgba(0, 0, 0, .55), inset 1px 0 0 rgba(255, 240, 210, .06), inset -1px 0 0 rgba(0, 0, 0, .35);
+  --bevel-paper: inset 0 1px 0 rgba(255, 255, 255, .55), inset 0 -1px 0 rgba(60, 40, 20, .35);
+}
+.mat-leather { background-color: #2a1711; background-image: var(--tex-leather); background-size: 420px; color: var(--parchment); box-shadow: var(--bevel); }
+.mat-leather-dark { background-color: #1b100b; background-image: var(--tex-leather); background-size: 380px; background-blend-mode: multiply; color: var(--parchment); box-shadow: var(--bevel); }
+.mat-planks { background-color: #2a1a10; background-image: var(--tex-planks); background-size: 640px; background-blend-mode: multiply; }
+.mat-paper { background-color: #e6d9bd; background-image: var(--tex-paper); background-size: 520px; background-blend-mode: multiply; color: var(--ink); box-shadow: var(--bevel-paper); }
+.mat-metal { background-color: #8a7a62; background-image: var(--tex-metal); background-size: 360px; background-blend-mode: overlay; color: #1b140f; box-shadow: var(--bevel); }
+.mat-brass { background-color: #c9a24d; background-image: var(--tex-oak); background-size: 420px; background-blend-mode: overlay; color: #15100b; box-shadow: var(--bevel); }

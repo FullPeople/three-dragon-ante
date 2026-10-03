@@ -16,10 +16,10 @@ export function SiteApp() {
   if (screen === "play") return <MatchScreen lang={lang} opponents={opponents} onClose={() => setScreen("home")} onLanguage={setLang} />;
   if (screen === "howto") return <HowTo lang={lang} onBack={() => setScreen("home")} />;
   return <main className="site-home">
-    <section className="site-hero">
+    <section className="site-hero tda-parchment">
       <p className="site-eyebrow">{t("siteSubtitle", lang)}</p>
       <h1 className="site-title">{t("siteTitle", lang)}</h1>
-      <p className="site-tagline">{t("siteTagline", lang)}</p>
+      <hr className="site-rule" />
       <div className="site-controls">
         <label className="site-field"><span>{t("opponents", lang)}</span>
           <div className="site-segment" role="radiogroup" aria-label={t("opponents", lang)}>{[1, 2, 3, 4, 5].map(n => <button key={n} type="button" role="radio" aria-checked={opponents === n} className={opponents === n ? "is-on" : ""} onClick={() => setOpponents(n)}>{n}</button>)}</div>
@@ -34,7 +34,7 @@ export function SiteApp() {
         <button type="button" className="tda-btn" onClick={() => setScreen("howto")}>{t("howToPlay", lang)}</button>
       </div>
     </section>
-    <footer className="site-foot"><span>Three-Dragon Ante · Legendary Edition</span><span>GPL-3.0 · 卡面 ©2021 Wizards</span></footer>
+    <footer className="site-foot"><span>Three-Dragon Ante · Legendary Edition</span><span>GPL-3.0 · 卡面 ©2021 Wizards · 材质 / 音效 CC0</span></footer>
   </main>;
 }
 

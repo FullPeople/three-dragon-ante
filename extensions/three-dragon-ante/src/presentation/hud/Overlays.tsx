@@ -36,13 +36,13 @@ export function PowerSpotlight({ state, controller }: { state: UIState; controll
   const groups = new Map<string, string[]>();
   for (const target of cue.targetRelations ?? []) { const label = relationLabel(target.relation); groups.set(label, [...(groups.get(label) ?? []), name(target.seatId)]); }
   return <div className={`tda-spotlight is-${kind}`} role="dialog" aria-modal="true" aria-label={cardName(value.id, lang)} onClick={() => controller.dismissPower()}>
-    <div className="tda-spotlight-card"><div className="tda-spotlight-halo" /><img src={cardFaceURL(value.id)} alt="" draggable={false} /></div>
+    <div className="tda-spotlight-card"><img src={cardFaceURL(value.id)} alt="" draggable={false} /></div>
     <div className="tda-spotlight-copy tda-parchment">
       <p className="tda-spotlight-by">{t("powerBy", lang, { name: name(cue.seatId) })}</p>
       <h2>{cardName(value.id, lang)} <span className="tda-num">{value.strength}</span></h2>
       {groups.size ? <p className="tda-spotlight-targets">{[...groups].map(([label, names]) => `${label}${lang === "zh" ? "：" : ": "}${joinNames(names, lang)}`).join(" · ")}</p> : null}
       <p className="tda-spotlight-text">{cardHint(value, lang)}</p>
-      <p className="tda-spotlight-continue">{t("continueHint", lang)}</p>
+      <div className="tda-spotlight-actions"><button type="button" className="tda-btn tda-btn--primary" onClick={event => { event.stopPropagation(); controller.dismissPower(); }}>{t("continue", lang)}</button></div>
     </div>
   </div>;
 }

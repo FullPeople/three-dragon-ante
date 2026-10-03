@@ -29,8 +29,9 @@ export function TableApp({ store, controller, onFx, onOrientation, showTopBar }:
   const inGame = !!game;
   return <div ref={root} className={`tda-shell${state.busy ? " is-busy" : ""}${state.pending ? " is-pending" : ""}`} data-phase={game?.phase ?? "lobby"} data-busy={state.busy} data-pending-action={state.pending ? "true" : "false"} data-renderer="dom25" tabIndex={-1}>
     {showTopBar ? <header className="tda-topbar">
-      <div className="tda-topbar-title">{t("siteTitle", lang)}<small>{t("siteSubtitle", lang)}</small></div>
+      <div className="tda-topbar-title">{t("siteTitle", lang)}</div>
       <div className="tda-topbar-tools">
+        <button type="button" className="tda-btn tda-btn--quiet" onClick={() => store.set(s => ({ helpOpen: !s.helpOpen }))} aria-pressed={state.helpOpen}>{t("help", lang)}</button>
         <button type="button" className="tda-btn tda-btn--quiet" onClick={() => controller.toggleSound()} aria-pressed={state.soundOn}>{t(state.soundOn ? "soundOn" : "soundOff", lang)}</button>
         <button type="button" className="tda-btn tda-btn--quiet" onClick={() => controller.setLanguage(lang === "zh" ? "en" : "zh")}>{lang === "zh" ? "English" : "中文"}</button>
         {state.hostKind === "local" || view?.isHost ? <button type="button" className="tda-btn tda-btn--quiet" onClick={() => controller.send({ type: "newGame" })} disabled={!inGame}>{t("newGame", lang)}</button> : null}
@@ -43,6 +44,12 @@ export function TableApp({ store, controller, onFx, onOrientation, showTopBar }:
     </div>
     <TableScene state={state} controller={controller} onFx={onFx} onOrientation={onOrientation} />
     <ActionBar state={state} controller={controller} />
+    {state.helpOpen ? <aside className="tda-help tda-parchment" role="dialog" aria-label={t("help", lang)}>
+      <h3>{t("helpFlow", lang)}</h3><p>{t("helpFlowText", lang)}</p>
+      <h3>{t("helpPower", lang)}</h3><p>{t("helpPowerText", lang)}</p>
+      <h3>{t("helpKeys", lang)}</h3><p>{t("keyboardHint", lang)}</p>
+      <button type="button" className="tda-btn tda-btn--quiet tda-help-close" onClick={() => store.set({ helpOpen: false })} aria-label={t("close", lang)}>×</button>
+    </aside> : null}
     <ChoicePanel state={state} controller={controller} />
     <CardInspector state={state} controller={controller} />
     <PhaseBanner state={state} />

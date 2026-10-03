@@ -1,38 +1,27 @@
-/** 自制矢量卡背：深红皮革底、黄铜双框、角花与中央三龙纹章。无外部素材。 */
+/** 卡背：真实皮革照片（CC0）+ 平涂两色三龙纹章。无渐变。 */
+const LEATHER = new URL("../assets/textures/brown_leather/color.webp", import.meta.url).href;
+
 export function CardBackArt() {
-  return <svg className="tda-back-art" viewBox="0 0 250 441" aria-hidden="true" focusable="false">
-    <defs>
-      <linearGradient id="tdaBackField" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#4a1a16" /><stop offset=".5" stopColor="#2b0e0c" /><stop offset="1" stopColor="#3d1512" /></linearGradient>
-      <linearGradient id="tdaBrass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#ead38f" /><stop offset=".5" stopColor="#b58a3a" /><stop offset="1" stopColor="#ead38f" /></linearGradient>
-      <radialGradient id="tdaMedal" cx=".5" cy=".4" r=".6"><stop offset="0" stopColor="#6b2a22" /><stop offset="1" stopColor="#1e0907" /></radialGradient>
-      <pattern id="tdaWeave" width="6" height="6" patternUnits="userSpaceOnUse"><path d="M0 3h6M3 0v6" stroke="#000" strokeOpacity=".18" strokeWidth=".6" /></pattern>
-    </defs>
-    <rect x="0" y="0" width="250" height="441" rx="14" fill="url(#tdaBackField)" />
-    <rect x="0" y="0" width="250" height="441" rx="14" fill="url(#tdaWeave)" />
-    <rect x="10" y="10" width="230" height="421" rx="9" fill="none" stroke="url(#tdaBrass)" strokeWidth="3" />
-    <rect x="18" y="18" width="214" height="405" rx="6" fill="none" stroke="url(#tdaBrass)" strokeWidth="1" strokeOpacity=".8" />
-    {[[18, 18, 1, 1], [232, 18, -1, 1], [18, 423, 1, -1], [232, 423, -1, -1]].map(([x, y, sx, sy], i) => (
-      <g key={i} transform={`translate(${x} ${y}) scale(${sx} ${sy})`} fill="none" stroke="url(#tdaBrass)" strokeWidth="1.6" strokeLinecap="round">
-        <path d="M0 0c14 2 26 10 34 22M0 0c2 14 10 26 22 34M8 8c10 4 16 10 20 20" />
-        <circle cx="12" cy="12" r="2.2" fill="#ead38f" stroke="none" />
+  return <>
+    <img className="tda-back-leather" src={LEATHER} alt="" draggable={false} decoding="async" />
+    <svg className="tda-back-art" viewBox="0 0 250 441" aria-hidden="true" focusable="false">
+      <rect x="11" y="11" width="228" height="419" rx="7" fill="none" stroke="#c9a24d" strokeWidth="2.5" />
+      <rect x="19" y="19" width="212" height="403" rx="5" fill="none" stroke="#c9a24d" strokeWidth="1" strokeOpacity=".7" />
+      <circle cx="125" cy="220" r="70" fill="#1e100b" stroke="#c9a24d" strokeWidth="2.5" />
+      <circle cx="125" cy="220" r="60" fill="none" stroke="#c9a24d" strokeWidth="1" strokeOpacity=".7" />
+      <g fill="#c9a24d">
+        {[0, 120, 240].map(angle => (
+          <g key={angle} transform={`rotate(${angle} 125 220)`}>
+            <path d="M125 168c-9 9-15 20-13 33 5-2 10-5 13-10 3 5 8 8 13 10 2-13-4-24-13-33z" />
+            <path d="M112 203c-7 5-16 7-24 5 4 7 11 11 19 11z" fillOpacity=".9" />
+          </g>
+        ))}
+        <circle cx="125" cy="220" r="7" fill="#1e100b" stroke="#c9a24d" strokeWidth="1.5" />
       </g>
-    ))}
-    <circle cx="125" cy="220" r="78" fill="url(#tdaMedal)" stroke="url(#tdaBrass)" strokeWidth="3" />
-    <circle cx="125" cy="220" r="68" fill="none" stroke="url(#tdaBrass)" strokeWidth="1" strokeDasharray="2 4" />
-    <g fill="none" stroke="url(#tdaBrass)" strokeWidth="2.2" strokeLinejoin="round" strokeLinecap="round">
-      {[0, 120, 240].map(angle => (
-        <g key={angle} transform={`rotate(${angle} 125 220)`}>
-          <path d="M125 164c-10 10-16 22-14 36 6-2 12-6 14-12 2 6 8 10 14 12 2-14-4-26-14-36z" fill="#2b0e0c" />
-          <path d="M125 176l-4 14 4 6 4-6z" fill="#ead38f" stroke="none" />
-          <path d="M111 200c-8 6-18 8-26 6 4 8 12 12 20 12" />
-        </g>
-      ))}
-      <circle cx="125" cy="220" r="12" fill="#1e0907" />
-      <path d="M125 211l7 9-7 9-7-9z" fill="#ead38f" stroke="none" />
-    </g>
-    <g fill="none" stroke="url(#tdaBrass)" strokeWidth="1.2" strokeOpacity=".9">
-      <path d="M60 70h130M60 371h130" />
-      <path d="M125 60l6 10-6 10-6-10zM125 361l6 10-6 10-6-10z" fill="#ead38f" />
-    </g>
-  </svg>;
+      <g fill="none" stroke="#c9a24d" strokeWidth="1.2" strokeOpacity=".85">
+        <path d="M70 70h110M70 371h110" />
+        <path d="M125 61l5 9-5 9-5-9zM125 362l5 9-5 9-5-9z" fill="#c9a24d" />
+      </g>
+    </svg>
+  </>;
 }

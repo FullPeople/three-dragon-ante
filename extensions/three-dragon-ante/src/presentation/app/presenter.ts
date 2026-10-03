@@ -3,7 +3,7 @@
 import type { TableView } from "../../game/protocol";
 import type { PublicView } from "../../game/rules/types";
 import { card } from "../../game/rules/cards";
-import { derivePresentation, type Presentation, type PublicGoldFlow, type PowerCue, type RoundCue } from "../model/cues";
+import { derivePresentation, freshPublicEvents, type Presentation, type PublicGoldFlow, type PowerCue, type RoundCue } from "../model/cues";
 import { reducedMotion, wait } from "../fx/motion";
 import type { FxLayer, FxKind } from "../fx/particles";
 import { emptyShow, type Store } from "./store";
@@ -135,6 +135,10 @@ export function createPresenter(store: Store, controller: Controller, hooks: Pre
       const adjacent = live && !!prevGame && !!nextGame && prevGame.id === nextGame.id && nextGame.revision === prevGame.revision + 1;
       if (!adjacent) { this.clear(); display(next); return; }
       const pres = derivePresentation(prevGame, nextGame);
+      // 落地即响的物理音：出牌、抽牌、买牌。能力与金币的声音由各自演出步骤负责。
+      const events = freshPublicEvents(prevGame, nextGame), key = `${nextGame.id}:${nextGame.revision}`;
+      if (events.some(e => e.code === "CARD_PLAYED" || e.code === "FLIGHT_REPLACED")) hooks.sound("play", key);
+      if (nextGame.deckCount < prevGame.deckCount || events.some(e => e.code === "DECK_RESHUFFLED")) hooks.sound("draw", key);
       queue.push({ view: next, pres });
       void pump();
     },

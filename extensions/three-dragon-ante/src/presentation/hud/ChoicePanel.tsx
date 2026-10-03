@@ -9,7 +9,7 @@ import { cardName, prompt, t } from "../i18n";
 export function ChoicePanel({ state, controller }: { state: UIState; controller: Controller }) {
   const view = state.view, own = privateGame(view), game = view?.game ?? null, lang = state.lang;
   const action = controller.action();
-  if (!own || !game || !action || action.kind !== "choose") return null;
+  if (!own || !game || !action || action.kind !== "choose" || state.show.power || state.show.score) return null;
   const choice = action.choice, selected = new Set(state.selected), max = choice.max, locked = controller.locked();
   const seatName = (id: string) => id === own.selfSeatId ? t("you", lang) : game.seats.find(s => s.id === id)?.name ?? id;
   const owner = (cardId: string) => game.seats.find(seat => seat.flight.some(entry => entry.cardId === cardId))?.name ?? null;

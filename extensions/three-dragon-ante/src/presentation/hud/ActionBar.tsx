@@ -15,10 +15,9 @@ export function ActionBar({ state, controller }: { state: UIState; controller: C
   else if (!view?.connected) prompt = t("connecting", lang);
   else if (action?.kind === "choose") prompt = "";
   else if (zone && selectedCard) prompt = `${cardName(selectedCard.id, lang)} · ${selectedCard.strength}`;
-  else if (zone) prompt = t("dragHint", lang);
-  else if (own?.committedAnte && game?.phase === "ante") prompt = `${t("committedAnte", lang)}: ${cardName(own.committedAnte.id, lang)} · ${own.committedAnte.strength}`;
+  else if (own?.committedAnte && game?.phase === "ante") prompt = `${t("committedAnte", lang)} · ${cardName(own.committedAnte.id, lang)} ${own.committedAnte.strength}`;
   return <div className="tda-actionbar">
-    <div className="tda-actionbar-prompt">{prompt}<span className="tda-actionbar-kbd">{t("keyboardHint", lang)}</span></div>
+    <div className="tda-actionbar-prompt">{prompt}</div>
     <div className="tda-actionbar-buttons">
       {zone && selectedCard ? <button type="button" className="tda-btn tda-btn--primary" onClick={() => controller.placeSelected(zone)}>{t(zone === "ante" ? "placeAnte" : "placeFlight", lang)}</button> : null}
       {state.pending?.retryable ? <button type="button" className="tda-btn" onClick={() => controller.retry()}>{t("retryAction", lang)}</button> : null}

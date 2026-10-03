@@ -5,6 +5,7 @@ import { privateGame } from "../app/store";
 import type { Controller } from "../app/controller";
 import { CARD, CENTER, fitPlane, seatPlacements, type Orientation } from "../model/layout";
 import { SeatBlock } from "./SeatBlock";
+import { TableSurface } from "./TableSurface";
 import { CardLayer } from "./CardLayer";
 import { CoinStack } from "./CoinStack";
 import { cardFaceURL } from "../../game/card-images";
@@ -72,7 +73,7 @@ export function TableScene({ state, controller, onFx, onOrientation }: TableScen
     <div className="tda-stage">
       <div className="tda-viewport">
         <div className="tda-plane">
-          <div className="tda-surface"><div className="tda-felt" /></div>
+          <TableSurface width={spec.w} height={spec.h} scale={fit.scale} />
           {game ? <>
             <div className="tda-pile tda-pile--deck" style={{ left: center.deck.x - CARD.w / 2 - 8, top: center.deck.y - CARD.h / 2 - 8 }} data-pile="deck"><span className="tda-slot-label">{t("deck", state.lang)} · {game.deckCount}</span></div>
             <div className="tda-pile tda-pile--discard" style={{ left: center.discard.x - CARD.w / 2 - 8, top: center.discard.y - CARD.h / 2 - 8 }} data-pile="discard" onClick={() => { const top = game.discard[game.discard.length - 1]; if (top) controller.inspect(top.id, true); }}><span className="tda-slot-label">{t("discard", state.lang)} · {game.discard.length}</span></div>
