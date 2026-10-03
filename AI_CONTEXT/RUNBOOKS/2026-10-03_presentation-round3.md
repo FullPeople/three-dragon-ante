@@ -90,4 +90,4 @@
 
 - L5 本家交牌幽灵起点；M3 姓名铭牌是否也整转由用户定；DECK_RESHUFFLED 帧的抽牌幽灵只能按手牌差计；手掌素材；持续音效素材。
 - 把审计方的回执延迟测试页与 400 局模拟脚本移进 `tools/`（现只在 scratchpad）。
-- 复审：已向审计会话发起对 `5e4edda..HEAD` 的复审；push 由用户 2026-10-03 授权"修复完之后推送"，本节 commit 后执行。
+- 复审：已向审计会话发起对 `5e4edda..HEAD` 的复审；push 由用户 2026-10-03 授权"修复完之后推送"；commit `8d23298` 后执行 `git push -u origin rebuild/presentation` 被 403 拒绝：Git Credential Manager 当前 GitHub 账号 `pzy197684` 对 `FullPeople/three-dragon-ante` 无写权限（AI 不改凭据 / 远程配置）。待用户授权账号或换凭据后重推。

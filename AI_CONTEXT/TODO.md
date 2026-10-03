@@ -18,7 +18,7 @@
 - [x] 阶段 2 收尾：六人桌、真实拖拽、减少动态、详视与选择面板位置、favicon / 图标（2026-10-03）。
 - [x] 阶段 4 时序对齐：落地帧 → 说明 → 效果与金币（commit `2c2df3f`）。
 - [x] `test:browser` 改测新 `index.html`；`test:server-browser` 改新选择器。
-- [x] push：用户 2026-10-03 授权"修复完之后推送"，第三轮审计整改 commit 后已 push `rebuild/presentation`（见 runbook round3 §6.3）；是否合并 main 由用户定。
+- [ ] **push 被拒**：用户 2026-10-03 授权"修复完之后推送"，但 `git push -u origin rebuild/presentation` 返回 403——Git Credential Manager 里的 GitHub 账号 `pzy197684` 对 `FullPeople/three-dragon-ante` 无写权限（本机未装 gh）。需用户：给该账号写权限 / 在凭据管理器换成有权限的账号 / 或改推到自己的 fork；之后重跑 push。是否合并 main 由用户定。
 - [ ] **特效升级评估（用户 2026-10-03 提出）**：钻研 Elemental Sandbox（github.com/achrefelouafi/LinearAbiltyCastingExtendedThreeJS，MIT，Three.js + 手写 GLSL 的十个全程序化技能特效）能否用于"每张牌独一份、分发动 / 等待 / 结算 / 持续 / 环境"的特效体系；需用户先决定是否重新引入 three.js 的 WebGL 特效层（阶段 6 已删掉 three 依赖）。
 - [ ] 字体子集化：vendor CSS 约 500 kB 来自 fontsource 全部 unicode-range 子集声明；可改为只保留 chinese-simplified + latin 子集或自建子集。
 - [ ] 枭熊真实房间验收（双账号、紧凑弹窗、全屏模态）；实体手机。
