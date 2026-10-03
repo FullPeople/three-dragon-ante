@@ -103,3 +103,21 @@
 - **坑**：React 19 的 `root.unmount()` 可能推迟到当前提交之后，宿主销毁时再 `replaceChildren()` 会让它稍后 `removeChild` 报 NotFoundError；`mount.ts` 的 `destroy()` 不再手动清空容器。
 - **验证**：`npm run typecheck`、`npm run build`、`npm test` 7/7、`npm run build:server`、`npm run test:server` 2/2、`npm run test:browser` 10/10（桌面 + 手机，surface webgl，零外部请求、零错误）、`npm run test:server-browser` 4/4（四客户端 + 本地 ws/sqlite，GM 全能边界、刷新恢复）。
 - **未验证**：真实枭熊房间与实体手机；`src/modules/threeDragonAnte` 旧频道页面未切换（保留旧 UI）。
+
+## 15. 阶段 7 · 独立审计（Claude Opus 5.5，只读）与整改
+
+**第一轮裁决：有条件通过。** 无越线、无私牌泄漏、测试真绿。发现与整改：
+
+| # | 发现 | 整改（commit 见下） |
+|---|---|---|
+| 中1 | presenter 在 `await spotlight()` 后未检查代际，清场后旧调度会把旧帧写回 | 每个 await 后加 `gen !== generation` 检查；新增自测 4b 证明清场后留在最新帧 |
+| 中2 | 待确认卡牌只在 `zone==="hand"` 时按住，投影先于回执到达时会提前落地 | `pendingPose()` 纯函数；CardLayer 只要 pending 在就按住，不看投影区域；自测 2 覆盖 |
+| 中3 | 时序细节：翻注付款 620 ms 而非 470；说明关闭后流程轨立即变；无能力出牌横幅与飞行同时；无自动化时序断言 | 弧线时长参数化（翻注 470）；新增 `flow` 帧，流程轨 / 等待行只在演出结束后更新；有出牌时横幅前先 SETTLE；自测 4 断言落地 → ≥820 ms → 说明 → 关闭后完整投影 → ≥300 ms → 流程帧 |
+| 中4 | 减少动态下 beat 立即返回，横幅 / 计分板时长≈0 | `beat` 永远等待（动画瞬移、等待不变，与 VISUAL_SPEC §5 一致） |
+| 低5 | 冒烟描述大于覆盖；`hand>=1` 含对手牌背；接受 CSS 回退；无隐私断言 | 冒烟改为真的出一张牌、只数本家手牌、断言 `surface==='webgl'`、断言对手节点无 id 且全部面朝下；`six-and-drag.mjs` 改为断言 |
+| 低6 | 字体包未登记 | `ASSETS.md` 增加字体章节（OFL） |
+| 低7 | `index.html` meta 仍是氛围句；🂠 字符当图标；手机截断 | meta 改短语；手牌数用自制 SVG；选择面板下移不盖顶栏；流程轨截断记入 TODO |
+| 低8 | TODO 与 MEMORY 矛盾 | TODO 勾选同步 |
+
+**整改后验证**：typecheck / build；`npm test` 8/8（新增 presentation-selftest 5 项）；`test:server` 2/2；`test:browser` 14/14（含出牌与隐私断言）；`test:server-browser` 4/4；`six-and-drag.mjs` 断言通过。
+**复查**：整改提交后回同一审计会话复查，裁决见下。
