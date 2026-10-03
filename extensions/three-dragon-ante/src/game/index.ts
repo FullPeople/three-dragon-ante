@@ -164,7 +164,7 @@ function syncPanel(): Promise<void> {
       const generation = epoch;
       if (displayMode === "full") {
         geometryDirty = false; panelMode = "full"; panelInstance = crypto.randomUUID(); panelClient = ""; restoreClient = "";
-        await OBR.modal.open({ id: PANEL, url: `${assetUrl("index.html")}?instance=${panelInstance}&mode=full`, fullScreen: true, hidePaper: true });
+        await OBR.modal.open({ id: PANEL, url: `${assetUrl("table.html")}?instance=${panelInstance}&mode=full`, fullScreen: true, hidePaper: true });
         panelOpen = true; requestView(); continue;
       }
       const [vw, vh] = await Promise.all([OBR.viewport.getWidth(), OBR.viewport.getHeight()]);
@@ -178,7 +178,7 @@ function syncPanel(): Promise<void> {
         continue;
       }
       panelInstance = crypto.randomUUID(); panelClient = ""; panelMode = "compact"; restoreClient = "";
-      await OBR.popover.open({ id: PANEL, url: `${assetUrl("index.html")}?instance=${panelInstance}&mode=compact`, width, height,
+      await OBR.popover.open({ id: PANEL, url: `${assetUrl("table.html")}?instance=${panelInstance}&mode=compact`, width, height,
         anchorReference: "POSITION", anchorPosition: { left: 16, top: 32 },
         anchorOrigin: { horizontal: "LEFT", vertical: "TOP" }, transformOrigin: { horizontal: "LEFT", vertical: "TOP" },
         disableClickAway: true, marginThreshold: 8 });

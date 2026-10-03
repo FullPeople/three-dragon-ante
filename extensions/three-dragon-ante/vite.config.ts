@@ -20,7 +20,7 @@ export default defineConfig({
     }, null, 2) });
   } }],
   build: {target:['chrome109','edge109','firefox102','safari15.4'], outDir: "dist", emptyOutDir: true, rollupOptions: {
-    input: { background: resolve(root, "background.html"), table: resolve(root, "index.html"), launcher: resolve(root, "launcher.html"), practice: resolve(root, "practice.html") },
+    input: { site: resolve(root, "index.html"), background: resolve(root, "background.html"), table: resolve(root, "table.html"), launcher: resolve(root, "launcher.html"), practice: resolve(root, "practice.html") },
     output: { manualChunks: id => /node_modules[/\\]three[/\\]/.test(id) ? "table-engine" : id.includes("node_modules") ? "vendor" : undefined },
   } },
 });
