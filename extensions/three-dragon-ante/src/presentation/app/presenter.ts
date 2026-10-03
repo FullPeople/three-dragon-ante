@@ -63,9 +63,12 @@ export function revealFrame(next: TableView, cue: RevealCue): TableView {
   const g = next.game; if (!g) return next;
   const present = new Set(g.ante.map(c => c.id));
   if (cue.cardIds.every(id => present.has(id))) return next;
+  const ids = new Set(cue.cardIds);
   const ante = cue.cardIds.flatMap(id => { const value = safeCard(id); return value ? [value] : []; });
   const anteOrigins = cue.cardIds.map((cardId, i) => ({ seatId: g.seats[i]?.id ?? "", cardId })).filter(o => o.seatId);
-  return { ...next, game: { ...g, ante, anteOrigins, seats: g.seats.map(s => ({ ...s, committed: false })) } as PublicView | SeatView };
+  // 同一张牌不能既在前注区又在弃牌堆（节点 key 会重复）：弃牌堆里属于本次翻注的牌先拿掉，翻注演完再显示真实投影
+  const discard = g.discard.filter(c => !ids.has(c.id));
+  return { ...next, game: { ...g, ante, anteOrigins, discard, seats: g.seats.map(s => ({ ...s, committed: false })) } as PublicView | SeatView };
 }
 
 /** 翻注拼点：每张前注牌一个数字；领出者的牌打"领出"，点数重复的打"并列"（全并列时全部划掉）。 */

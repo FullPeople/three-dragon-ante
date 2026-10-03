@@ -15,6 +15,7 @@ const out = mkdtempSync(join(tmpdir(), 'tda-presentation-'));
 const abs = p => JSON.stringify(resolve(base, p));
 const entry = `
 export { createGame, applyAction, eligibleActions, projectSeat } from ${abs('game/rules/index.ts')};
+export { card } from ${abs('game/rules/cards.ts')};
 export { cardPlacements, pendingPose, isHeldByPending } from ${abs('presentation/model/layout.ts')};
 export { createStore, emptyShow } from ${abs('presentation/app/store.ts')};
 export { createController } from ${abs('presentation/app/controller.ts')};
@@ -239,10 +240,13 @@ assert.ok(events.some(e => e.code === 'CARD_PLAYED' && e.cardIds?.[0] === ready)
 
 // --- 11) 全并列翻注：投影里前注牌已弃，翻注帧把它们按座位次序放回前注区 ---
 {
-  const g = { ...m.projectSeat(state, leader), ante: [], anteOrigins: [] };
+  const g = { ...m.projectSeat(state, leader), ante: [], anteOrigins: [], discard: [m.card('green-6')] }; // 全并列：末张前注牌已成弃牌顶
   const cue = { key: 'r', cardIds: ['red-10', 'blue-6', 'green-6'], allTied: true, payments: [] };
   const frame = m.revealFrame(view(state, { game: g }), cue);
   assert.deepEqual(frame.game.ante.map(c => c.id), cue.cardIds);
+  assert.ok(!frame.game.discard.some(c => cue.cardIds.includes(c.id)), 'revealed cards are not also on the discard pile');
+  const keys = m.cardPlacements(frame.game, 'landscape').map(p => p.key);
+  assert.equal(new Set(keys).size, keys.length, 'every card node key is unique on the reveal frame');
   assert.deepEqual(frame.game.anteOrigins.map(o => o.seatId), g.seats.map(s => s.id));
   assert.ok(m.revealTally(frame.game, cue.cardIds, true).every(i => i.mark === 'tied' && i.seatId), 'all-tied pips exist and are struck');
   pass('all-tied reveal still shows every ante card and strikes them');

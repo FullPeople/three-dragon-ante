@@ -80,7 +80,9 @@ export function CardNode(props: CardNodeProps) {
   if (props.pending) cls.push("is-pending"); if (props.dragging) cls.push("is-dragging"); if (props.top) cls.push("is-top"); if (props.resolving) cls.push("is-resolving"); if (props.focus) cls.push("is-focus"); if (props.lifted) cls.push("is-lifted");
   if (props.hint?.state === "power-ready") cls.push("is-power-ready"); else if (props.hint?.state === "playable-no-power") cls.push("is-playable");
   const shown = phase === "enter" && props.enterFrom ? (props.dropIn ? lifted(props.enterFrom, placement.pose.rot) : props.enterFrom) : placement.pose;
-  const style = { ...poseVars(shown), zIndex: (placement.layer === "hand" ? placement.order : Math.round(shown.z)) + 10 } as CSSProperties;
+  // 手牌层：叠放 = 位置次序；悬浮 / 选中 / 拖动的那张临时置顶，右邻不再盖住它
+  const raised = props.hovered || props.selected || props.dragging ? 100 : 0;
+  const style = { ...poseVars(shown), zIndex: (placement.layer === "hand" ? placement.order + raised : Math.round(shown.z)) + 10 } as CSSProperties;
   const interactive = !!cardId && !!(props.onClick || props.onPointerDown);
   return <div ref={ref} className={cls.join(" ")} style={style} data-key={placement.key} data-card={cardId} data-zone={placement.zone} data-seat={placement.seatId} data-layer={placement.layer}
     role={interactive ? "button" : undefined} tabIndex={interactive && placement.zone === "hand" ? 0 : undefined}

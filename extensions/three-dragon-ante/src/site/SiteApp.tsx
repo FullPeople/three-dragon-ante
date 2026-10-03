@@ -43,7 +43,9 @@ function MatchScreen({ lang, opponents, onClose, onLanguage }: { lang: Language;
   const handle = useRef<LocalMatchHandle | null>(null);
   useEffect(() => {
     if (!host.current) return;
-    const receiptDelayMs = Number(new URLSearchParams(location.search).get("receiptDelay")) || undefined; // 测试钩子：模拟慢回执
+    // 测试钩子：模拟慢回执，只在本机地址生效
+    const localHost = ["localhost", "127.0.0.1", "[::1]"].includes(location.hostname);
+    const receiptDelayMs = localHost ? Number(new URLSearchParams(location.search).get("receiptDelay")) || undefined : undefined;
     handle.current = createLocalMatch(host.current, { language: lang, opponents, receiptDelayMs, onClose, onLanguage: value => { setLocalLang(value); onLanguage(value); } });
     return () => { handle.current?.destroy(); handle.current = null; };
   }, []);

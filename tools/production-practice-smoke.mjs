@@ -111,8 +111,10 @@ try {
       assert.equal(await page.locator('.tda-pointer').count(), 1, 'pointer arrow shows while dragging');
       await page.mouse.up();
       await page.waitForTimeout(2500);
-      const state = await page.evaluate(id => { const n = document.querySelector(`[data-card="${id}"]`); return { zone: n?.getAttribute('data-zone'), cls: n?.className, pending: document.querySelector('.tda-shell')?.getAttribute('data-pending-action') }; }, id);
+      const state = await page.evaluate(id => { const n = document.querySelector(`[data-card="${id}"]`); const r = n?.getBoundingClientRect(); return { zone: n?.getAttribute('data-zone'), cls: n?.className, pending: document.querySelector('.tda-shell')?.getAttribute('data-pending-action'), cx: r ? r.left + r.width / 2 : -1, cy: r ? r.top + r.height / 2 : -1 }; }, id);
       assert.equal(state.zone, 'ante', `card committed with ${delay}ms receipt`);
+      const after = await page.locator('[data-drop-zone="ante"][data-drop-seat="you"]').boundingBox();
+      assert.ok(state.cx > after.x && state.cx < after.x + after.width && state.cy > after.y && state.cy < after.y + after.height, `card rests inside the ante slot after a ${delay}ms receipt`);
       assert.equal(state.pending, 'false');
       assert.ok(!/is-entering|is-dropping|is-flying|is-pending/.test(state.cls), `no stuck animation class with ${delay}ms receipt: ${state.cls}`);
       pass(`${name} drag commits an ante with a ${delay}ms receipt and the card settles`);
