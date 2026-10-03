@@ -1,0 +1,718 @@
+import OBR from "@owlbear-rodeo/sdk";
+
+// Shared state across the suite. Three layers:
+//
+//   1. Scene metadata (DM-controlled, broadcast to all clients):
+//      enabled modules, data version, allow-player-monsters.
+//      Stored under SCENE_KEY as one object.
+//
+//   2. localStorage shared across iframes of this client only:
+//      `obr-suite/lang` — UI language, per-client preference. Each
+//      player chooses their own; the DM's setting does NOT sync.
+//
+//   3. localStorage per-feature (auto-popup toggles, cluster expanded
+//      state, etc.). Each module owns its own keys.
+
+export const SCENE_KEY = "com.obr-suite/state";
+export const BROADCAST_STATE_CHANGED = "com.obr-suite/state-changed";
+
+export type ModuleId =
+  | "threeDragonAnte"
+  | "inventory"
+  | "timeStop"
+  | "focus"
+  | "bestiary"
+  | "characterCards"
+  | "initiative"
+  | "search"
+  | "dice"
+  | "portals"
+  | "bubbles"
+  | "statusTracker"
+  | "resourceTracker"
+  | "hpBar"
+  | "bossBar"
+  | "transitions"
+  | "metadataInspector"
+  | "fullFog"
+  | "fogEditor"
+  | "dynamicFog"
+  | "trickster"
+  | "circleImage"
+  | "follow"
+  | "musicBoard"
+  | "transform";
+
+export type DataVersion = "2014" | "2024" | "all";
+export type Language = "zh" | "en";
+
+// User-managed data libraries. The default library is 5etools-on-kiwee,
+// always available. Additional libraries follow the same JSON schema
+// (see settings.ts → 库设置 tab → 教程 for the contract). When more
+// than one library is enabled, search / bestiary will merge results
+// from all of them, prefixed with the library `name` so the source is
+// clear in the UI.
+export interface LibraryConfig {
+  /** Stable id, used as React-style key + for URL caches. */
+  id: string;
+  /** Display name shown in search-result row + chips. */
+  name: string;
+  /** Base URL — must serve `search/<indexPath>` + `data/<file>.json`. */
+  baseUrl: string;
+  /** Whether the library is currently active (data fetched + merged). */
+  enabled: boolean;
+  /** Built-in libraries can't be deleted, only enabled/disabled. */
+  builtin?: boolean;
+  /** Path (relative to baseUrl) for the search index file. Defaults
+   *  to `search/index.json` when omitted, which matches the standard
+   *  5etools layout. The kiwee partnered listing uses a different
+   *  filename (`search/index-partnered.json`) so the field overrides
+   *  it per-library. */
+  indexPath?: string;
+  /** Per-library blacklist of source codes the user wants to exclude
+   *  (added 2026-05-09). Each entry is an UPPERCASE source code as
+   *  emitted by 5etools — e.g. `"BOOKOFEBONTIDES"`, `"DMG"`. The
+   *  search loader filters out every entry whose `source` (or `s` /
+   *  `data.source`) appears here. Empty / undefined = no exclusions
+   *  for this library. Stored per-library (not globally) so the same
+   *  source code can be disabled in one library while still allowed
+   *  in another. */
+  disabledSources?: string[];
+  /** Content language used to prefer matching translations per client. */
+  language?: Language | "auto";
+}
+
+export interface SuiteState {
+  portalEffects: boolean;
+  enabled: Record<ModuleId, boolean>;
+  dataVersion: DataVersion;
+  allowPlayerMonsters: boolean;
+  // When true, monsters spawned from the bestiary panel are written
+  // with `com.initiative-tracker/data` already populated, so they
+  // immediately appear in the initiative tracker. When false, the
+  // metadata is omitted and the DM has to right-click → Add to
+  // initiative manually. Default true (matches legacy behavior).
+  bestiaryAutoInitiative: boolean;
+  // When true, monsters spawned from the bestiary panel start with
+  // `visible: false` so the DM can position them off-screen / behind
+  // fog before revealing. When false, spawned tokens are immediately
+  // visible to all players. Default true (matches legacy behavior).
+  bestiaryAutoHide: boolean;
+  // When true, the spawned token's OBR-native plainText label
+  // (the small text under the token) is set to the monster's name
+  // automatically. When false, the token spawns label-less; the DM
+  // can still sync the label later by clicking the monster name in
+  // the info popover. Default false (legacy behaviour — DM had to
+  // click-sync per token before this toggle existed).
+  bestiaryAutoName: boolean;
+  // 2026-09-14 — when true, every bestiary card (list + bind picker)
+  // renders the monster's remote token thumbnail (`<img>` against the
+  // kiwee mirror). When false, cards render the initial-letter
+  // placeholder instead, so a 200-card result page stops fetching /
+  // decoding 200 remote webp images. Default true (current behaviour);
+  // spawning always keeps using the real token art.
+  bestiaryCardImages: boolean;
+  // Initiative tracker — focus the active token's owner camera onto
+  // the next character whenever the turn advances. Default true.
+  initiativeFocusOnTurnChange: boolean;
+  // Initiative tracker — when entering "preparing combat" state, snap
+  // every initiative token to the center of its grid cell so the
+  // turn order tokens line up cleanly. Default false (most groups
+  // pre-position by hand).
+  initiativeAutoSnapOnPrep: boolean;
+  // 2026-05-16 — Initiative tracker — hide the percent HP bar that
+  // appears under each token's portrait in the initiative strip.
+  // Some tables prefer not to leak HP info to players via the strip.
+  // Default false (strip shows the bar).
+  initiativeHidePercentHpBar: boolean;
+  // 2026-08-21 — Search (checklist §7) — hide the global search bar
+  // from players. When ON only GM clients open the search popover;
+  // every entry point re-evaluates on role change, scene ready/switch
+  // and reconnect, and the layout-editor proxy box hides too.
+  // Default false (bar visible to everyone, classic behaviour).
+  searchGmOnly: boolean;
+  // Cross-scene sync. When ON, the suite's scene-state is mirrored
+  // to ROOM metadata so every scene in the room shares the same
+  // settings. The flag itself rides along with the state (it's part
+  // of the mirror), so once enabled in one scene it propagates to
+  // all. Default false (per-scene settings, classic behaviour).
+  crossSceneSyncSettings: boolean;
+  // Cross-scene sync for character cards (the list under
+  // `com.character-cards/list`). Same pattern as above but keyed off
+  // a separate room key so users can mix-and-match: "share my
+  // settings across scenes but keep different card decks per scene"
+  // is a valid combo.
+  crossSceneSyncCards: boolean;
+  // 2026-08-25 — dynamic fog (dynfog). When ON, players see the
+  // door / window indicators the GM placed and get the 「开关门窗」
+  // toolbar tool; clicking one broadcasts a request that the GM's
+  // client applies (FOG-layer items are GM-writable only). When OFF
+  // the indicators and the tool are unregistered for players entirely,
+  // so doors are GM-operated as in upstream dynamic-fog.
+  fogPlayerDoors: boolean;
+  // 2026-08-25 — keep the GM's door / window indicators on screen even
+  // when the fog tool is not the active tool. Upstream only shows them
+  // with the fog tool selected; some GMs prefer them pinned.
+  fogDoorOverlayAlways: boolean;
+  // 2026-08-25 — light occlusion. When ON, a player only sees a light
+  // they don't own if a wall-free straight line reaches it from one of
+  // their own lights, so an NPC's torch two rooms away stays dark.
+  // Lights flagged "ambient" in Light Settings are always visible, for
+  // fixed room lighting. GMs are never occluded. Default ON.
+  fogLightOcclusion: boolean;
+  /** Share authorized player vision sources with the party. */
+  fogShareVision: boolean;
+  libraries: LibraryConfig[];
+}
+
+export const DEFAULT_LIBRARIES: LibraryConfig[] = [
+  {
+    id: "5etools-kiwee",
+    name: "5etools (kiwee.top 镜像)",
+    baseUrl: "https://5e.kiwee.top",
+    enabled: true,
+    builtin: true,
+  },
+  {
+    id: "5etools-kiwee-partnered",
+    name: "5etools (kiwee.top, 合作版)",
+    baseUrl: "https://5e.kiwee.top",
+    // Kiwee hosts a separate index for partnered third-party content
+    // alongside the main one. Same data shape, different filename —
+    // the indexPath override is what makes this library reachable
+    // (without it the loader 404s on /search/index.json with the
+    // partnered URL hint).
+    indexPath: "search/index-partnered.json",
+    enabled: true,
+    builtin: true,
+  },
+];
+
+export const DEFAULT_STATE: SuiteState = {
+  portalEffects: true,
+  enabled: {
+    threeDragonAnte: true,
+    inventory: true,
+    timeStop: true,
+    focus: true,
+    bestiary: true,
+    characterCards: true,
+    initiative: true,
+    search: true,
+    dice: true,
+    portals: true,
+    bubbles: true,
+    // Status tracker — available in both channels, opt-in by default.
+    // The right-click "状态追踪" pill on the Select tool + the new
+    // toolbar tool both work for everyone (no role gate); per-token
+    // buff metadata is enforced by OBR's normal item-edit permissions.
+    statusTracker: false,
+    // Resource tracker — per-token consumable / progress / numeric
+    // resources, plus a DM-only toolbar tool that opens a full-screen
+    // stats panel of every player character's resources. Default ON.
+    resourceTracker: true,
+    // HP bar component — standalone draggable HP/Temp/AC popover
+    // that auto-shows on selection of "lightweight" tokens (no
+    // bestiary binding, no character-card binding). Right-click
+    // menu adds / removes the per-token flag. Default ON.
+    hpBar: true,
+    bossBar: true,
+    transitions: true,
+    // DM-only inspection tool. Opt-in in all channels; useful for
+    // field debugging token / scene / room metadata.
+    metadataInspector: false,
+    // fullFog — RETIRED as a module id on 2026-08-25, split into the
+    // two below. The flag stays in the type and the state shape so a
+    // room that stored it doesn't fail to parse, but nothing is
+    // registered against it in background.ts and no settings card
+    // binds to it. Do not reuse.
+    fullFog: false,
+    // Map fog editor. Right-click a MAP-layer image → fullscreen modal
+    // → algorithms (Otsu / adaptive / color-exclude / saturation-aware
+    // / threshold) + manual tools (brush / eraser / lasso / wand /
+    // bucket) → saves a single low-drawcall Path item attached to the
+    // map. Nothing but the editor: turning it off leaves any fog it
+    // already produced working, because the walls come from the module
+    // below. Default ON.
+    fogEditor: true,
+    // Dynamic fog engine (dynfog) — the port of
+    // owlbear-rodeo/dynamic-fog. Turns EVERY FOG-layer drawing into
+    // per-client Wall items, owns doors / secret doors / windows,
+    // lights and light occlusion. This is what makes fog
+    // block vision at all, so it is separately switchable from the
+    // editor above but on by default. See modules/fullFog/dynfog/.
+    dynamicFog: true,
+    // Trickster — DM-placed circular trigger zone. When a target
+    // token drag-commits into the zone, fires a one-shot time stop
+    // + camera focus on the entering token. Useful for ambush
+    // setups: hide the trickster, point its targets at the party,
+    // wait for them to walk through the spot. Promoted from dev to
+    // stable on 2026-05-08; available everywhere now.
+    trickster: true,
+    // Circle-image — toolbar tool that opens a small image-processing
+    // popover (圆形裁剪 / 白底黑底剔除), uploads the result to the
+    // user's OBR asset library via OBR.assets.uploadImages, and the
+    // user drags from there to the scene. Promoted from dev to
+    // stable on 2026-05-08; available everywhere now.
+    circleImage: false,
+    // Follow — retired 2026-05-14 per user request. The flag stays in
+    // the type/state shape (removing it would ripple through settings
+    // + saved scene metadata) but it's hard-pinned OFF and no longer
+    // registered as a module in background.ts. modules/follow/ source
+    // is kept on disk un-wired in case it's revived.
+    follow: false,
+    // Shared music runs in the background; the panel is only a control.
+    // Explicit saved false remains respected when merging older rooms.
+    musicBoard: true,
+    // Transform (变身 / polymorph) — right-click CHARACTER tokens to
+    // pick a bestiary form, swap token art + monster metadata, and
+    // revert from a per-token transform stack. Stable default ON.
+    transform: true,
+  },
+  dataVersion: "2024",
+  allowPlayerMonsters: false,
+  bestiaryAutoInitiative: true,
+  bestiaryAutoHide: true,
+  bestiaryAutoName: false,
+  bestiaryCardImages: true,
+  initiativeFocusOnTurnChange: true,
+  initiativeAutoSnapOnPrep: false,
+  initiativeHidePercentHpBar: false,
+  searchGmOnly: false,
+  crossSceneSyncSettings: false,
+  crossSceneSyncCards: false,
+  fogPlayerDoors: true,
+  fogDoorOverlayAlways: false,
+  fogLightOcclusion: true,
+  fogShareVision: true,
+  libraries: DEFAULT_LIBRARIES,
+};
+
+let cached: SuiteState = DEFAULT_STATE;
+const listeners = new Set<(s: SuiteState) => void>();
+
+export function getState(): SuiteState {
+  return cached;
+}
+
+function merge(partial: any): SuiteState {
+  if (!partial || typeof partial !== "object") return DEFAULT_STATE;
+  // Libraries merge: user-saved entries take precedence, but built-in
+  // libraries are always present (so the default 5etools never
+  // disappears from older saves).
+  let libraries = DEFAULT_LIBRARIES.slice();
+  if (Array.isArray(partial.libraries)) {
+    const seen = new Set<string>();
+    libraries = [];
+    for (const lib of partial.libraries) {
+      if (lib && typeof lib.id === "string" && lib.id && !seen.has(lib.id)) {
+        seen.add(lib.id);
+        // Preserve `disabledSources` through the merge — was getting
+        // dropped because the field wasn't enumerated here, which made
+        // every subsequent setState load discard the user's per-source
+        // blacklist (the "checkbox bounces back" bug). Normalise to a
+        // string array, drop empties / non-strings.
+        const disabledSources = Array.isArray((lib as any).disabledSources)
+          ? ((lib as any).disabledSources as unknown[])
+              .filter((s): s is string => typeof s === "string" && s.length > 0)
+          : undefined;
+        libraries.push({
+          id: String(lib.id),
+          name: String(lib.name ?? lib.id),
+          baseUrl: String(lib.baseUrl ?? ""),
+          enabled: lib.enabled !== false,
+          builtin: !!lib.builtin,
+          indexPath: typeof lib.indexPath === "string" && lib.indexPath.length > 0
+            ? lib.indexPath
+            : undefined,
+          disabledSources: disabledSources && disabledSources.length > 0
+            ? disabledSources
+            : undefined,
+          language: lib.language === "zh" || lib.language === "en" || lib.language === "auto"
+            ? lib.language : undefined,
+        });
+      }
+    }
+    // Re-add any built-ins that weren't in the saved data.
+    for (const def of DEFAULT_LIBRARIES) {
+      if (!seen.has(def.id)) libraries.unshift(def);
+    }
+  }
+  // 2026-08-25 — the `fullFog` module split into `fogEditor` +
+  // `dynamicFog`. Stored room metadata only knows the old id, so both
+  // new ids fall through to their defaults (on).
+  //
+  // There WAS a migration here that carried a stored `fullFog: false`
+  // across to both new ids, on the theory that it preserved a room's
+  // deliberate decision to turn fog off. It was wrong, and badly so:
+  // on the stable channel no room can hold a DELIBERATE `fullFog:
+  // false`. Before 2026-05-26 the default was `fullFog: !STABLE_HIDES`
+  // — false on stable as a CHANNEL DEFAULT — and the fullFog settings
+  // tab was itself in `HIDDEN_TAB_IDS` on that channel, so a stable GM
+  // had no control anywhere to express a preference. The 1.1.9 release
+  // even hard-pinned `fullFog = true` on read specifically to override
+  // those stale falses.
+  //
+  // So the migration read a channel default as a user decision and
+  // silently switched off BOTH fog modules for every stable room whose
+  // suite metadata had not been rewritten since May — killing the
+  // right-click "编辑地图迷雾" entry and tearing down the wall engine,
+  // on the very release whose headline feature is dynamic fog.
+  //
+  // No replacement: a room that genuinely wants fog off can say so on
+  // the settings tab, which is now visible on both channels.
+  const mergedEnabled = { ...DEFAULT_STATE.enabled };
+  for (const key of Object.keys(DEFAULT_STATE.enabled) as ModuleId[]) {
+    const value = partial.enabled?.[key];
+    if (typeof value === "boolean") mergedEnabled[key] = value;
+  }
+  // `fullFog` itself is pinned off — nothing registers against it.
+  mergedEnabled.fullFog = false;
+  return {
+    enabled: mergedEnabled,
+    portalEffects: typeof partial.portalEffects==='boolean'?partial.portalEffects:true,
+    dataVersion: partial.dataVersion ?? DEFAULT_STATE.dataVersion,
+    allowPlayerMonsters:
+      partial.allowPlayerMonsters ?? DEFAULT_STATE.allowPlayerMonsters,
+    bestiaryAutoInitiative:
+      partial.bestiaryAutoInitiative ?? DEFAULT_STATE.bestiaryAutoInitiative,
+    bestiaryAutoHide:
+      partial.bestiaryAutoHide ?? DEFAULT_STATE.bestiaryAutoHide,
+    bestiaryAutoName:
+      partial.bestiaryAutoName ?? DEFAULT_STATE.bestiaryAutoName,
+    bestiaryCardImages: typeof partial.bestiaryCardImages === "boolean"
+      ? partial.bestiaryCardImages : DEFAULT_STATE.bestiaryCardImages,
+    initiativeFocusOnTurnChange:
+      partial.initiativeFocusOnTurnChange ?? DEFAULT_STATE.initiativeFocusOnTurnChange,
+    initiativeAutoSnapOnPrep:
+      partial.initiativeAutoSnapOnPrep ?? DEFAULT_STATE.initiativeAutoSnapOnPrep,
+    initiativeHidePercentHpBar:
+      partial.initiativeHidePercentHpBar ?? DEFAULT_STATE.initiativeHidePercentHpBar,
+    searchGmOnly:
+      partial.searchGmOnly ?? DEFAULT_STATE.searchGmOnly,
+    crossSceneSyncSettings:
+      partial.crossSceneSyncSettings ?? DEFAULT_STATE.crossSceneSyncSettings,
+    crossSceneSyncCards:
+      partial.crossSceneSyncCards ?? DEFAULT_STATE.crossSceneSyncCards,
+    fogPlayerDoors: partial.fogPlayerDoors ?? DEFAULT_STATE.fogPlayerDoors,
+    fogDoorOverlayAlways:
+      partial.fogDoorOverlayAlways ?? DEFAULT_STATE.fogDoorOverlayAlways,
+    fogLightOcclusion:
+      partial.fogLightOcclusion ?? DEFAULT_STATE.fogLightOcclusion,
+    fogShareVision: typeof partial.fogShareVision === "boolean" ? partial.fogShareVision : DEFAULT_STATE.fogShareVision,
+    libraries,
+  };
+}
+
+function suiteStateEqual(a: SuiteState, b: SuiteState): boolean {
+  if (a.dataVersion !== b.dataVersion) return false;
+  if (a.allowPlayerMonsters !== b.allowPlayerMonsters) return false;
+  if (a.bestiaryAutoInitiative !== b.bestiaryAutoInitiative) return false;
+  if (a.bestiaryAutoHide !== b.bestiaryAutoHide) return false;
+  if (a.bestiaryAutoName !== b.bestiaryAutoName) return false;
+  if (a.bestiaryCardImages !== b.bestiaryCardImages) return false;
+  if (a.initiativeFocusOnTurnChange !== b.initiativeFocusOnTurnChange) return false;
+  if (a.initiativeAutoSnapOnPrep !== b.initiativeAutoSnapOnPrep) return false;
+  if (a.initiativeHidePercentHpBar !== b.initiativeHidePercentHpBar) return false;
+  // §7: without this diff line the setState short-circuit would drop
+  // every searchGmOnly write (same trap as disabledSources below).
+  if (a.searchGmOnly !== b.searchGmOnly) return false;
+  if (a.crossSceneSyncSettings !== b.crossSceneSyncSettings) return false;
+  if (a.portalEffects !== b.portalEffects) return false;
+  if (a.crossSceneSyncCards !== b.crossSceneSyncCards) return false;
+  if (a.fogPlayerDoors !== b.fogPlayerDoors) return false;
+  if (a.fogDoorOverlayAlways !== b.fogDoorOverlayAlways) return false;
+  if (a.fogLightOcclusion !== b.fogLightOcclusion) return false;
+  if (a.fogShareVision !== b.fogShareVision) return false;
+  for (const k of Object.keys(a.enabled) as ModuleId[]) {
+    if (a.enabled[k] !== b.enabled[k]) return false;
+  }
+  if ((a.libraries?.length ?? 0) !== (b.libraries?.length ?? 0)) return false;
+  for (let i = 0; i < (a.libraries?.length ?? 0); i++) {
+    const la = a.libraries[i];
+    const lb = b.libraries[i];
+    if (la.id !== lb.id || la.name !== lb.name || la.baseUrl !== lb.baseUrl || la.enabled !== lb.enabled) {
+      return false;
+    }
+    // 2026-05-09: also diff per-source blacklist. Without this, the
+    // setState short-circuit (`if (suiteStateEqual(prev, next))
+    // return`) would skip the scene write when the user toggled a
+    // source checkbox — i.e. the change never persists.
+    const aDisabled = (la.disabledSources ?? []).slice().sort().join(",");
+    const bDisabled = (lb.disabledSources ?? []).slice().sort().join(",");
+    if (aDisabled !== bDisabled) return false;
+    if ((la.indexPath ?? "") !== (lb.indexPath ?? "")) return false;
+    if (la.language !== lb.language) return false;
+  }
+  return true;
+}
+
+// Cross-scene sync — when crossSceneSyncSettings is on, the suite's
+// state is mirrored to ROOM metadata under this key. Every scene-load
+// checks here first; if the room mirror exists AND its sync flag is
+// still on, the scene is hydrated from the room copy instead of the
+// scene's own metadata. The flag rides along with the state, so once
+// enabled in any scene it propagates to all.
+const ROOM_STATE_KEY = "com.obr-suite/state-room";
+// Reads may complete out of order, especially during a scene switch. Never
+// apply an old scene response (or mirror it into the newly loaded scene).
+let refreshRevision = 0;
+let sceneGeneration = 0;
+const refreshListeners = new Set<() => void>();
+const refreshFailureListeners = new Set<(error: unknown) => void>();
+
+/** Signals an authoritative read or acknowledged local write, including when
+ * values did not change. Superseded reads do not signal readiness. */
+export function onStateRefreshed(fn: () => void): () => void {
+  refreshListeners.add(fn);
+  return () => refreshListeners.delete(fn);
+}
+
+export function onStateRefreshFailed(fn: (error: unknown) => void): () => void {
+  refreshFailureListeners.add(fn);
+  return () => refreshFailureListeners.delete(fn);
+}
+
+function failedRefresh(revision: number, error: unknown): SuiteState {
+  if (revision === refreshRevision) {
+    for (const fn of refreshFailureListeners) {
+      try { fn(error); } catch (listenerError) { console.warn("[obr-suite/state] refresh failure listener failed", listenerError); }
+    }
+  }
+  return cached;
+}
+
+function notifyStateRefreshed(): void {
+  for (const fn of refreshListeners) {
+    try { fn(); } catch (error) { console.warn("[obr-suite/state] refresh listener failed", error); }
+  }
+}
+
+function notifyStateChanged(): void {
+  for (const fn of listeners) {
+    try { fn(cached); } catch (error) { console.warn("[obr-suite/state] state listener failed", error); }
+  }
+}
+
+export async function refreshFromScene(): Promise<SuiteState> {
+  const revision = ++refreshRevision;
+  let next: SuiteState;
+  try {
+    // Cross-scene sync: prefer room mirror when active.
+    try {
+      const [roomMeta, sceneMeta] = await Promise.all([
+        OBR.room.getMetadata(),
+        OBR.scene.getMetadata(),
+      ]);
+      if (revision !== refreshRevision) return cached;
+      const fromRoom = roomMeta[ROOM_STATE_KEY] as any;
+      if (fromRoom && fromRoom.crossSceneSyncSettings) {
+        next = merge(fromRoom);
+        // Mirror to scene metadata so consumers that read
+        // SCENE_KEY directly (bestiary auto-init flag, etc.) see the
+        // synced value too — but ONLY if the scene doesn't already
+        // match. Without this guard, every refresh writes scene →
+        // OBR.scene.onMetadataChange fires → refreshFromScene runs
+        // again → writes scene → ... infinite loop. The user
+        // reported severe flicker / freeze when toggling sync on,
+        // and that's the root cause.
+        const currentScene = merge(sceneMeta[SCENE_KEY]);
+        if (!suiteStateEqual(currentScene, next)) {
+          try { await OBR.scene.setMetadata({ [SCENE_KEY]: next }); } catch {}
+        }
+      } else {
+        next = merge(sceneMeta[SCENE_KEY]);
+      }
+    } catch {
+      try {
+        const meta = await OBR.scene.getMetadata();
+        if (revision !== refreshRevision) return cached;
+        next = merge(meta[SCENE_KEY]);
+      } catch (error) {
+        return failedRefresh(revision, error);
+      }
+    }
+  } catch (error) {
+    return failedRefresh(revision, error);
+  }
+  // OBR.scene.onMetadataChange fires for ANY scene metadata write (bestiary
+  // spawn list, character cards list, initiative combat state, etc.) — not
+  // just suite state writes. Diff before notifying so unrelated metadata
+  // changes don't cascade to listeners (e.g. waking the search panel
+  // every time a monster is spawned).
+  if (revision !== refreshRevision) return cached;
+  const changed = !suiteStateEqual(cached, next);
+  cached = next;
+  if (changed) {
+    notifyStateChanged();
+  }
+  if (revision === refreshRevision) notifyStateRefreshed();
+  return cached;
+}
+
+export function onStateChange(fn: (s: SuiteState) => void): () => void {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+}
+
+// DM-only writes; player writes are silently dropped at OBR's permission layer
+// but we don't gate here — the UI hides write controls for non-GM users.
+export async function setState(partial: Partial<SuiteState>): Promise<void> {
+  const prev = cached;
+  // Mirror the retirement in merge(): `fullFog` is a dead id, never
+  // written back as enabled. Its replacements (`fogEditor`,
+  // `dynamicFog`) are ordinary user-toggleable modules.
+  const mergedEnabled = { ...cached.enabled, ...(partial.enabled ?? {}) };
+  mergedEnabled.fullFog = false;
+  const next: SuiteState = {
+    ...cached,
+    ...partial,
+    enabled: mergedEnabled,
+  };
+
+  if (suiteStateEqual(prev, next)) return;
+
+  const writeScene = sceneGeneration;
+  ++refreshRevision;
+  await OBR.scene.setMetadata({ [SCENE_KEY]: next });
+  // The SDK write is already sent and cannot be cancelled, but its late
+  // acknowledgement must not invalidate new reads or publish the old state.
+  if (writeScene !== sceneGeneration) return;
+  const appliedRevision = ++refreshRevision;
+  lastSceneStateJson = JSON.stringify(next);
+  cached = next;
+
+  // Cross-scene sync mirror: write to room when ON, clear when
+  // transitioning ON → OFF so other scenes don't keep hydrating from
+  // a stale mirror.
+  try {
+    if (next.crossSceneSyncSettings) {
+      await OBR.room.setMetadata({ [ROOM_STATE_KEY]: next });
+      if (writeScene !== sceneGeneration) return;
+      lastRoomStateJson = JSON.stringify(next);
+    } else if (prev.crossSceneSyncSettings) {
+      // Was on, now off — clear so scene-loads stop seeing it.
+      await OBR.room.setMetadata({ [ROOM_STATE_KEY]: undefined });
+      if (writeScene !== sceneGeneration) return;
+      lastRoomStateJson = JSON.stringify(null);
+    }
+  } catch (e) {
+    console.warn("[obr-suite/state] room mirror write failed", e);
+  }
+
+  if (writeScene !== sceneGeneration) return;
+  notifyStateChanged();
+  if (appliedRevision === refreshRevision) notifyStateRefreshed();
+  // Explicit broadcast for cross-iframe sync. OBR.scene.onMetadataChange
+  // SHOULD fire in all iframes when scene metadata changes, but in
+  // practice some iframes miss the event (timing or layer issues). The
+  // broadcast is a redundant pathway every other iframe listens for.
+  try {
+    await OBR.broadcast.sendMessage(
+      BROADCAST_STATE_CHANGED,
+      {},
+      { destination: "LOCAL" }
+    );
+  } catch {}
+}
+
+// localStorage helpers (per-client prefs).
+export function readLS(key: string, def: string): string {
+  try {
+    return localStorage.getItem(key) ?? def;
+  } catch {
+    return def;
+  }
+}
+export function writeLS(key: string, val: string) {
+  try { localStorage.setItem(key, val); } catch {}
+}
+
+// Subscribe scene metadata changes — call once per iframe.
+let sceneSyncStarted = false;
+let lastSceneStateJson = "";
+let lastRoomStateJson = "";
+export function startSceneSync() {
+  if (sceneSyncStarted) return;
+  sceneSyncStarted = true;
+  let queued = false, ready = true;
+  // The event is only a read hint. Never accept a broadcast payload as saved
+  // settings. Invalidate an older read immediately, then coalesce same-turn
+  // metadata + LOCAL notifications into one authoritative refresh.
+  const requestRefresh = () => {
+    ++refreshRevision;
+    if (queued || !ready) return;
+    queued = true;
+    queueMicrotask(() => { queued = false; if (ready) void refreshFromScene(); });
+  };
+  OBR.scene.onReadyChange((value) => {
+    ++sceneGeneration;
+    ++refreshRevision;
+    lastSceneStateJson = "";
+    lastRoomStateJson = "";
+    ready = value;
+    if (ready) requestRefresh();
+  });
+  // Some popover iframes miss the host metadata notification. setState already
+  // sends this LOCAL hint; every iframe must actually subscribe to receive it.
+  OBR.broadcast.onMessage?.(BROADCAST_STATE_CHANGED, requestRefresh);
+  void refreshFromScene();
+  OBR.scene.onMetadataChange((meta) => {
+    if (!meta) return;
+    const nextJson = JSON.stringify(meta[SCENE_KEY] ?? null);
+    if (nextJson === lastSceneStateJson) return;
+    lastSceneStateJson = nextJson;
+    requestRefresh();
+  });
+  OBR.room.onMetadataChange((meta) => {
+    if (!meta) return;
+    const nextJson = JSON.stringify(meta[ROOM_STATE_KEY] ?? null);
+    if (nextJson === lastRoomStateJson) return;
+    lastRoomStateJson = nextJson;
+    requestRefresh();
+  });
+}
+
+// --- Per-client language (localStorage) ---
+//
+// Language is intentionally NOT in scene metadata. Each player picks the
+// UI language they want; the DM's choice does not propagate. Cross-iframe
+// sync within one client uses the `storage` event for receivers and a
+// direct in-process notify for the writer (the storage event does not
+// fire in the iframe that did the write).
+
+const LS_LANG = "obr-suite/lang";
+const langListeners = new Set<(l: Language) => void>();
+let langStorageInstalled = false;
+
+export function getLocalLang(): Language {
+  try {
+    const v = localStorage.getItem(LS_LANG);
+    if (v === "zh" || v === "en") return v;
+  } catch {}
+  return "zh";
+}
+
+export function setLocalLang(lang: Language): void {
+  if (lang !== "zh" && lang !== "en") return;
+  if (getLocalLang() === lang) return;
+  try { localStorage.setItem(LS_LANG, lang); } catch {}
+  for (const fn of langListeners) fn(lang);
+}
+
+function ensureLangStorageListener() {
+  if (langStorageInstalled) return;
+  langStorageInstalled = true;
+  window.addEventListener("storage", (e) => {
+    if (e.key !== LS_LANG) return;
+    const v = e.newValue;
+    if (v !== "zh" && v !== "en") return;
+    for (const fn of langListeners) fn(v);
+  });
+}
+
+export function onLangChange(fn: (l: Language) => void): () => void {
+  langListeners.add(fn);
+  ensureLangStorageListener();
+  return () => langListeners.delete(fn);
+}
