@@ -8,7 +8,8 @@
 .tda-topbar-tools { display: flex; gap: 6px; }
 .tda-topbar-tools .tda-btn { min-height: 32px; padding: 3px 11px; font-size: 13px; }
 
-.tda-status { grid-row: 2; display: grid; grid-template-columns: minmax(0, auto) minmax(280px, 1fr); align-items: center; gap: 8px 16px; padding: 7px 14px; background: #15100b; border-bottom: 1px solid #0d0705; }
+/* 状态行高度固定：等待行文字再长也不换行，牌桌区域高度不会随之跳动 */
+.tda-status { grid-row: 2; display: grid; grid-template-columns: minmax(0, auto) minmax(280px, 1fr); align-items: center; gap: 8px 16px; height: 50px; padding: 0 14px; background: #15100b; border-bottom: 1px solid #0d0705; overflow: hidden; }
 .tda-status > .tda-waiting { justify-self: end; max-width: 100%; }
 .tda-flow { display: flex; align-items: center; gap: 14px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
 .tda-flow-gambit { display: inline-flex; align-items: baseline; gap: 6px; padding: 2px 10px; border: 1px solid #0d0705; border-radius: 2px; background: #2a1711; color: var(--parchment); font-family: var(--font-display); white-space: nowrap; box-shadow: var(--bevel); }
@@ -21,7 +22,7 @@
 .tda-flow-step.is-current { color: var(--parchment); font-weight: 700; } .tda-flow-step.is-current .tda-flow-dot { background: #ead38f; border-color: #ead38f; }
 .tda-flow-sub { padding: 1px 6px; border-radius: 2px; border: 1px solid var(--arcane); color: var(--arcane); font-size: 11px; }
 
-.tda-waiting { position: relative; display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 4px 14px; border-radius: 2px; border: 1px solid #0d0705; background: #2a1711; font-family: var(--font-display); font-size: 15px; overflow: hidden; box-shadow: var(--bevel); }
+.tda-waiting { position: relative; display: flex; align-items: center; gap: 10px; height: 34px; white-space: nowrap; padding: 0 14px; border-radius: 2px; border: 1px solid #0d0705; background: #2a1711; font-family: var(--font-display); font-size: 15px; overflow: hidden; box-shadow: var(--bevel); }
 .tda-waiting-text { min-width: 0; }
 .tda-waiting.is-you { background-color: #c9a24d; background-image: var(--tex-oak); background-size: 420px; background-blend-mode: overlay; color: #15100b; }
 .tda-waiting-star { font-size: 16px; }
@@ -141,10 +142,11 @@
 @media (max-width: 640px) {
   .tda-topbar { padding: 5px 10px; } .tda-topbar-title { font-size: 15px; } .tda-topbar-title small { display: none; }
   .tda-topbar-tools { gap: 4px; } .tda-topbar-tools .tda-btn { min-height: 30px; padding: 2px 8px; font-size: 12px; white-space: nowrap; }
-  .tda-status { grid-template-columns: 1fr; gap: 6px; padding: 6px 10px; }
+  .tda-status { grid-template-columns: 1fr; gap: 4px; height: 82px; padding: 4px 10px; }
   .tda-flow { gap: 8px; } .tda-flow-gambit { padding: 1px 7px; font-size: 13px; } .tda-flow-gambit .tda-num { font-size: 15px; }
   .tda-flow-step { padding: 1px 4px; font-size: 11px; gap: 4px; } .tda-flow-step + .tda-flow-step::before { left: -6px; width: 8px; } .tda-flow-dot { width: 11px; height: 11px; font-size: 8px; }
-  .tda-waiting { font-size: 14px; white-space: normal; }
+  .tda-waiting { font-size: 14px; }
+  .tda-waiting-text { overflow: hidden; text-overflow: ellipsis; }
   .tda-actionbar { flex-direction: column; align-items: stretch; gap: 8px; padding: 8px 10px; }
   .tda-inspector { left: 10px; right: 10px; top: 128px; bottom: auto; width: auto; flex-direction: row; align-items: flex-start; gap: 8px; }
   .tda-inspector-face { width: 30%; flex: none; }

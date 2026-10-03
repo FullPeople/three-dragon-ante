@@ -51,7 +51,7 @@ export interface TableUISurface {
 
 export function mountTableUI(root: HTMLElement, deps: TableUIDeps): TableUISurface {
   let soundOn = true; try { soundOn = localStorage.getItem("three-dragon-ante.sound.v2") !== "off"; } catch {}
-  const initial: UIState = { lang: deps.language, hostKind: deps.hostKind ?? "obr", mode: deps.mode ?? "full", view: null, display: null, flow: null, selected: [], hovered: null, keyboardCard: null, keyboardHeld: false, drag: null, pending: null, sending: false, localMessage: "", inspect: null, show: emptyShow(), busy: false, soundOn, gestures: {}, slowSeatIds: [], suspended: false, helpOpen: false, goldHold: null, knockAt: 0 };
+  const initial: UIState = { lang: deps.language, hostKind: deps.hostKind ?? "obr", mode: deps.mode ?? "full", view: null, display: null, flow: null, selected: [], hovered: null, keyboardCard: null, keyboardHeld: false, drag: null, pending: null, sending: false, localMessage: "", inspect: null, show: emptyShow(), busy: false, soundOn, gestures: {}, slowSeatIds: [], suspended: false, helpOpen: false, goldHold: null, knockAt: 0, orientation: "landscape" };
   const store: Store = createStore(initial);
   let fx: FxLayer | null = null, orientation: Orientation = "landscape", destroyed = false, notifiedBusy = false;
   const audio = createAudio(root, () => store.get().soundOn);
@@ -63,11 +63,13 @@ export function mountTableUI(root: HTMLElement, deps: TableUIDeps): TableUISurfa
   const presenter = createPresenter(store, controller, { fx: () => fx, root: () => root, onBusy: busy => { if (busy !== notifiedBusy) { notifiedBusy = busy; deps.onPresentationChange?.(busy); } }, sound: (kind, key) => audio.play(kind, key) });
   root.classList.add("tda-root");
   const reactRoot: Root = createRoot(root);
-  const render = () => flushSync(() => reactRoot.render(createElement(TableApp, { store, controller, onFx: value => { fx = value; }, onOrientation: value => { orientation = value; }, showTopBar: deps.topBar !== false, onLand: (key, zone) => audio.play("thud", `${key}:${zone}:${store.get().view?.game?.revision ?? 0}`) })));
+  const render = () => flushSync(() => reactRoot.render(createElement(TableApp, { store, controller, onFx: value => { fx = value; }, onOrientation: value => { orientation = value; store.set({ orientation: value }); }, showTopBar: deps.topBar !== false, onLand: (key, zone) => audio.play("thud", `${key}:${zone}:${store.get().view?.game?.revision ?? 0}`) })));
   // 本家拍桌：声音在这里，震动与手掌在场景层
   let knockSeen = 0; store.subscribe(() => { const at = store.get().knockAt; if (at && at !== knockSeen) { knockSeen = at; audio.play("slap", `knock:${at}`); } });
   render();
   const gestureTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  // 远端拍桌：每个座位自己的"手还在桌上"计时，连拍走短动作
+  const slapResting = new Map<string, number>();
   const slowTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   function applyReceipt(view: TableView) {
@@ -113,7 +115,7 @@ export function mountTableUI(root: HTMLElement, deps: TableUIDeps): TableUISurfa
       if (value === null) { store.set(s => { const next = { ...s.gestures }; delete next[seatId]; return { gestures: next }; }); return; }
       const gesture = readHandGesture(value); if (!gesture || seatId === own?.selfSeatId) return;
       const old = store.get().gestures[seatId]; if (old && gesture.sequence <= old.sequence) return;
-      if (gesture.slap) { fx?.shake(600); audio.play("slap", `slap:${seatId}:${gesture.sequence}`); const plate = root.querySelector<HTMLElement>(`[data-seat-plate="${CSS.escape(seatId)}"]`); if (plate) { const r = plate.getBoundingClientRect(); fx?.ripple({ x: r.left + r.width / 2, y: r.top + r.height / 2 }); } }
+      if (gesture.slap) { const again = performance.now() < (slapResting.get(seatId) ?? 0); slapResting.set(seatId, performance.now() + 1200); fx?.shake(again ? 300 : 600); audio.play("slap", `slap:${seatId}:${gesture.sequence}`); const plate = root.querySelector<HTMLElement>(`[data-seat-plate="${CSS.escape(seatId)}"]`); if (plate && fx) { const r = plate.getBoundingClientRect(); void fx.slap({ x: r.left + r.width / 2 + 90, y: r.top + r.height / 2 }, again); } }
       store.set(s => ({ gestures: { ...s.gestures, [seatId]: gesture } }));
       const timer = gestureTimers.get(seatId); if (timer) clearTimeout(timer);
       gestureTimers.set(seatId, setTimeout(() => { if (!destroyed) store.set(s => { const next = { ...s.gestures }; delete next[seatId]; return { gestures: next }; }); }, 30000));

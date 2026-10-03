@@ -1,6 +1,8 @@
 /** 2.5D 平面布局模型（docs/design/VISUAL_SPEC.md §3）。
  * 只从投影推导物理位置：普通座位视图里对手永远是匿名牌背，全能视图才有对手正面。
- * 桌形继承原 3D 舞台的规则：2–3 人圆桌，4 人以上圆角方桌；方桌的侧边座位整体旋转 ±90°，顶边与本家保持正向（可读性）。 */
+ * 桌形继承原 3D 舞台的规则：2–3 人圆桌，4 人以上圆角方桌。
+ * 每个座位有自己的朝向 θ（卡牌顶边指向桌心）：本家 0°，方桌侧边 ±90°、顶边 180°，圆桌对手按位置角；
+ * 手牌背、前注、牌阵、点数铭牌、组合标签都随 θ 旋转，姓名铭牌与状态绶带保持正向（UI 铭牌）。 */
 import type { Card } from "../../game/rules/cards";
 import type { OmniscientView, PublicView, SeatView } from "../../game/rules/types";
 
@@ -20,49 +22,61 @@ export type TableShape = "round" | "square";
 /** 原 `stage/layout.ts`：`players >= 4 ? "square" : "round"`。 */
 export const tableShape = (players: number): TableShape => players >= 4 ? "square" : "round";
 
-export type Edge = "bottom" | "left" | "top" | "right";
-interface Anchor extends Point { edge: Edge }
-/** 对手锚点：按本家顺时针次序排列（屏幕上左 → 上 → 右）。方桌边分布沿用原规则：4 人 左1 上1 右1、5 人 左1 上2 右1、6 人 左2 上1 右2。 */
+export type Edge = "bottom" | "left" | "top" | "right" | "round";
+/** 对手锚点：平面坐标、朝向 θ（卡牌顶边指向桌心）、可选缩放。按本家顺时针次序排列（屏幕上左 → 上 → 右）。
+ *  方桌边分布沿用原规则：4 人 左1 上1 右1、5 人 左1 上2 右1、6 人 左2 上1 右2；圆桌对手按位置角。 */
+interface Anchor extends Point { edge: Edge; rot: number; scale?: number }
 const OPPONENT_ANCHORS: Record<Orientation, Record<number, Anchor[]>> = {
   landscape: {
-    1: [{ x: 900, y: 150, edge: "top" }],
-    2: [{ x: 520, y: 250, edge: "top" }, { x: 1280, y: 250, edge: "top" }],
-    3: [{ x: 300, y: 520, edge: "left" }, { x: 900, y: 150, edge: "top" }, { x: 1500, y: 520, edge: "right" }],
-    4: [{ x: 300, y: 520, edge: "left" }, { x: 620, y: 170, edge: "top" }, { x: 1180, y: 170, edge: "top" }, { x: 1500, y: 520, edge: "right" }],
-    5: [{ x: 300, y: 700, edge: "left" }, { x: 300, y: 270, edge: "left" }, { x: 900, y: 150, edge: "top" }, { x: 1500, y: 270, edge: "right" }, { x: 1500, y: 700, edge: "right" }],
+    1: [{ x: 900, y: 200, edge: "top", rot: 180 }],
+    2: [{ x: 520, y: 280, edge: "round", rot: 150 }, { x: 1280, y: 280, edge: "round", rot: -150 }],
+    3: [{ x: 300, y: 560, edge: "left", rot: 90 }, { x: 900, y: 200, edge: "top", rot: 180 }, { x: 1500, y: 560, edge: "right", rot: -90 }],
+    4: [{ x: 300, y: 640, edge: "left", rot: 90 }, { x: 620, y: 190, edge: "top", rot: 180 }, { x: 1180, y: 190, edge: "top", rot: 180 }, { x: 1500, y: 640, edge: "right", rot: -90 }],
+    5: [{ x: 300, y: 790, edge: "left", rot: 90, scale: 0.72 }, { x: 300, y: 300, edge: "left", rot: 90, scale: 0.72 }, { x: 900, y: 190, edge: "top", rot: 180 }, { x: 1500, y: 300, edge: "right", rot: -90, scale: 0.72 }, { x: 1500, y: 790, edge: "right", rot: -90, scale: 0.72 }],
   },
+  // 竖屏：平面只有 1100 宽，4 人以上分两排（远排朝下，近排侧向），座位块随缩放收紧
   portrait: {
-    1: [{ x: 550, y: 180, edge: "top" }],
-    2: [{ x: 300, y: 260, edge: "top" }, { x: 800, y: 260, edge: "top" }],
-    3: [{ x: 230, y: 330, edge: "top" }, { x: 550, y: 150, edge: "top" }, { x: 870, y: 330, edge: "top" }],
-    4: [{ x: 200, y: 420, edge: "top" }, { x: 400, y: 200, edge: "top" }, { x: 700, y: 200, edge: "top" }, { x: 900, y: 420, edge: "top" }],
-    5: [{ x: 180, y: 480, edge: "top" }, { x: 330, y: 230, edge: "top" }, { x: 550, y: 140, edge: "top" }, { x: 770, y: 230, edge: "top" }, { x: 920, y: 480, edge: "top" }],
+    1: [{ x: 550, y: 230, edge: "top", rot: 180 }],
+    // 两个对手：左家的牌阵朝左下、右家的牌阵朝左上（各自的右手边），所以右家要坐低一点才不撞到左家的前注
+    2: [{ x: 340, y: 300, edge: "round", rot: 150, scale: 0.65 }, { x: 780, y: 390, edge: "round", rot: -150, scale: 0.65 }],
+    3: [{ x: 300, y: 520, edge: "round", rot: 150, scale: 0.6 }, { x: 550, y: 185, edge: "top", rot: 180, scale: 0.6 }, { x: 800, y: 520, edge: "round", rot: -150, scale: 0.6 }],
+    4: [{ x: 190, y: 600, edge: "left", rot: 100, scale: 0.55 }, { x: 320, y: 230, edge: "top", rot: 180, scale: 0.55 }, { x: 780, y: 230, edge: "top", rot: 180, scale: 0.55 }, { x: 910, y: 600, edge: "right", rot: -100, scale: 0.55 }],
+    // 5 个对手：1 + 2 + 2 三排（顶中、左右上、左右下），从本家左侧顺时针
+    5: [{ x: 185, y: 680, edge: "left", rot: 100, scale: 0.5 }, { x: 270, y: 350, edge: "round", rot: 150, scale: 0.48 }, { x: 550, y: 140, edge: "top", rot: 180, scale: 0.44 }, { x: 830, y: 350, edge: "round", rot: -150, scale: 0.48 }, { x: 915, y: 680, edge: "right", rot: -100, scale: 0.5 }],
   },
 };
-export const CENTER: Record<Orientation, { deck: Point; discard: Point; stakes: Point; hole: Point; neutral: Point; self: Point; fan: Point; fanRadius: number }> = {
-  landscape: { deck: { x: 720, y: 500 }, discard: { x: 1080, y: 500 }, stakes: { x: 900, y: 470 }, hole: { x: 1260, y: 470 }, neutral: { x: 900, y: 640 }, self: { x: 900, y: 800 }, fan: { x: 900, y: 1000 }, fanRadius: 900 },
-  portrait: { deck: { x: 420, y: 700 }, discard: { x: 680, y: 700 }, stakes: { x: 550, y: 640 }, hole: { x: 820, y: 640 }, neutral: { x: 550, y: 820 }, self: { x: 550, y: 1090 }, fan: { x: 550, y: 1340 }, fanRadius: 700 },
+export const CENTER: Record<Orientation, { table: Point; deck: Point; discard: Point; stakes: Point; hole: Point; neutral: Point; self: Point; fan: Point; fanRadius: number }> = {
+  landscape: { table: { x: 900, y: 550 }, deck: { x: 720, y: 520 }, discard: { x: 1080, y: 520 }, stakes: { x: 900, y: 430 }, hole: { x: 1250, y: 580 }, neutral: { x: 900, y: 650 }, self: { x: 900, y: 800 }, fan: { x: 900, y: 1000 }, fanRadius: 900 },
+  portrait: { table: { x: 550, y: 750 }, deck: { x: 385, y: 818 }, discard: { x: 715, y: 818 }, stakes: { x: 550, y: 630 }, hole: { x: 550, y: 870 }, neutral: { x: 550, y: 960 }, self: { x: 550, y: 1090 }, fan: { x: 550, y: 1340 }, fanRadius: 700 },
 };
 
-/** 座位朝向：卡牌旋转角、牌阵排列方向（dir）、指向桌心的方向（inward）。 */
-const FACING: Record<Edge, { rot: number; dir: Point; inward: Point }> = {
-  bottom: { rot: 0, dir: { x: 1, y: 0 }, inward: { x: 0, y: -1 } },
-  top: { rot: 0, dir: { x: 1, y: 0 }, inward: { x: 0, y: 1 } },
-  left: { rot: 90, dir: { x: 0, y: 1 }, inward: { x: 1, y: 0 } },
-  right: { rot: -90, dir: { x: 0, y: -1 }, inward: { x: -1, y: 0 } },
-};
-/** 座位局部坐标 → 平面坐标。局部 x 沿座位的右手方向，局部 y 指向桌心。 */
-export function toPlane(anchor: Anchor, lx: number, ly: number): Point {
+const rad = (deg: number) => deg * Math.PI / 180;
+/** 座位朝向 θ（度）：卡牌顶边指向桌心。锚点表里显式给出；没有的按位置角推算。 */
+export function seatAngle(anchor: Anchor, table: Point): number {
+  if (Number.isFinite(anchor.rot)) return anchor.rot;
   switch (anchor.edge) {
-    case "left": return { x: anchor.x + ly, y: anchor.y + lx };
-    case "right": return { x: anchor.x - ly, y: anchor.y - lx };
-    default: return { x: anchor.x + lx, y: anchor.y + ly };
+    case "bottom": return 0;
+    case "left": return 90;
+    case "right": return -90;
+    case "top": return 180;
+    default: return Math.round(Math.atan2(table.x - anchor.x, -(table.y - anchor.y)) * 180 / Math.PI);
   }
+}
+/** 铭牌旋转：跟随座位角但不倒置 */
+export const plateAngle = (rot: number) => { let a = ((rot - 180) % 360 + 540) % 360 - 180; if (a <= -90) a += 180; if (a > 90) a -= 180; return a; };
+/** 右手方向（局部 +x）与朝向桌心方向（局部 +y） */
+export const facing = (rot: number) => ({ dir: { x: Math.cos(rad(rot)), y: Math.sin(rad(rot)) }, inward: { x: Math.sin(rad(rot)), y: -Math.cos(rad(rot)) } });
+/** 座位局部坐标 → 平面坐标。局部 x 沿座位的右手方向，局部 y 指向桌心。 */
+export function toPlane(anchor: Point, rot: number, lx: number, ly: number): Point {
+  const f = facing(rot);
+  return { x: anchor.x + f.dir.x * lx + f.inward.x * ly, y: anchor.y + f.dir.y * lx + f.inward.y * ly };
 }
 
 export interface SeatPlacement {
   id: string; self: boolean; index: number; scale: number;
   edge: Edge; rot: number; dir: Point; inward: Point;
+  /** 铭牌 / 绶带 / 点数铭牌的旋转：跟随座位角但永不倒置（θ − 180 归一到 (-90, 90]） */
+  plateRot: number;
   anchor: Point; plate: Point; ribbon: Point; ante: Pose; coins: Point; flight: Point; hand: Point;
   /** 牌阵每张的步进（平面单位，沿 dir） */
   flightStep: number;
@@ -76,25 +90,26 @@ export function seatPlacements(view: PublicView, selfSeatId: string | null, orie
   const selfIndex = Math.max(0, seats.findIndex(seat => seat.id === selfSeatId));
   const center = CENTER[orientation];
   const anchors = OPPONENT_ANCHORS[orientation][Math.max(1, Math.min(5, n - 1))] ?? [];
-  const shared = anchors.filter(a => a.edge === "left").length > 1;
   return seats.map((seat, index) => {
     const self = selfSeatId !== null && seat.id === selfSeatId;
     const order = (index - selfIndex + n) % n; // 0 = self, 1.. clockwise
     if (self || (selfSeatId === null && index === 0)) {
-      const a = center.self, f = FACING.bottom;
+      const a = center.self, f = facing(0);
       // 圆桌：铭牌在左；方桌（4 人以上）左下有侧边座位，铭牌改到左下、扇面之外
-      const plate = orientation === "landscape" ? (shape === "square" ? { x: a.x - 440, y: a.y + 150 } : { x: a.x - 600, y: a.y - 24 }) : { x: a.x - 470, y: a.y - 24 };
-      return { id: seat.id, self, index, scale: 1, edge: "bottom", rot: 0, dir: f.dir, inward: f.inward, anchor: a, plate, ribbon: { x: plate.x, y: plate.y + 44 },
+      const plate = orientation === "landscape" ? (shape === "square" ? { x: a.x + 380, y: a.y + 190 } : { x: a.x - 600, y: a.y - 24 }) : { x: a.x - 470, y: a.y - 24 };
+      return { id: seat.id, self, index, scale: 1, edge: "bottom", rot: 0, dir: f.dir, inward: f.inward, plateRot: 0, anchor: a, plate, ribbon: { x: plate.x, y: plate.y + 44 },
         ante: pose(a.x - 300, a.y, 1), coins: { x: a.x - 160, y: a.y }, flight: { x: a.x - 20, y: a.y }, hand: center.fan, flightStep: 82 };
     }
-    const a = anchors[Math.min(anchors.length - 1, order - 1)] ?? { x: center.stakes.x, y: 150, edge: "top" as Edge };
-    const f = FACING[a.edge], s = shared && a.edge !== "top" ? 0.72 : OPPONENT_SCALE, side = a.edge === "left" || a.edge === "right";
-    const at = (lx: number, ly: number) => toPlane(a, lx, ly);
-    // 对手：牌背在最远处（桌沿），铭牌与绶带压在牌背之上（translateZ 由 CSS 给），再往桌心是前注 / 牌阵；金币堆贴着铭牌放，不进牌区。
-    const plate = at(0, -112);
+    const a = anchors[Math.min(anchors.length - 1, order - 1)] ?? { x: center.stakes.x, y: 190, edge: "top" as Edge, rot: 180 };
+    const rot = seatAngle(a, center.table), f = facing(rot);
+    const s = a.scale ?? OPPONENT_SCALE, top = Math.abs(rot) === 180, k = s / OPPONENT_SCALE;
+    // 座位块内的偏移随缩放收紧（相对标准 0.78）；侧向座位的正向铭牌是横的，放得更靠外才不会压到牌阵
+    const at = (lx: number, ly: number) => toPlane(a, rot, lx * k, ly * k);
+    // 铭牌、绶带、金币压在手牌背之上，随座位角旋转但不倒置；它们是固定大小的 UI 件，深度不随座位缩放
+    const plate = toPlane(a, rot, 0, -112), ribbon = toPlane(a, rot, 0, -76);
     const ante = at(-150, 40);
-    return { id: seat.id, self: false, index, scale: s, edge: a.edge, rot: f.rot, dir: f.dir, inward: f.inward, anchor: a, plate, ribbon: side ? { x: plate.x, y: plate.y + 36 } : at(0, -78),
-      ante: pose(ante.x, ante.y, s, f.rot), coins: at(118, -112), flight: at(40, 40), hand: at(0, -162), flightStep: side ? 54 : 58 };
+    return { id: seat.id, self: false, index, scale: s, edge: a.edge, rot, dir: f.dir, inward: f.inward, plateRot: plateAngle(rot), anchor: a, plate, ribbon,
+      ante: pose(ante.x, ante.y, s, rot), coins: toPlane(a, rot, 118, -112), flight: at(40, 40), hand: at(0, -162), flightStep: Math.round((top ? 58 : 54) * k) };
   });
 }
 
@@ -122,13 +137,12 @@ export interface CardPlacement {
 export function fanPose(i: number, n: number, orientation: Orientation): Pose {
   const center = CENTER[orientation], plane = PLANES[orientation];
   const stepDeg = Math.min(orientation === "landscape" ? 6 : 7, (orientation === "landscape" ? 54 : 62) / Math.max(1, n - 1));
-  const a = (i - (n - 1) / 2) * stepDeg, rad = a * Math.PI / 180;
-  const r = center.fanRadius;
-  return { x: Math.sin(rad) * r, y: (1 - Math.cos(rad)) * r, rot: a, scale: plane.cardScaleHand, z: 0 };
+  const a = (i - (n - 1) / 2) * stepDeg, r = center.fanRadius;
+  return { x: Math.sin(rad(a)) * r, y: (1 - Math.cos(rad(a))) * r, rot: a, scale: plane.cardScaleHand, z: 0 };
 }
 /** 手牌立板在视口（透视容器）里的位置：枢轴点经桌面倾斜后的投影位置与深度，再抬高 40 单位。 */
 export function handLayerPlacement(orientation: Orientation): { left: number; top: number; z: number } {
-  const center = CENTER[orientation], plane = PLANES[orientation], cy = plane.h / 2, tilt = plane.tilt * Math.PI / 180;
+  const center = CENTER[orientation], plane = PLANES[orientation], cy = plane.h / 2, tilt = rad(plane.tilt);
   return { left: center.fan.x, top: cy + (center.fan.y - cy) * Math.cos(tilt), z: (center.fan.y - cy) * Math.sin(tilt) + 40 };
 }
 /** 一张手牌离开扇面时，在桌面坐标里的起点（扇面在桌面上的"影子"位置）。 */
@@ -154,7 +168,8 @@ export function cardPlacements(view: PublicView | SeatView | OmniscientView, ori
 
   for (const seat of seats) {
     const value = view.seats.find(s => s.id === seat.id)!;
-    const backPose = (offset: number, i: number) => pose(seat.hand.x + seat.dir.x * offset * 26, seat.hand.y + seat.dir.y * offset * 26, 0.5, seat.rot + offset * 3, 1 + i);
+    const bk = Math.min(1, seat.scale / OPPONENT_SCALE), backScale = 0.5 * bk, backGap = 26 * bk;
+    const backPose = (offset: number, i: number) => pose(seat.hand.x + seat.dir.x * offset * backGap, seat.hand.y + seat.dir.y * offset * backGap, backScale, seat.rot + offset * 3, 1 + i);
     if (seat.self && privateView) {
       privateView.hand.forEach((card, i) => result.push({ key: card.id, layer: "hand", cardId: card.id, card, zone: "hand", seatId: seat.id, pose: fanPose(i, privateView.hand.length, orientation), faceDown: false, order: i, standing: false }));
     } else if (omniscient && Array.isArray(omniscient.privateHands[seat.id])) {
@@ -206,7 +221,7 @@ export function fitPlane(width: number, height: number): { orientation: Orientat
   const orientation: Orientation = width < 640 || width < height * 0.9 ? "portrait" : "landscape";
   const spec = PLANES[orientation];
   // 倾斜后平面的投影高度约为 h * cos(tilt)；再为近端立起的手牌预留约三分之一的高度（立起的牌不被透视压缩）。
-  const projectedH = spec.h * Math.cos(spec.tilt * Math.PI / 180) * (orientation === "landscape" ? 1.34 : 1.24);
+  const projectedH = spec.h * Math.cos(rad(spec.tilt)) * (orientation === "landscape" ? 1.34 : 1.24);
   const scale = Math.min(width / spec.w, height / projectedH);
   return { orientation, scale, spec };
 }

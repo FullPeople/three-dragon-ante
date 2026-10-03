@@ -35,6 +35,44 @@
 | `textures/tavern/saloon.webp` | https://dl.polyhaven.org/file/ph-assets/HDRIs/extra/Tonemapped%20JPG/cowboy_town_saloon.jpg | CC0 (Poly Haven) | tavern backdrop (landscape) | crop x4300-8192 y900-3100 of 8k tonemapped JPG, resized 1920px, brightness .72, color .85, blur 1.2, webp q78 | 108594 | `235f6688575ccae0…` |
 | `textures/tavern/saloon-tall.webp` | https://dl.polyhaven.org/file/ph-assets/HDRIs/extra/Tonemapped%20JPG/cowboy_town_saloon.jpg | CC0 (Poly Haven) | tavern backdrop (portrait) | crop x5600-7400 y600-3400, resized 900x1400, same grading, webp q78 | 66174 | `cb4989d441e93118…` |
 
+| `fx/smoke_01.webp` | https://kenney.nl/assets/particle-pack :: PNG (Transparent)/smoke_01.png | CC0 (Kenney) | effect sprite | resized ≤256px, webp q85 (alpha) | 16652 | `f1f6cfa4a3333acb…` |
+| `fx/smoke_03.webp` | https://kenney.nl/assets/particle-pack :: PNG (Transparent)/smoke_03.png | CC0 (Kenney) | effect sprite | resized ≤256px, webp q85 (alpha) | 6988 | `637334587f20b493…` |
+| `fx/smoke_06.webp` | https://kenney.nl/assets/particle-pack :: PNG (Transparent)/smoke_06.png | CC0 (Kenney) | effect sprite | resized ≤256px, webp q85 (alpha) | 10372 | `7099b7316056ad11…` |
+| `fx/dirt_01.webp` | https://kenney.nl/assets/particle-pack :: PNG (Transparent)/dirt_01.png | CC0 (Kenney) | effect sprite | resized ≤256px, webp q85 (alpha) | 22518 | `153c98d26363e61a…` |
+| `fx/dirt_02.webp` | https://kenney.nl/assets/particle-pack :: PNG (Transparent)/dirt_02.png | CC0 (Kenney) | effect sprite | resized ≤256px, webp q85 (alpha) | 25742 | `37b76b601b0219c4…` |
+| `fx/flame_01.webp` | https://kenney.nl/assets/particle-pack :: PNG (Transparent)/flame_01.png | CC0 (Kenney) | effect sprite | resized ≤256px, webp q85 (alpha) | 8868 | `c4c51a1bec5fc145…` |
+| `fx/flame_03.webp` | https://kenney.nl/assets/particle-pack :: PNG (Transparent)/flame_03.png | CC0 (Kenney) | effect sprite | resized ≤256px, webp q85 (alpha) | 7922 | `76e4ad3da47b9d77…` |
+| `fx/fire_01.webp` | https://kenney.nl/assets/particle-pack :: PNG (Transparent)/fire_01.png | CC0 (Kenney) | effect sprite | resized ≤256px, webp q85 (alpha) | 22180 | `f4bb2d9ddf0aebb5…` |
+| `fx/spark_01.webp` | https://kenney.nl/assets/particle-pack :: PNG (Transparent)/spark_01.png | CC0 (Kenney) | effect sprite | resized ≤256px, webp q85 (alpha) | 18140 | `abc19cb9f28c4a18…` |
+| `fx/spark_03.webp` | https://kenney.nl/assets/particle-pack :: PNG (Transparent)/spark_03.png | CC0 (Kenney) | effect sprite | resized ≤256px, webp q85 (alpha) | 13874 | `e7a375f61c2b894c…` |
+| `fx/spark_06.webp` | https://kenney.nl/assets/particle-pack :: PNG (Transparent)/spark_06.png | CC0 (Kenney) | effect sprite | resized ≤256px, webp q85 (alpha) | 11512 | `a63c0eddfc74eb43…` |
+| `fx/star_01.webp` | https://kenney.nl/assets/particle-pack :: PNG (Transparent)/star_01.png | CC0 (Kenney) | effect sprite | resized ≤256px, webp q85 (alpha) | 6314 | `b12a34653813934e…` |
+| `fx/star_05.webp` | https://kenney.nl/assets/particle-pack :: PNG (Transparent)/star_05.png | CC0 (Kenney) | effect sprite | resized ≤256px, webp q85 (alpha) | 8430 | `3ee83c1d6436a7b2…` |
+| `fx/star_07.webp` | https://kenney.nl/assets/particle-pack :: PNG (Transparent)/star_07.png | CC0 (Kenney) | effect sprite | resized ≤256px, webp q85 (alpha) | 6036 | `aa6d65d8bac3e3be…` |
+| `fx/magic_01.webp` | https://kenney.nl/assets/particle-pack :: PNG (Transparent)/magic_01.png | CC0 (Kenney) | effect sprite | resized ≤256px, webp q85 (alpha) | 16692 | `aacb9cc550a83f97…` |
+| `fx/magic_02.webp` | https://kenney.nl/assets/particle-pack :: PNG (Transparent)/magic_02.png | CC0 (Kenney) | effect sprite | resized ≤256px, webp q85 (alpha) | 18132 | `202a2bdbdd3be828…` |
+| `fx/magic_04.webp` | https://kenney.nl/assets/particle-pack :: PNG (Transparent)/magic_04.png | CC0 (Kenney) | effect sprite | resized ≤256px, webp q85 (alpha) | 8010 | `4d5ac174c275cebb…` |
+| `fx/magic_05.webp` | https://kenney.nl/assets/particle-pack :: PNG (Transparent)/magic_05.png | CC0 (Kenney) | effect sprite | resized ≤256px, webp q85 (alpha) | 11526 | `b2d6dde7f1769b3b…` |
+| `fx/light_01.webp` | https://kenney.nl/assets/particle-pack :: PNG (Transparent)/light_01.png | CC0 (Kenney) | effect sprite | resized ≤256px, webp q85 (alpha) | 14222 | `669738754dd752ab…` |
+| `fx/light_02.webp` | https://kenney.nl/assets/particle-pack :: PNG (Transparent)/light_02.png | CC0 (Kenney) | effect sprite | resized ≤256px, webp q85 (alpha) | 14306 | `f9ed49ed870dbd54…` |
+| `fx/circle_01.webp` | https://kenney.nl/assets/particle-pack :: PNG (Transparent)/circle_01.png | CC0 (Kenney) | effect sprite | resized ≤256px, webp q85 (alpha) | 12474 | `42387a39e07c2063…` |
+| `fx/circle_03.webp` | https://kenney.nl/assets/particle-pack :: PNG (Transparent)/circle_03.png | CC0 (Kenney) | effect sprite | resized ≤256px, webp q85 (alpha) | 14692 | `9377eeb293cab097…` |
+| `fx/circle_05.webp` | https://kenney.nl/assets/particle-pack :: PNG (Transparent)/circle_05.png | CC0 (Kenney) | effect sprite | resized ≤256px, webp q85 (alpha) | 10404 | `cde9fc18185d7150…` |
+| `fx/twirl_01.webp` | https://kenney.nl/assets/particle-pack :: PNG (Transparent)/twirl_01.png | CC0 (Kenney) | effect sprite | resized ≤256px, webp q85 (alpha) | 9004 | `34c8079da96c0ee7…` |
+| `fx/twirl_03.webp` | https://kenney.nl/assets/particle-pack :: PNG (Transparent)/twirl_03.png | CC0 (Kenney) | effect sprite | resized ≤256px, webp q85 (alpha) | 13264 | `aeb4b08266023892…` |
+| `fx/slash_01.webp` | https://kenney.nl/assets/particle-pack :: PNG (Transparent)/slash_01.png | CC0 (Kenney) | effect sprite | resized ≤256px, webp q85 (alpha) | 3962 | `5919c8efb010caae…` |
+| `fx/slash_03.webp` | https://kenney.nl/assets/particle-pack :: PNG (Transparent)/slash_03.png | CC0 (Kenney) | effect sprite | resized ≤256px, webp q85 (alpha) | 3702 | `0f094583a8830519…` |
+| `fx/scorch_01.webp` | https://kenney.nl/assets/particle-pack :: PNG (Transparent)/scorch_01.png | CC0 (Kenney) | effect sprite | resized ≤256px, webp q85 (alpha) | 13218 | `304ee989c48ba7a0…` |
+| `fx/symbol_01.webp` | https://kenney.nl/assets/particle-pack :: PNG (Transparent)/symbol_01.png | CC0 (Kenney) | effect sprite | resized ≤256px, webp q85 (alpha) | 3526 | `938ab2076cefe2d0…` |
+| `fx/symbol_02.webp` | https://kenney.nl/assets/particle-pack :: PNG (Transparent)/symbol_02.png | CC0 (Kenney) | effect sprite | resized ≤256px, webp q85 (alpha) | 3002 | `af936fa4fec054da…` |
+| `fx/flare_01.webp` | https://kenney.nl/assets/particle-pack :: PNG (Transparent)/flare_01.png | CC0 (Kenney) | effect sprite | resized ≤256px, webp q85 (alpha) | 7036 | `6ed4718401b82c7a…` |
+| `fx/trace_01.webp` | https://kenney.nl/assets/particle-pack :: PNG (Transparent)/trace_01.png | CC0 (Kenney) | effect sprite | resized ≤256px, webp q85 (alpha) | 4726 | `ee3815b46a40c6bb…` |
+| `fx/trace_06.webp` | https://kenney.nl/assets/particle-pack :: PNG (Transparent)/trace_06.png | CC0 (Kenney) | effect sprite | resized ≤256px, webp q85 (alpha) | 4756 | `6f5c857b15718890…` |
+| `fx/window_01.webp` | https://kenney.nl/assets/particle-pack :: PNG (Transparent)/window_01.png | CC0 (Kenney) | effect sprite | resized ≤256px, webp q85 (alpha) | 5760 | `b719e9afb01a9664…` |
+| `fx/muzzle_01.webp` | https://kenney.nl/assets/particle-pack :: PNG (Transparent)/muzzle_01.png | CC0 (Kenney) | effect sprite | resized ≤256px, webp q85 (alpha) | 16164 | `193105819c8e80c2…` |
+
+Kenney Particle Pack zip SHA-256：`b631d4b07f7002549fdcf155f01141ad482f79f3440e4e301eed49ce5f1d8958`（下载于 2026-10-03，许可见 `assets/fx/LICENSE-kenney-particle-pack.txt`）。
+
 Kenney 音效包 zip SHA-256：`f36250766ac5bc378c13708ddf12a23a8e54a3251f8d482c7536e51b5dbafa18`（下载于 2026-10-03，本地留存 `.local-evidence/downloads/`，不入库）。
 
 完整哈希见 `.local-evidence/downloads/ledger.json`（gitignore）。

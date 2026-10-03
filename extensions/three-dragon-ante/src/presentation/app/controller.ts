@@ -100,7 +100,7 @@ export function createController(store: Store, deps: ControllerDeps): Controller
     dismissPower() { const fn = powerDismiss; powerDismiss = null; fn?.(); },
     onPowerDismiss(fn) { powerDismiss = fn; },
     knock() {
-      const s = store.get(), own = privateGame(s.view); if (!own || s.suspended || Date.now() - s.knockAt < 1500) return;
+      const s = store.get(), own = privateGame(s.view); if (!own || s.suspended || Date.now() - s.knockAt < 350) return;
       store.set({ knockAt: Date.now() });
       gestureSequence = Math.max(gestureSequence + 1, Date.now());
       deps.gesture?.({ gameId: own.id, revision: own.revision, count: own.hand.length, hover: null, selected: [], sequence: gestureSequence, slap: true });

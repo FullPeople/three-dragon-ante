@@ -21,7 +21,8 @@ export { createStore, emptyShow } from ${abs('presentation/app/store.ts')};
 export { createController } from ${abs('presentation/app/controller.ts')};
 export { createPresenter, landingFrame, settlementFrame, revealFrame, powerSegment, revealTally, scoreTally, SETTLE_MS, BEAT_MS, FOCUS_MS, TALLY_MS, MARK_MS } from ${abs('presentation/app/presenter.ts')};
 export { freshPublicEvents, derivePresentation, formationCues } from ${abs('presentation/model/cues.ts')};
-export { seatPlacements, tableShape } from ${abs('presentation/model/layout.ts')};`;
+export { seatPlacements, tableShape } from ${abs('presentation/model/layout.ts')};
+export { layoutOverlaps, outsideTable } from ${abs('presentation/model/layout-check.ts')};`;
 await build({ input: 'entry', plugins: [{ name: 'entry', resolveId(id) { if (id === 'entry') return '\0entry.ts'; }, load(id) { if (id === '\0entry.ts') return entry; } }], output: { file: join(out, 'bundle.mjs'), format: 'esm', codeSplitting: false }, logLevel: 'silent' });
 const m = await import(pathToFileURL(join(out, 'bundle.mjs')).href);
 const checks = []; const pass = name => { checks.push(name); console.log('PASS ' + name); };
@@ -91,7 +92,7 @@ assert.ok(events.some(e => e.code === 'CARD_PLAYED' && e.cardIds?.[0] === ready)
 {
   const triggered = events.some(e => e.code === 'POWER_TRIGGERED');
   assert.ok(triggered, 'fixture play triggers a power');
-  const initial = { lang: 'zh', hostKind: 'local', mode: 'full', view: null, display: null, flow: null, selected: [], hovered: null, keyboardCard: null, keyboardHeld: false, drag: null, pending: null, sending: false, localMessage: '', inspect: null, show: m.emptyShow(), busy: false, soundOn: false, gestures: {}, slowSeatIds: [], suspended: false, helpOpen: false, goldHold: null, knockAt: 0 };
+  const initial = { lang: 'zh', hostKind: 'local', mode: 'full', view: null, display: null, flow: null, selected: [], hovered: null, keyboardCard: null, keyboardHeld: false, drag: null, pending: null, sending: false, localMessage: '', inspect: null, show: m.emptyShow(), busy: false, soundOn: false, gestures: {}, slowSeatIds: [], suspended: false, helpOpen: false, goldHold: null, knockAt: 0, orientation: 'landscape' };
   const store = m.createStore(initial);
   const controller = m.createController(store, { send() {} });
   const t0 = performance.now(), log = [];
@@ -124,7 +125,7 @@ assert.ok(events.some(e => e.code === 'CARD_PLAYED' && e.cardIds?.[0] === ready)
 
 // --- 4b) 代际：说明层打开时清场，旧调度不得再写回旧帧 ---
 {
-  const initial = { lang: 'zh', hostKind: 'local', mode: 'full', view: null, display: null, flow: null, selected: [], hovered: null, keyboardCard: null, keyboardHeld: false, drag: null, pending: null, sending: false, localMessage: '', inspect: null, show: m.emptyShow(), busy: false, soundOn: false, gestures: {}, slowSeatIds: [], suspended: false, helpOpen: false, goldHold: null, knockAt: 0 };
+  const initial = { lang: 'zh', hostKind: 'local', mode: 'full', view: null, display: null, flow: null, selected: [], hovered: null, keyboardCard: null, keyboardHeld: false, drag: null, pending: null, sending: false, localMessage: '', inspect: null, show: m.emptyShow(), busy: false, soundOn: false, gestures: {}, slowSeatIds: [], suspended: false, helpOpen: false, goldHold: null, knockAt: 0, orientation: 'landscape' };
   const store = m.createStore(initial);
   const controller = m.createController(store, { send() {} });
   const presenter = m.createPresenter(store, controller, { fx: () => null, root: () => ({ querySelector: () => null }), onBusy() {}, sound() {} });
@@ -144,7 +145,7 @@ assert.ok(events.some(e => e.code === 'CARD_PLAYED' && e.cardIds?.[0] === ready)
 // --- 5) 选择切换：单选时点另一项直接切换，多选时选满后其余不再加入 ---
 {
   const choose = (max, min = 1) => ({ kind: 'choose', choice: { id: 'c', seatId: leader, code: 'LOWEST_ANTE_CARD', min, max, options: [{ id: 'a', cardId: 'red-1' }, { id: 'b', cardId: 'black-1' }, { id: 'c2', cardId: 'blue-1' }] } });
-  const mk = max => { const g = { ...m.projectSeat(state, leader), actions: [choose(max)] }; const store = m.createStore({ lang: 'zh', hostKind: 'local', mode: 'full', view: view(state, { game: g }), display: null, flow: null, selected: [], hovered: null, keyboardCard: null, keyboardHeld: false, drag: null, pending: null, sending: false, localMessage: '', inspect: null, show: m.emptyShow(), busy: false, soundOn: false, gestures: {}, slowSeatIds: [], suspended: false, helpOpen: false, goldHold: null, knockAt: 0 }); return { store, c: m.createController(store, { send() {} }) }; };
+  const mk = max => { const g = { ...m.projectSeat(state, leader), actions: [choose(max)] }; const store = m.createStore({ lang: 'zh', hostKind: 'local', mode: 'full', view: view(state, { game: g }), display: null, flow: null, selected: [], hovered: null, keyboardCard: null, keyboardHeld: false, drag: null, pending: null, sending: false, localMessage: '', inspect: null, show: m.emptyShow(), busy: false, soundOn: false, gestures: {}, slowSeatIds: [], suspended: false, helpOpen: false, goldHold: null, knockAt: 0, orientation: 'landscape' }); return { store, c: m.createController(store, { send() {} }) }; };
   const single = mk(1); single.c.toggleOption('a'); single.c.toggleOption('b');
   assert.deepEqual(single.store.get().selected, ['b'], 'single choice switches on the second click');
   single.c.toggleOption('b'); assert.deepEqual(single.store.get().selected, [], 'clicking the selected option clears it');
@@ -186,11 +187,13 @@ assert.ok(events.some(e => e.code === 'CARD_PLAYED' && e.cardIds?.[0] === ready)
 {
   assert.equal(m.tableShape(3), 'round'); assert.equal(m.tableShape(4), 'square');
   const three = m.seatPlacements(m.projectSeat(state, leader), leader, 'landscape');
-  assert.ok(three.every(s => s.rot === 0), 'round table keeps every seat upright');
+  assert.ok(three.find(s => s.self).rot === 0 && three.filter(s => !s.self).every(s => Math.abs(s.rot) === 150), 'round table: self upright, the two opponents angled toward the centre');
+  assert.ok(three.every(s => s.plateRot > -90 && s.plateRot <= 90), 'nameplates never read upside-down');
   const six = m.createGame({ id: 'six', seats: ['a', 'b', 'c', 'd', 'e', 'f'].map(id => ({ id, name: id })), seed: 1 });
   const places = m.seatPlacements(m.projectSeat(six, 'a'), 'a', 'landscape');
   assert.deepEqual(places.map(s => s.edge), ['bottom', 'left', 'left', 'top', 'right', 'right'], 'six players: left 2, top 1, right 2 clockwise');
-  assert.deepEqual(places.map(s => s.rot), [0, 90, 90, 0, -90, -90]);
+  assert.deepEqual(places.map(s => s.rot), [0, 90, 90, 180, -90, -90], 'top seat faces the viewer, sides turn in');
+  assert.deepEqual(places.map(s => s.plateRot), [0, 90, 90, 0, 90, 90], 'side nameplates turn with their seat and read the same way on both sides, never upside-down');
   for (const s of places.filter(s => s.edge !== 'bottom')) { assert.ok(s.plate.x > 60 && s.plate.x < 1740 && s.plate.y > 20 && s.plate.y < 1080, 'plates stay on the table'); }
   pass('table shape: round for three, square with rotated side seats for six');
 }
@@ -223,7 +226,7 @@ assert.ok(events.some(e => e.code === 'CARD_PLAYED' && e.cardIds?.[0] === ready)
   const pres = m.derivePresentation(pv.game, nv.game);
   assert.ok(pres.gold.every(f => f.code !== 'PAID_HOLE' && f.code !== 'TOOK_HOLE'), 'debt flows never precede the scoreboard');
   // 演出：桌面拼点时场景帧还是结算帧（有牌、有点数），演完才切到结算后的投影
-  const initial = { lang: 'zh', hostKind: 'local', mode: 'full', view: null, display: null, flow: null, selected: [], hovered: null, keyboardCard: null, keyboardHeld: false, drag: null, pending: null, sending: false, localMessage: '', inspect: null, show: m.emptyShow(), busy: false, soundOn: false, gestures: {}, slowSeatIds: [], suspended: false, helpOpen: false, goldHold: null, knockAt: 0 };
+  const initial = { lang: 'zh', hostKind: 'local', mode: 'full', view: null, display: null, flow: null, selected: [], hovered: null, keyboardCard: null, keyboardHeld: false, drag: null, pending: null, sending: false, localMessage: '', inspect: null, show: m.emptyShow(), busy: false, soundOn: false, gestures: {}, slowSeatIds: [], suspended: false, helpOpen: false, goldHold: null, knockAt: 0, orientation: 'landscape' };
   const store = m.createStore(initial), controller = m.createController(store, { send() {} });
   const presenter = m.createPresenter(store, controller, { fx: () => null, root: () => ({ querySelector: () => null }), onBusy() {}, sound() {} });
   store.set({ view: pv }); presenter.update(pv, null, false); store.set({ view: nv }); presenter.update(nv, pv, true);
@@ -254,7 +257,7 @@ assert.ok(events.some(e => e.code === 'CARD_PLAYED' && e.cardIds?.[0] === ready)
 
 // --- 12) 拍桌节流；能力事件段切分 ---
 {
-  const initial = { lang: 'zh', hostKind: 'local', mode: 'full', view: view(state), display: null, flow: null, selected: [], hovered: null, keyboardCard: null, keyboardHeld: false, drag: null, pending: null, sending: false, localMessage: '', inspect: null, show: m.emptyShow(), busy: false, soundOn: false, gestures: {}, slowSeatIds: [], suspended: false, helpOpen: false, goldHold: null, knockAt: 0 };
+  const initial = { lang: 'zh', hostKind: 'local', mode: 'full', view: view(state), display: null, flow: null, selected: [], hovered: null, keyboardCard: null, keyboardHeld: false, drag: null, pending: null, sending: false, localMessage: '', inspect: null, show: m.emptyShow(), busy: false, soundOn: false, gestures: {}, slowSeatIds: [], suspended: false, helpOpen: false, goldHold: null, knockAt: 0, orientation: 'landscape' };
   const store = m.createStore(initial); let sent = 0; const c = m.createController(store, { send() {}, gesture() { sent++; } });
   c.knock(); const first = store.get().knockAt; c.knock();
   assert.ok(first > 0 && store.get().knockAt === first && sent === 1, 'second knock within 1.5 s is ignored');
@@ -262,6 +265,19 @@ assert.ok(events.some(e => e.code === 'CARD_PLAYED' && e.cardIds?.[0] === ready)
   assert.deepEqual(m.powerSegment(evs, { key: 'g:1:0', cardId: 'black-3', seatId: 'a', family: 'black' }).map(e => e.code), ['TOOK_STAKES']);
   assert.deepEqual(m.powerSegment(evs, { key: 'g:1:2', cardId: 'red-5', seatId: 'a', family: 'red' }).map(e => e.code), ['PAID_PLAYER']);
   pass('knock is throttled and each power script only sees its own event segment');
+}
+
+// --- 13) 布局：2–6 人 × 横竖屏，座位区域（含 4 张牌阵）与中央牌堆互不重叠、都在桌面内 ---
+{
+  const problems = [];
+  for (const n of [2, 3, 4, 5, 6]) for (const o of ['landscape', 'portrait']) {
+    const ids = Array.from({ length: n }, (_, i) => ({ id: i ? 'b' + i : 'you', name: i ? 'B' + i : 'You' }));
+    const v = m.projectSeat(m.createGame({ id: 'layout', seats: ids, seed: 1 }), 'you');
+    for (const cards of [3, 4]) for (const ov of m.layoutOverlaps(v, 'you', o, cards)) problems.push(`${n}p ${o} ${cards}: ${ov.a} x ${ov.b}`);
+    for (const id of m.outsideTable(v, 'you', o)) problems.push(`${n}p ${o}: ${id} outside`);
+  }
+  assert.deepEqual(problems, [], 'layout overlaps / out-of-table');
+  pass('layout: every player count and orientation keeps zones apart and on the table');
 }
 
 writeFileSync(join(out, 'result.json'), JSON.stringify({ checks }, null, 2));

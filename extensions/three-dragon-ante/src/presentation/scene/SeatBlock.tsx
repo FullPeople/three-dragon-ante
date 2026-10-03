@@ -14,7 +14,7 @@ export interface SeatBlockProps { seat: PublicSeat; placement: SeatPlacement; ga
 const RIBBON_KEY: Record<Exclude<SeatRibbon, "">, string> = { waiting: "ribbonWaiting", committed: "ribbonCommitted", acting: "ribbonActing", thinking: "ribbonThinking", played: "ribbonPlayed", choosing: "ribbonChoosing" };
 
 export function SeatBlock({ seat, placement, game, selfSeatId, lang, legalZone, dragOver, targetSeatId, waiting, gold, tally, onZoneClick }: SeatBlockProps) {
-  const self = placement.self, s = placement.scale, rot = placement.rot, dir = placement.dir, inward = placement.inward;
+  const self = placement.self, s = placement.scale, rot = placement.rot, dir = placement.dir, inward = placement.inward, plateRot = placement.plateRot;
   const ribbon = seatRibbon(game, seat.id, selfSeatId);
   const active = game.activeSeatId === seat.id && (game.phase === "play" || game.phase === "choice");
   const formation = publicFlightFormation(seat);
@@ -35,14 +35,14 @@ export function SeatBlock({ seat, placement, game, selfSeatId, lang, legalZone, 
   if (active) cls.push("is-active"); if (waiting) cls.push("is-waiting"); if (targetSeatId === seat.id) cls.push("is-target"); if (seat.id === game.leaderSeatId) cls.push("is-leader");
   const changed = seat.scoringStrength !== seat.strength;
   return <div className={cls.join(" ")} data-seat={seat.id} style={{ "--seat-scale": s, "--seat-rot": `${rot}deg` } as React.CSSProperties}>
-    <div className="tda-plate tda-seat-plate" style={at(placement.plate)} data-seat-plate={seat.id}>
+    <div className="tda-plate tda-seat-plate" style={{ ...at(placement.plate), "--rot": `${plateRot}deg` } as React.CSSProperties} data-seat-plate={seat.id}>
       {seat.id === game.leaderSeatId ? <span className="tda-seat-leader" title={t("leader", lang)}>♛</span> : null}
       <span className="tda-seat-name">{seat.name}{self && seat.name !== t("you", lang) ? ` · ${t("you", lang)}` : ""}</span>
       <span className="tda-num tda-seat-gold">{gold}</span>
       {seat.debt ? <span className="tda-seat-debt">−{seat.debt}</span> : null}
       {!self ? <span className="tda-seat-hand" title={t("hand", lang)}><svg viewBox="0 0 12 14" width="10" height="12" aria-hidden="true"><rect x="0.5" y="2.5" width="7" height="10" rx="1" fill="none" stroke="currentColor" /><rect x="4.5" y="0.5" width="7" height="10" rx="1" fill="#15100b" stroke="currentColor" /></svg>{seat.handCount}</span> : null}
     </div>
-    {ribbon ? <div className={`tda-ribbon tda-ribbon--${ribbon}`} style={at(placement.ribbon)}>{t(RIBBON_KEY[ribbon], lang)}</div> : null}
+    {ribbon ? <div className={`tda-ribbon tda-ribbon--${ribbon}`} style={{ ...at(placement.ribbon), "--rot": `${plateRot}deg` } as React.CSSProperties}>{t(RIBBON_KEY[ribbon], lang)}</div> : null}
     <div className={`tda-slot tda-slot--ante${anteLegal ? " is-legal" : ""}${dragOver === "ante" && self ? " is-over" : ""}`} style={box(placement.ante, CARD.w * s + 16, CARD.h * s + 16)}
       data-drop-zone="ante" data-drop-seat={seat.id} onClick={anteLegal ? () => onZoneClick("ante") : undefined} role={anteLegal ? "button" : undefined} aria-label={self ? t("placeAnte", lang) : undefined}>
       <span className="tda-slot-label">{t("ante", lang)}</span>
@@ -52,11 +52,11 @@ export function SeatBlock({ seat, placement, game, selfSeatId, lang, legalZone, 
       data-drop-zone="flight" data-drop-seat={seat.id} onClick={flightLegal ? () => onZoneClick("flight") : undefined} role={flightLegal ? "button" : undefined} aria-label={self ? t("placeFlight", lang) : undefined}>
       <span className="tda-slot-label">{t("flight", lang)}</span>
     </div>
-    <div className={`tda-plate tda-strength-plate${changed ? " is-changed" : ""}${tally ? ` is-tally is-${tally.mark}` : ""}`} style={at(strengthAt)} data-strength-seat={seat.id}>
+    <div className={`tda-plate tda-strength-plate${changed ? " is-changed" : ""}${tally ? ` is-tally is-${tally.mark}` : ""}`} style={{ ...at(strengthAt), "--rot": `${plateRot}deg` } as React.CSSProperties} data-strength-seat={seat.id}>
       <span>{t("strength", lang)}</span>
       <span className="tda-num">{tally ? tally.value : changed ? `${seat.strength} → ${seat.scoringStrength}` : seat.strength}</span>
     </div>
-    {formation ? <span className={`tda-formation tda-formation--${formation}`} style={{ left: formationAt.x, top: formationAt.y, position: "absolute", transform: "translate(-50%, -50%) translateZ(26px)" }}>{t(formation === "color" ? "formationColor" : formation === "strength" ? "formationStrength" : "formationMortal", lang)}</span> : null}
-    {seat.archmage ? <span className="tda-formation tda-formation--archmage" style={{ left: formationAt.x, top: formationAt.y + 26, position: "absolute", transform: "translate(-50%, -50%) translateZ(26px)" }}>{t("archmage", lang)}</span> : null}
+    {formation ? <span className={`tda-formation tda-formation--${formation}`} style={{ left: formationAt.x, top: formationAt.y, position: "absolute", transform: `translate(-50%, -50%) translateZ(26px) rotate(${plateRot}deg)` }}>{t(formation === "color" ? "formationColor" : formation === "strength" ? "formationStrength" : "formationMortal", lang)}</span> : null}
+    {seat.archmage ? <span className="tda-formation tda-formation--archmage" style={{ left: formationAt.x + inward.x * 26, top: formationAt.y + inward.y * 26, position: "absolute", transform: `translate(-50%, -50%) translateZ(26px) rotate(${plateRot}deg)` }}>{t("archmage", lang)}</span> : null}
   </div>;
 }

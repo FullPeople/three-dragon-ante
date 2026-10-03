@@ -42,7 +42,7 @@ export function CardLayer({ state, controller, orientation, layer, placements, s
     const target: "table" | "hand" = pendingHere ? "table" : placement.layer;
     if (target !== layer) return [];
     const previous = known.current.get(placement.key);
-    let enterFrom: Pose | undefined, dropIn = false, arriving = false;
+    let enterFrom: Pose | undefined, dropIn = false, dropFaceDown = false, arriving = false;
     if (layer === "hand") {
       if (!previous || previous.layer !== "hand") { enterFrom = { x: 0, y: 320, rot: 0, scale: 0.85, z: 0 }; arriving = true; }
     } else if (previous?.layer === "hand") { enterFrom = handShadowPose(orientation, previous.pose); dropIn = true; }
@@ -50,7 +50,7 @@ export function CardLayer({ state, controller, orientation, layer, placements, s
       const seat = placement.seatId ? seats.find(s => s.id === placement.seatId) : undefined;
       const fromSeat = seat && !seat.self;
       if (placement.zone === "ante" && placement.seatId && known.current.has(`ante:${placement.seatId}`)) enterFrom = undefined; // 翻注：匿名背换成真实牌，原地出现
-      else if ((placement.zone === "ante" || placement.zone === "flight") && fromSeat) { enterFrom = { x: seat.hand.x, y: seat.hand.y, rot: seat.rot, scale: seat.scale, z: 30 }; dropIn = true; }
+      else if ((placement.zone === "ante" || placement.zone === "flight") && fromSeat) { enterFrom = { x: seat.hand.x, y: seat.hand.y, rot: seat.rot, scale: seat.scale, z: 30 }; dropIn = true; dropFaceDown = placement.zone === "flight"; }
       else if (placement.zone === "discard") enterFrom = { x: center.stakes.x, y: center.stakes.y, rot: 0, scale: 1, z: 30 };
       else if (placement.zone !== "deck") enterFrom = { x: center.deck.x, y: center.deck.y, rot: 0, scale: 1, z: 30 };
     }
@@ -60,6 +60,7 @@ export function CardLayer({ state, controller, orientation, layer, placements, s
       const gesture = gestures[placement.seatId];
       if (gesture && (gesture.hover === placement.order || gesture.selected.includes(placement.order))) { lifted = true; pose = { ...pose, y: pose.y - 18, z: pose.z + 15 }; }
     }
+    const tugged = !!state.show.tug && placement.zone === "hand" && placement.seatId === state.show.tug.seatId && placement.order === state.show.tug.index;
     const dragging = !!cardId && state.drag?.cardId === cardId;
     if (isOwnHand && dragging) pose = { ...pose, y: pose.y - 70, rot: 0, scale: pose.scale * 1.04 };
     else if (isOwnHand && cardId && (state.selected.includes(cardId) || state.keyboardHeld && state.keyboardCard === cardId)) pose = { ...pose, y: pose.y - 36 };
@@ -70,11 +71,11 @@ export function CardLayer({ state, controller, orientation, layer, placements, s
     if (cardId && focusId === cardId && placement.zone === "flight") pose = { ...pose, z: pose.z + 46, scale: pose.scale * 1.12 };
     const faceDownOverride = cardId && placement.zone === "ante" && revealIds.has(cardId) && reveal === "placing" ? true : undefined;
     const label = cardId ? (() => { try { const value = card(cardId); return `${cardName(cardId, state.lang)} · ${t("cardStrength", state.lang, { n: value.strength })}`; } catch { return undefined; } })() : undefined;
-    return [<CardNode key={placement.key} placement={{ ...placement, pose, layer: target, standing: false }} enterFrom={enterFrom} dropIn={dropIn} arriving={arriving} faceDownOverride={faceDownOverride}
+    return [<CardNode key={placement.key} placement={{ ...placement, pose, layer: target, standing: false }} enterFrom={enterFrom} dropIn={dropIn} dropFaceDown={dropFaceDown} arriving={arriving} faceDownOverride={faceDownOverride}
       selected={isOwnHand && !!cardId && state.selected.includes(cardId)} hovered={isOwnHand && !!cardId && state.hovered === cardId}
       legal={isOwnHand && !!cardId && legal.has(cardId)} pending={pendingHere} dragging={dragging}
       top={!!cardId && topIds.has(cardId) && reveal === "price"} resolving={!!cardId && cardId === resolvingId} focus={!!cardId && cardId === focusId} lifted={lifted}
-      hint={isOwnHand && cardId ? hints.get(cardId) : undefined} label={label}
+      hint={isOwnHand && cardId ? hints.get(cardId) : undefined} label={label} wildLabel={t("wild", state.lang)} riderLabel={t("rider", state.lang)} tugged={tugged}
       onPointerDown={isOwnHand ? onCardPointerDown : undefined}
       onClick={cardId ? id => { if (isOwnHand) controller.selectCard(id); else controller.inspect(id, true); } : undefined}
       onHover={cardId ? id => { if (isOwnHand) controller.hover(id); else controller.inspect(id, false); } : undefined}

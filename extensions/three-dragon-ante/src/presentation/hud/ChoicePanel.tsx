@@ -25,7 +25,8 @@ function optionLabel(code: string | undefined, id: string, lang: "zh" | "en"): {
 export function ChoicePanel({ state, controller }: { state: UIState; controller: Controller }) {
   const view = state.view, own = privateGame(view), game = view?.game ?? null, lang = state.lang;
   const action = controller.action();
-  if (!own || !game || !action || action.kind !== "choose" || state.show.power || state.show.score || state.show.formation || state.show.tally) return null;
+  // 演出进行中（落地、聚焦、说明、特效）不出面板；presenter 在特效射到选择方之后才释放 busy
+  if (!own || !game || !action || action.kind !== "choose" || state.busy || state.show.power || state.show.score || state.show.formation || state.show.tally) return null;
   const choice = action.choice, selected = new Set(state.selected), max = choice.max, min = choice.min, locked = controller.locked();
   const seatName = (id: string) => id === own.selfSeatId ? t("you", lang) : game.seats.find(s => s.id === id)?.name ?? id;
   const owner = (cardId: string) => game.seats.find(seat => seat.flight.some(entry => entry.cardId === cardId))?.name ?? null;

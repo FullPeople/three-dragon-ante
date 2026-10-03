@@ -4,6 +4,7 @@ import type { TableView } from "../../game/protocol";
 import type { GameAction, OmniscientView, PublicView, ScoreReport, SeatView } from "../../game/rules/types";
 import type { HandGesture } from "../../game/gesture";
 import type { FormationCue, PowerCue, RoundCue, RevealCue } from "../model/cues";
+import type { Orientation, Pose } from "../model/layout";
 import type { Lang } from "../i18n";
 
 export interface PendingAction { actionId: string; tableId: string; gameId: string; revision: number; cardId?: string; zone?: "ante" | "flight"; action: GameAction; retryable: boolean }
@@ -26,7 +27,14 @@ export interface ShowState {
   tally: TallyState | null;
   /** 刚落地、正要发动能力的那张牌：抬起聚焦 */
   focusCardId: string | null;
+  /** 能力等待某家选择：特效在该家区域持续保持，直到选择结算 */
+  powerHold: { cue: PowerCue; seatId: string; choiceId: string } | null;
+  /** 转移中的幽灵牌：抽牌 / 偷牌 / 取前注 / 弃牌，一张一张飞 */
+  ghosts: GhostCard[];
+  /** 被偷的那张牌背：先前伸抖动，再被幽灵牌带走 */
+  tug: { seatId: string; index: number } | null;
 }
+export interface GhostCard { key: string; cardId?: string; from: Pose; to: Pose; delay: number; duration: number; faceDown: boolean; flip?: boolean }
 export interface UIState {
   lang: Lang;
   hostKind: "local" | "obr";
@@ -56,9 +64,11 @@ export interface UIState {
   goldHold: { seats: Record<string, number>; stakes: number; hole: number } | null;
   /** 本家最近一次拍桌的时间戳（节流与表现） */
   knockAt: number;
+  /** 场景当前的平面方向（幽灵牌的坐标按它算） */
+  orientation: Orientation;
 }
 
-export const emptyShow = (): ShowState => ({ reveal: null, revealPhase: null, revealTopIds: [], power: null, resolvingSeatId: null, banner: null, score: null, scoring: false, formation: null, tally: null, focusCardId: null });
+export const emptyShow = (): ShowState => ({ reveal: null, revealPhase: null, revealTopIds: [], power: null, resolvingSeatId: null, banner: null, score: null, scoring: false, formation: null, tally: null, focusCardId: null, powerHold: null, ghosts: [], tug: null });
 
 export interface Store {
   get(): UIState;

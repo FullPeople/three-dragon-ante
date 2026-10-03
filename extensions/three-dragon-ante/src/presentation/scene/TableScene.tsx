@@ -10,8 +10,10 @@ import { TableSurface } from "./TableSurface";
 import { CardLayer, type KnownEntry } from "./CardLayer";
 import { CoinStack } from "./CoinStack";
 import { FieldLayer } from "./FieldLayer";
+import { GhostLayer } from "./GhostLayer";
 import { t } from "../i18n";
 import { mountFx, type FxLayer } from "../fx/particles";
+import { familyFx } from "../fx/powers";
 
 export interface TableSceneProps { state: UIState; controller: Controller; onFx(fx: FxLayer | null): void; onOrientation(orientation: Orientation): void; onLand?(key: string, zone: string): void }
 
@@ -67,13 +69,14 @@ export function TableScene({ state, controller, onFx, onOrientation, onLand }: T
     return tally.items.flatMap(item => { const p = placements.find(c => c.cardId === item.cardId); return p ? [{ ...item, x: p.pose.x, y: p.pose.y - CARD.h * p.pose.scale / 2 - 10 }] : []; });
   }, [tally, placements]);
 
-  // 拍桌：本家铭牌上落下手掌 + 震动
-  const lastKnock = useRef(0);
+  // 拍桌：本家铭牌旁落下掌印 + 震动；1.2 s 内再拍是"手还在桌上再拍"的短动作（每个座位独立，远端的在 mount 里走同一套）
+  const lastKnock = useRef(0), restingUntil = useRef(0);
   useEffect(() => {
     if (!state.knockAt || state.knockAt === lastKnock.current) return; lastKnock.current = state.knockAt;
     const fx = fxRef.current, el = host.current?.querySelector<HTMLElement>(`[data-seat-plate="${own ? CSS.escape(own.selfSeatId) : "-"}"]`);
-    if (!fx) return; const r = el?.getBoundingClientRect(); const point = r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : (() => { const h = host.current!.getBoundingClientRect(); return { x: h.left + h.width / 2, y: h.top + h.height * 0.7 }; })();
-    fx.shake(520); void fx.slap(point);
+    if (!fx) return; const r = el?.getBoundingClientRect(); const point = r ? { x: r.left + r.width / 2 + 90, y: r.top + r.height / 2 } : (() => { const h = host.current!.getBoundingClientRect(); return { x: h.left + h.width / 2, y: h.top + h.height * 0.7 }; })();
+    const again = performance.now() < restingUntil.current; restingUntil.current = performance.now() + 1200;
+    fx.shake(again ? 300 : 520); void fx.slap(point, again);
   }, [state.knockAt]);
 
   // 拖动：手牌节点按下后超过 6px 才算拖动，否则保留点击语义。
@@ -127,16 +130,18 @@ export function TableScene({ state, controller, onFx, onOrientation, onLand }: T
           <TableSurface width={spec.w} height={spec.h} scale={fit.scale} shape={shape} />
           {game ? <>
             <FieldLayer game={game} seats={seats} fx={fxRef.current} lang={state.lang} host={host.current} />
+            {state.show.powerHold ? (() => { const seat = seats.find(s => s.id === state.show.powerHold!.seatId); if (!seat) return null; const n = Math.max(1, game.seats.find(s => s.id === seat.id)?.flight.length ?? 1); const cx = seat.flight.x + seat.dir.x * (n - 1) * seat.flightStep / 2, cy = seat.flight.y + seat.dir.y * (n - 1) * seat.flightStep / 2; return <div className={`tda-field tda-field--hold is-${familyFx(state.show.powerHold.cue.family)}`} style={{ left: cx, top: cy, width: CARD.w * seat.scale + (n - 1) * seat.flightStep + 70, height: CARD.h * seat.scale + 60, transform: `translate(-50%, -50%) rotate(${seat.rot}deg)` }} aria-hidden="true"><div className="tda-field-ring" /><div className="tda-field-ring tda-field-ring--inner" /><span className="tda-field-label">{t("ribbonChoosing", state.lang)}</span></div>; })() : null}
             <div className="tda-pile tda-pile--deck" style={{ left: center.deck.x - CARD.w / 2 - 8, top: center.deck.y - CARD.h / 2 - 8 }} data-pile="deck"><span className="tda-slot-label">{t("deck", state.lang)} · {game.deckCount}</span></div>
             <div className="tda-pile tda-pile--discard" style={{ left: center.discard.x - CARD.w / 2 - 8, top: center.discard.y - CARD.h / 2 - 8 }} data-pile="discard" onClick={() => { const top = game.discard[game.discard.length - 1]; if (top) controller.inspect(top.id, true); }}><span className="tda-slot-label">{t("discard", state.lang)} · {game.discard.length}</span></div>
-            <div className="tda-stakes" style={{ left: center.stakes.x, top: center.stakes.y }} data-pile="stakes">
-              <CoinStack amount={stakesShown} big />
+            <div className="tda-stakes" style={{ left: center.stakes.x, top: center.stakes.y }}>
               <div className="tda-plate tda-stakes-plate"><span>{t("stakes", state.lang)}</span><span className="tda-num tda-stakes-amount">{stakesShown}</span></div>
+              <div className="tda-coins-anchor tda-coins-anchor--pile" data-pile="stakes"><CoinStack amount={stakesShown} big /></div>
             </div>
-            {holeShown > 0 ? <div className="tda-hole" style={{ left: center.hole.x, top: center.hole.y }} data-pile="hole"><CoinStack amount={holeShown} /><div className="tda-plate tda-hole-plate"><span>{t("hole", state.lang)}</span><span className="tda-num">{holeShown}</span></div></div> : null}
+            {holeShown > 0 ? <div className="tda-hole" style={{ left: center.hole.x, top: center.hole.y }}><div className="tda-plate tda-hole-plate"><span>{t("hole", state.lang)}</span><span className="tda-num">{holeShown}</span></div><div className="tda-coins-anchor tda-coins-anchor--pile" data-pile="hole"><CoinStack amount={holeShown} /></div></div> : null}
             {seats.map(placement => { const seat = game.seats.find(s => s.id === placement.id)!; return <SeatBlock key={placement.id} seat={seat} placement={placement} game={game} selfSeatId={own?.selfSeatId ?? null} lang={state.lang}
               legalZone={legalZone} dragOver={drag?.cardId ? drag.overZone : null} targetSeatId={targetSeatId} waiting={waitingIds.has(placement.id)} gold={hold?.seats[seat.id] ?? seat.gold} tally={seatTally.get(seat.id)} onZoneClick={zone => controller.placeSelected(zone)} />; })}
             <CardLayer state={state} controller={controller} orientation={orientation} layer="table" placements={placements} seats={seats} known={known} onCardPointerDown={onCardPointerDown} onCardLand={onCardLand} />
+            <GhostLayer ghosts={state.show.ghosts} />
             {pips.map(pip => <div key={pip.cardId} className={`tda-pip is-step${tally?.step ?? 1} is-${pip.mark}`} style={{ left: pip.x, top: pip.y }} aria-hidden="true"><b className="tda-num">{pip.value}</b>{tally?.step === 2 && pip.mark !== "none" ? <small>{t(pip.mark === "lead" ? "tallyLeader" : pip.mark === "tied" ? "tallyTied" : "tallyIneligible", state.lang)}</small> : null}</div>)}
           </> : null}
         </div>
