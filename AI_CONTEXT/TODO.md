@@ -5,6 +5,11 @@
 
 ## 待办
 
+- [x] 最新状态：根任务已确认热修复 `801daf5` / 0.9.1 上线；本 FX 候选仍未上线，下方8bce/552/7523失败与未发布记载保留为历史，不能用于覆盖当前状态。
+- [x] `c7b36be3` 非浏览器轻验证：build/tsc0错、buildserver和认证超时Node5通过；首轮npm7/8的controller旁观者count断言失败完整保留。ignored实际控制器三控制3/3：自然本次未复现，延迟收件旧rev6→新rev5，exactrev错误count仍失败；见 `RUNBOOKS/2026-10-04_controller-projection-sync.md`。
+- [x] 控制器专项仅补旁观者同game.id/本次exactrevision的现有期限等待，所有原count/privacy/action断言不变；修复后仅一次npm真实8/8（原controller15/presentation20），证据run-post-sync-a54ae246，未覆盖首轮7/8与三控制；见controller-projection-sync runbook。
+- [ ] FX浏览器仍待根释放窗口，建议先FX9/生命周期9/真实演出13，再按新失败或审计需要扩展；完整CI/换模型独立终审/版本区分与发布决定仍待。
+
 - [x] 后续801daf5认证超时最小修复反向合入：精确authenticationRequired既有backoff，其他拒绝终态保持；保留FX与所有专项，新Node5/CI/安全诊断合入，语法/tsc0错/保护diff通过，本候选未跑browser。见hotfix-backmerge后续段。
 - [ ] 最新热修复801的精确CI/冻结包/定向部署与公网验收仍由根任务完成；552两次失败及e347真实认证超时原因和恢复证据保留，不能用根热修复13通过冒称完整FX验收。
 - [ ] FX真正发布前与热修复0.9.1区分版本，候选建议0.9.2-dev；当前package仍0.9.1-dev未改，待完整FX回归/独立终审与根任务发布决定后统一更新产物/发布元数据。

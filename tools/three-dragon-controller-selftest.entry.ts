@@ -53,6 +53,8 @@ try {
   await until(() => !alice.view.pending && own(alice).revision === initialRevision + 1 && own(alice).hand.length === 5 && !!own(alice).committedAnte, "same action retry receives durable private result");
   assert.equal(host.view.game?.revision, initialRevision + 1, "no duplicate rule execution after missing ACK");
   assert.equal(own(alice).hand.length, 5); assert.ok(own(alice).committedAnte);
+  // Encrypted recipients adopt snapshots independently; compare the same committed revision.
+  await until(() => watcher.view.game?.id === own(alice).id && watcher.view.game?.revision === initialRevision + 1, "spectator received the exact committed action revision");
   assert.equal((watcher.view.game?.seats.find(seat => seat.id === own(alice).selfSeatId))?.handCount, 5);
   console.log("PASS: dropped private ACK retries the original action exactly once without exposing secret ante");
 
