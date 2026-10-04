@@ -35,3 +35,14 @@
 ## 遗留（同步TODO）
 
 浏览器释放后完成该合并源FX9（历史阴性控制/同tick真实render）、生命周期9、权限13、真实演出13、铭牌21、飞牌10及其他完整CI与换模型独立审计。热修复线上回执与公网验收由根任务继续，本分支不提前发布c396。
+
+## 后续：55218ea 仅工具/CI增量（按时间追加）
+
+根任务要求把最新热修复冻结 `55218ea673d388003bffa2ac554e033f048f35c0` 合入同一隔离分支。动手前 fetch 成功，第一父候选 `b37b3571bf2ba8ba4f37db2a7fbb45cdabd32124` 干净，共同祖先8bce；使用正常双父 merge、未force/推送/ff根/部署。
+
+- 相对8bce仅5文件：workflow、package、bug-hotfix runbook、website-omniscient工具、新Node host-refresh-grace工具；生产src/server/legacy没有变更。相对本候选也无生产源码变化，现有c396/姓名/生命周期保护保持。
+- 唯一冲突package：保留性能/Fx所有scripts，新增 `test:host-refresh-grace`，不恢复重复WS脚本键。CI把全能测试移至铭牌后并新增真实生产宽限3控制，原FX/lifecycle/perf/其它步骤不删。
+- 接受来源工具的真实默认8000ms宽限、代次/fresh-view等待及有界64条公开时序；保留全部13断言及原20秒wait、500ms清私DOM、8秒receipt。新增Node控制覆盖4s/5s旧主失权、默认8s/5s保持、默认8s/9s失权和牌局/席位不变；不改变产品宽限。
+- 保留来源的8bce CI37184313948刷新失败、b779 CI37184908911失败及本地gVAuZ1清DOM失败边界；来源报告aR45Bs默认13通过和KtRdUc Node3通过是根任务对应源证据，不称本候选亲跑。认证到达与view接收时间继续区分，不由延迟猜字体/GL原因。
+- 本轮实际仅两个工具 `node --check`、package JSON与脚本合同校验、`git diff --check` 和生产/保护路径0diff；未重新build或跑测试。前节b37构建/纯回归通过仍是其历史证据，不冒称552增量完成浏览器验收。
+- 当前热修复发布状态以根任务回执为准，完整FX候选未发布；根公网热修复完成前浏览器仍独占。本增量不作为热修复的阻塞依赖。

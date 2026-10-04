@@ -5,6 +5,7 @@
 
 ## 待办
 
+- [x] 后续55218ea仅工具/CI增量反向合入：真实宽限三控制、新script与全能fresh-view诊断保持，生产/保护路径0diff、静态检查通过；未跑本候选browser，不作为根热修复阻塞依赖。
 - [x] 2026-10-04 热修复冻结 `8bce32b` 反向合入附件候选：保留 c396 特效及根保护、新姓名测宽 fitter/成熟工具/35发布guards；验证与冲突见 `RUNBOOKS/2026-10-04_hotfix-backmerge.md`。
 - [x] 8bce反向合入候选轻回归：根/服务npmci、typecheck0错/build/buildserver、npm8（presentation20）、WS32、发布guards35、router12和lazy产物检查通过；旧810阶段依赖/构建待项已完成，browser/完整CI/独立终审仍待。
 - [ ] 热修复8bce的精确SHA Linux CI/定向双网站与必要server部署、公网验收由根任务完成；当前线上仍0.9.0，FX候选不跟随热修复上线。本候选浏览器尚未执行，等公网独占释放再做原FX9/生命周期9/演出13/姓名21/飞牌10/权限13等完整回归与独立终审。

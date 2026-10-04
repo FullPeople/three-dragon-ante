@@ -14,6 +14,11 @@ const evidenceRoot = join(root, '.local-evidence/website-omniscient'); mkdirSync
 const out = mkdtempSync(join(evidenceRoot, 'run-')), dist = join(out, 'site');
 const checks = [], errors = [], external = [], actors = [], sockets = [];
 const transports = new Map();
+const transportEvents = [];
+let refreshDiagnostics;
+const traceTransport = (kind, key) => {
+  if (transportEvents.length < 64) transportEvents.push({ kind, actor: key === 'TDA-omniscient-Host' ? 'host' : key === 'TDA-omniscient-Player' ? 'player' : 'other', ms: Date.now() });
+};
 const pass = label => { checks.push(label); console.log('PASS ' + label); };
 const wait = async (check, label, timeout = 20000) => {
   const deadline = Date.now() + timeout;
@@ -36,10 +41,12 @@ const server = createServer((req, res) => {
 });
 await new Promise(done => server.listen(0, '127.0.0.1', done));
 const origin = 'http://127.0.0.1:' + server.address().port;
-service = createTableService({ database: ':memory:', origin, hostGraceMs: 4000, injectFailure() { if (failCommit) { failCommit = false; throw Error('storageFailed'); } } });
+service = createTableService({ database: ':memory:', origin, injectFailure() { if (failCommit) { failCommit = false; throw Error('storageFailed'); } } });
 server.on('upgrade', (req, socket, head) => {
   const key = req.headers['user-agent']; transports.set(key, socket);
-  socket.on('close', () => { if (transports.get(key) === socket) transports.delete(key); });
+  traceTransport('upgrade', key);
+  socket.once('data', () => traceTransport('first-client-data', key));
+  socket.on('close', () => { traceTransport('close', key); if (transports.get(key) === socket) transports.delete(key); });
   service.server.emit('upgrade', req, socket, head);
 });
 const browser = await chromium.launch({ ...browserLaunchOptions(), headless: true, args: ['--no-proxy-server', '--enable-webgl', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
@@ -60,13 +67,14 @@ async function post(path, value) {
 }
 async function actor(label) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'zh-CN', reducedMotion: 'reduce', userAgent: 'TDA-omniscient-' + label });
-  const page = await context.newPage(), value = { context, page, view: null, commands: [] }; actors.push(value);
+  const page = await context.newPage(), value = { context, page, view: null, commands: [], connectionGeneration: 0, viewGeneration: 0 }; actors.push(value);
   context.on('request', request => { if (!request.url().startsWith(origin + '/')) external.push('unexpected-origin'); });
   await context.route('**/*', route => route.request().url().startsWith(origin + '/') ? route.continue() : route.abort());
   page.on('pageerror', () => errors.push('page-error'));
   page.on('dialog', dialog => dialog.type() === 'beforeunload' ? dialog.accept() : dialog.dismiss());
   page.on('websocket', socket => {
-    socket.on('framereceived', event => { try { acceptWire(value, JSON.parse(event.payload.toString())); } catch { errors.push('wire-decode'); } });
+    const generation = ++value.connectionGeneration;
+    socket.on('framereceived', event => { try { if (generation !== value.connectionGeneration) return; const packet = JSON.parse(event.payload.toString()); acceptWire(value, packet); if (packet.type === 'view') { value.viewGeneration = generation; traceTransport('authority-view', 'TDA-omniscient-' + label); } } catch { errors.push('wire-decode'); } });
     socket.on('framesent', event => { const packet = JSON.parse(event.payload.toString()); if (packet.type === 'command') value.commands.push(packet.command.type); });
   });
   await page.goto(origin + base); await page.locator('#guest-name').click(); await page.locator('#guest-name').fill(label);
@@ -132,8 +140,15 @@ try {
   await host.page.locator('.tda-shell').focus(); await host.page.keyboard.type('fuxtt'); await host.page.keyboard.press('Escape');
   assert.equal(await host.page.locator('#table-editor').count(), 0); assert.deepEqual(state(admission.room.id), before);
   await shortcut(host); await host.page.locator('#table-editor').waitFor();
-  await host.page.reload(); await host.page.locator('.site-online-match[data-connected=true]').waitFor();
-  await wait(() => host.view?.game && !host.view.game.omniscient, 'refresh drops inspection');
+  const priorGeneration = host.connectionGeneration;
+  refreshDiagnostics = { startedMs: Date.now(), configuredGraceMs: 'production-default-8000', initiallyOwner: state(admission.room.id).table.hostPlayerId === admission.session.memberId };
+  host.view = null;
+  const refreshSampler = setInterval(() => { if (!refreshDiagnostics.ownerChangedMs && state(admission.room.id).table.hostPlayerId !== admission.session.memberId) refreshDiagnostics.ownerChangedMs = Date.now(); }, 20);
+  try {
+    await host.page.reload(); await host.page.locator('.site-online-match[data-connected=true]').waitFor();
+    await wait(() => host.viewGeneration > priorGeneration && host.view?.game && !host.view.game.omniscient, 'fresh connection refresh drops inspection');
+  } finally { clearInterval(refreshSampler); refreshDiagnostics.finishedMs = Date.now(); }
+  refreshDiagnostics.reconnectedOwner = host.view.isHost;
   assert.equal(host.view.isHost, true); assert.equal(host.view.canEdit, false); assert.equal(await host.page.locator('#table-editor').count(), 0);
   pass('a wrong sequence does not open inspection; a browser refresh reconnects as a normal host and requires a new sequence');
 
@@ -209,7 +224,7 @@ try {
 finally {
   for (const socket of sockets) socket.terminate(); await browser.close(); await service.close(); await new Promise(done => server.close(done));
   const stats = { checks: checks.length, completed: !failure, scope: 'Real loopback website and authoritative service with synthetic data only; no production rooms or accounts.' };
-  writeFileSync(join(out, 'result.json'), JSON.stringify({ checks, stats, errors, external, ...(failure ? { failure: { message: failure.message, stack: failure.stack } } : {}) }, null, 2));
+  writeFileSync(join(out, 'result.json'), JSON.stringify({ checks, stats, errors, external, transportEvents, refreshDiagnostics, ...(failure ? { failure: { message: failure.message, stack: failure.stack } } : {}) }, null, 2));
   console.log(JSON.stringify(stats)); console.log(out);
 }
 if (failure) throw failure;
