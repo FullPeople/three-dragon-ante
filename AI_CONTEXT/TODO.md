@@ -5,10 +5,15 @@
 
 ## 待办
 
+- [x] 02eaaa FX候选独占串行：FX9/9、生命周期9/9、结构5/5；演出首8/13 TimeoutError留存，仅安全stage诊断后一次13/13，原34assert/20wait/13checks不变。旧超时具体原语/原因仍未确定；见 `RUNBOOKS/2026-10-04_fx3d-browser-validation.md`。
+- [x] 原npm8精确字节复核：5行mixed→CRLF可复原测试SHA5C与最终0733；第三代理RAM编译对照实际358732字节执行产物，双方可执行SHA97d706逐字一致，不重复unit。见controller-projection-sync runbook。
+- [ ] 独立审计驻留P2：既有Druid/Priest field/selection hold在真实双contextloss后2D回退与restore恢复尚待实际反例；原life9只覆盖loss中新能力/恢复后newburst，不能替代；当前优先真实composeFx/draw/Points/alpha复现，暂不改产品。
+- [ ] 当前FX真实联网3D（hardware与forced软件）双客户端实际air/ground/POINTS/alpha、lazy handoff与ACK不重播验收，完整CI/换模型终审/版本区分与发布决定仍待；默认软件演出13属于2D回退，不能冒称3D。
+
 - [x] 最新状态：根任务已确认热修复 `801daf5` / 0.9.1 上线；本 FX 候选仍未上线，下方8bce/552/7523失败与未发布记载保留为历史，不能用于覆盖当前状态。
 - [x] `c7b36be3` 非浏览器轻验证：build/tsc0错、buildserver和认证超时Node5通过；首轮npm7/8的controller旁观者count断言失败完整保留。ignored实际控制器三控制3/3：自然本次未复现，延迟收件旧rev6→新rev5，exactrev错误count仍失败；见 `RUNBOOKS/2026-10-04_controller-projection-sync.md`。
 - [x] 控制器专项仅补旁观者同game.id/本次exactrevision的现有期限等待，所有原count/privacy/action断言不变；修复后仅一次npm真实8/8（原controller15/presentation20），证据run-post-sync-a54ae246，未覆盖首轮7/8与三控制；见controller-projection-sync runbook。
-- [ ] FX浏览器仍待根释放窗口，建议先FX9/生命周期9/真实演出13，再按新失败或审计需要扩展；完整CI/换模型独立终审/版本区分与发布决定仍待。
+- [x] 首批FX浏览器已获根独占窗口并完成FX9/生命周期9/结构5，演出首8/13与诊断13/13分别保留；最新驻留P2/真实联网3D及完整CI/终审遗留见顶部与fx3d-browser-validation runbook。
 
 - [x] 后续801daf5认证超时最小修复反向合入：精确authenticationRequired既有backoff，其他拒绝终态保持；保留FX与所有专项，新Node5/CI/安全诊断合入，语法/tsc0错/保护diff通过，本候选未跑browser。见hotfix-backmerge后续段。
 - [ ] 最新热修复801的精确CI/冻结包/定向部署与公网验收仍由根任务完成；552两次失败及e347真实认证超时原因和恢复证据保留，不能用根热修复13通过冒称完整FX验收。

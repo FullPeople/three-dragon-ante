@@ -268,24 +268,47 @@ try {
     const buyerPage = purchase.pair[purchase.found.before.seats.findIndex(seat => seat.id === buyer)].page;
     const oldBuyer = purchase.found.before.seats.find(seat => seat.id === buyer), newBuyer = purchase.found.after.seats.find(seat => seat.id === buyer);
     const playedByBuyer = buyer === purchase.found.move.seatId ? 1 : 0;
+    stage = 'purchase-banner-wait';
     await Promise.all(purchase.pair.map(actor => actor.page.locator('.tda-banner--purchase').waitFor()));
     for (const actor of purchase.pair) {
+      stage = 'purchase-no-ghost-' + purchase.pair.indexOf(actor);
       assert.equal(await actor.page.locator('.tda-ghost').count(), 0);
       const banner = actor.page.locator('.tda-banner--purchase');
+      stage = 'purchase-banner-no-image-' + purchase.pair.indexOf(actor);
       assert.equal(await banner.locator('img').count(), 0);
+      stage = 'purchase-banner-text-' + purchase.pair.indexOf(actor);
       assert.equal(/\d/.test(await banner.textContent()), false, 'purchase explanation does not reveal the price amount before the flip');
     }
+    stage = 'purchase-own-hand-before-price';
     assert.equal(await buyerPage.locator('.tda-card--hand[data-card]').count(), oldBuyer.hand.length - playedByBuyer);
     pass('on both actual clients the purchase explanation appears before any price-card flight, flip or replacement hand arrival');
+    stage = 'purchase-flip-recorded';
     await wait(async () => (await Promise.all(purchase.pair.map(probe))).every(value => time(value, 'flip') !== undefined), 'real visible price flips');
-    for (const actor of purchase.pair) { const value = await probe(actor); assert.ok(time(value, 'price') > time(value, 'purchase')); assert.ok(time(value, 'flip') > time(value, 'price')); }
+    for (const actor of purchase.pair) {
+      stage = 'purchase-price-flip-probe-' + purchase.pair.indexOf(actor);
+      const value = await probe(actor);
+      stage = 'purchase-price-after-banner-' + purchase.pair.indexOf(actor);
+      assert.ok(time(value, 'price') > time(value, 'purchase'));
+      stage = 'purchase-flip-after-price-' + purchase.pair.indexOf(actor);
+      assert.ok(time(value, 'flip') > time(value, 'price'));
+    }
     pass('the price card flies face down and visibly flips only after the purchase explanation has finished');
+    stage = 'purchase-draw-recorded';
     await wait(async () => (await Promise.all(purchase.pair.map(probe))).every(value => time(value, 'draw') !== undefined), 'anonymous replacement card flight');
-    for (const actor of purchase.pair) { const value = await probe(actor); assert.ok(time(value, 'draw') > time(value, 'flip')); }
+    for (const actor of purchase.pair) {
+      stage = 'purchase-draw-probe-' + purchase.pair.indexOf(actor);
+      const value = await probe(actor);
+      stage = 'purchase-draw-after-flip-' + purchase.pair.indexOf(actor);
+      assert.ok(time(value, 'draw') > time(value, 'flip'));
+    }
+    stage = 'purchase-own-hand-before-draw-landing';
     assert.equal(await buyerPage.locator('.tda-card--hand[data-card]').count(), oldBuyer.hand.length - playedByBuyer);
     pass('replacement cards stay anonymous in flight and new own-hand faces remain held until their flight lands');
+    stage = 'purchase-finish-wait';
     await Promise.all(purchase.pair.map(actor => actor.page.waitForFunction(() => document.querySelector('.tda-shell')?.getAttribute('data-busy') === 'false')));
+    stage = 'purchase-final-own-hand';
     assert.equal(await buyerPage.locator('.tda-card--hand[data-card]').count(), newBuyer.hand.length);
+    stage = 'purchase-measurements';
     for (const [index, actor] of purchase.pair.entries()) { const value = await probe(actor), start = time(value, 'purchase'); measurements.push({ client: index === 0 ? 'host' : 'player', explanationToPriceMs: Math.round(time(value, 'price') - start), priceToFlipMs: Math.round(time(value, 'flip') - time(value, 'price')), flipToDrawMs: Math.round(time(value, 'draw') - time(value, 'flip')) }); }
     pass('the authoritative purchased hand appears on both clients after the finite purchase sequence completes');
     await finish(purchase.pair, purchase.room);
@@ -296,7 +319,9 @@ try {
   for (const actor of actors) try { publicDiagnostics.push(await actor.page.evaluate(() => {
     const status = document.querySelector('.site-room-identity [role="status"]')?.textContent?.trim();
     const allowedStatus = ['已连接', 'Connected', '重连中', 'Reconnecting', '连接失败', 'Connection failed', '座位已在其他窗口连接', 'Seat connected in another window', '连接已失效，请返回首页重连', 'Session expired; return home to reconnect'];
-    return { busy: document.querySelector('.tda-shell')?.getAttribute('data-busy'), phase: document.querySelector('.tda-shell')?.getAttribute('data-phase'), status: status == null ? null : allowedStatus.includes(status) ? status : 'other', powerCount: document.querySelectorAll('.tda-spotlight').length, ghostCount: document.querySelectorAll('.tda-ghost').length, coinCount: document.querySelectorAll('.tda-fx-coin').length, socketDiagnostics: window.__presentationSocketDiagnostics || null, probe: window.__presentationProbe ? { events: window.__presentationProbe.events, fxDraws: window.__presentationProbe.fxDraws } : null };
+    const banner = document.querySelector('.tda-banner--purchase'), rectangle = banner?.getBoundingClientRect();
+    const style = banner && getComputedStyle(banner);
+    return { busy: document.querySelector('.tda-shell')?.getAttribute('data-busy'), phase: document.querySelector('.tda-shell')?.getAttribute('data-phase'), pendingAction: document.querySelector('.tda-shell')?.getAttribute('data-pending-action') === 'true', status: status == null ? null : allowedStatus.includes(status) ? status : 'other', powerCount: document.querySelectorAll('.tda-spotlight').length, ghostCount: document.querySelectorAll('.tda-ghost').length, coinCount: document.querySelectorAll('.tda-fx-coin').length, handCardCount: document.querySelectorAll('.tda-card--hand[data-card]').length, flightCardCount: document.querySelectorAll('.tda-card--flight').length, purchaseBannerCount: document.querySelectorAll('.tda-banner--purchase').length, purchaseBannerImageCount: banner?.querySelectorAll('img').length ?? 0, purchaseBannerHasDigits: !!banner && /\d/.test(banner.textContent), purchaseBannerVisible: !!banner && !!rectangle && rectangle.width > 0 && rectangle.height > 0 && style.display !== 'none' && style.visibility !== 'hidden', purchaseBannerRectangle: rectangle ? { x: rectangle.x, y: rectangle.y, width: rectangle.width, height: rectangle.height } : null, socketDiagnostics: window.__presentationSocketDiagnostics || null, probe: window.__presentationProbe ? { events: window.__presentationProbe.events, fxDraws: window.__presentationProbe.fxDraws } : null };
   })); } catch {}
   failure = { stage, kind: safeErrorKind(error), publicDiagnostics, loadDiagnostics: actors.map(actor => ({ loadStep: actor.loadStep, waitingFor: actor.waitingFor, closes: actor.closes, authSent: actor.authSent, authSentMs: actor.authSentMs, viewCount: actor.viewCount, viewPresence: actor.viewPresence, authoritativeFrameCount: actor.actionFrames.length })), message: 'Real website presentation assertion failed; no private projection or selector is written to evidence.' };
 }

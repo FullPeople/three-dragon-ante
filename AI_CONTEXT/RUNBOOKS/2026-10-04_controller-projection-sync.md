@@ -46,6 +46,10 @@ controller 失败定位：生成入口 `D:/Temp/three-dragon-controller-Kvx8Zv/s
 
 修复后仅运行一次 `npm test`，实际 exit 0，**8/8**，原控制器15组与 presentation20均通过；用时47.416秒。完整结果与八份日志在 ignored `.local-evidence/fx-integration-validation/run-post-sync-a54ae246/`，该次记录测试入口散列，随后只恢复原 CRLF 行尾并另记最终散列。首轮7/8与三个控制独立保留，没有用后续成功覆盖历史失败。
 
+独立字节复核已完成，不只依赖“仅改行尾”的口述：测试时入口第54–58行是5个 bare LF，其余347个CRLF；最终入口为352个CRLF。把最终这5行精确还原为LF，重建 SHA256 `5C845ECFF6143C121884E1F239D55ACE0850533EC4BBD67CB280EA912F57F5B9`，与本次8/8记录完全相同；最终 SHA256 为 `0733D4BBC858A37A905091B12C9BD59F098EC13DC04780177323F3A8E5914A3A`，归一全文相等。重建副本与布尔/行号证据保存在同目录 `tested-entry-mixed-newlines.ts` / `newline-byte-proof.json`。
+
+第三代理还用实际 rolldown 在RAM生成当前入口，与本次8/8实际执行产物 `D:/Temp/three-dragon-controller-QsHO1y/selftest.mjs` 对照：双方 **358732字节**、首个差异 offset `-1`，完整可执行 SHA256 均为 `97d706961eba8bf30d11c975bd756f047aaaf758a780cb67e483354c0bd94812`。该复核没有写源码文件或重跑测试，根任务独立确认过实际输出；没有借行尾变化修改注释、等待内容或任何断言。
+
 ## 遗留与最少后续范围
 
 - 本 FX 候选的浏览器窗口仍由根任务独占。本轮没有执行 Playwright。
