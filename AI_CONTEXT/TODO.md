@@ -5,6 +5,12 @@
 
 ## 待办
 
+- [x] 线上0.9.1/801已发布双网站及必要server，公网12/默认GPU隐藏8完整通过；其他插件保留网站链接，不重发。
+- [x] d580真实hold画质6/生产驻留参数14和冻结973×2/GPL434blob包审核完成，仅本地候选；见同日website-release-status runbook。
+- [ ] d580精确CI37196321804原test:fx3d第27步骤失败（airShown && hitIsCard未分开记录）；后六CI检查跳过，停止0.9.2发布。先安全诊断真实原语，不改原断言/期限凑数或用旧CI代替；再完整CI/终审/冻结与部署。
+- [ ] d580六座软件GL完整18样本对照虽FPS改善，hover/drag p95仍366.7/333.2ms；继续CPU/GPU归因与真实弱机/手机体验，不宣称全面流畅。
+
+
 - [x] 2026-10-04 附件 `2afca326` 的17条特效/合成层提交隔离整合，当前在线0.9.1反馈实现和所有原测例保留；审计舞台生命周期/桌形/拖拽/金币横竖屏问题整改，见 `RUNBOOKS/2026-10-04_fx3d-integration.md`。
 - [ ] 附件整合候选：完整CI/当前软件GL 6人受控性能复测、换模型独立终审、源冻结与线上验收；本机专项不能替代这些。
 - [ ] 附件性能修复的真实弱机/实体手机人工体验验收，独立于软件GL合成对照；见fx3d-integration和presentation-feedback runbooks。
@@ -14,8 +20,8 @@
 - [x] 0.9.1飞牌独立覆盖/几何10项、长名数字边界与金属点数材质实际浏览器21项。
 - [x] 0.9.1隐藏全能仅当前房主，键序不干扰输入/出牌；真实断网/超时/刷新/交接立即撤权，恢复后实际合法前注，13项。
 - [x] 0.9.1(-dev) 热修复冻结801daf580e9505a377dc97a544c4ad051ea029ac，完整CI37187336604成功、换模型最终包/独立远端核验通过；2026-10-04 16:07:25已发布双网站与必要server，不重部署Suite/枭熊，公网对局12/12。详见bug-hotfix-deploy runbook。
-- [ ] 公网全能8项专项尚未完整通过：run-gLOLN8前5项真实通过，刷新阶段超时；run-dc4yGB加入已收201响应头但12秒内JSON未完成，原因待查，原断言/超时不改。
-- [ ] 最新FX隔离候选c7b36be3（含附件c3960047和hotfix801）：build/tsc、build:server通过，但npm test 7/8（controller 6 !== 5），停止完整回归，保留run-KuUEel；未push/未部署，不把本地特效预览算生产验收。
+- [x] 默认GPU公网隐藏8项完整通过（正式CLI run-y3SPEy），保留原全部断言/等待；原强制软件GL run-gLOLN8与run-dc4yGB失败原因仍待查，成功不覆盖历史失败。
+- [x] 历史c7 npm7/8以旁观者exactrevision等待修正，原断言不变，修后8/8及042完整CI通过；d580新的特效合取失败见顶部，候选未部署，预览不算生产验收。
 
 - [x] 第三方素材下载（用户 2026-10-03 同意）：Poly Haven dark_wood / medieval_wood / brown_leather / metal_plate，ambientCG Fabric034 / Paper006，Kenney Casino Audio；已压缩入库并登记 `docs/design/ASSETS.md`。
 - [ ] 持续效果（德鲁伊 / 祭司 / 龙巫妖…）的**持续音效**：需要 CC0 环境循环素材（Kenney 现有包没有），来源待用户批准；`FieldLayer` 已留位置。
