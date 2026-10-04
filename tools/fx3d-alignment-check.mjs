@@ -66,9 +66,25 @@ try {
       const plane = document.querySelector('.tda-plane');
       const pts = [[0, 0, 0], [900, 550, 0], [720, 520, 0], [900, 430, 120], [300, 900, 250], [1500, 200, 60], [550, 750, 0], [550, 1400, 300]];
       const card = document.querySelector('.tda-card--hand'); const cr = card.getBoundingClientRect(); const hit = document.elementFromPoint(cr.left + cr.width / 2, cr.top + cr.height / 2);
+      const x = cr.left + cr.width / 2, y = cr.top + cr.height / 2, tableRect = document.querySelector('.tda-table').getBoundingClientRect();
+      const transformAnimations = card.getAnimations().filter(animation => animation.effect?.getKeyframes().some(frame => 'transform' in frame));
+      const transformAnimationRunning = transformAnimations.some(animation => animation.playState === 'running'), transformAnimationPending = transformAnimations.some(animation => animation.pending);
+      const hitCategory = !hit ? 'none' : hit instanceof HTMLCanvasElement ? 'canvas' : hit.closest('.tda-card') ? 'card' : hit.closest('.tda-spotlight, .tda-formation-spot, .tda-score, .tda-choice, .tda-confirm-overlay, .site-confirm-overlay, .tda-help, .tda-lobby-board, .tda-inspector') ? 'overlay' : 'other';
+      const publicDiagnostic = { stageAvailable: stage.available, stageEffects: stage.frameStats().effects,
+        cardRect: { left: cr.left, top: cr.top, width: cr.width, height: cr.height }, viewport: { width: innerWidth, height: innerHeight }, point: { x, y },
+        pointInsideViewport: x >= 0 && y >= 0 && x < innerWidth && y < innerHeight, pointInsideTable: x >= tableRect.left && y >= tableRect.top && x < tableRect.right && y < tableRect.bottom,
+        arriving: card.classList.contains('is-arriving'), entering: card.classList.contains('is-entering'), hovered: card.classList.contains('is-hovered'),
+        transformAnimationRunning, transformAnimationPending, transformAnimationsIdle: !transformAnimationRunning && !transformAnimationPending,
+        hitCategory, hitIsFxCanvas: hit === document.querySelector('.tda-fx3d-air') || hit === document.querySelector('.tda-fx3d-ground'),
+        airPointerEventsNone: getComputedStyle(document.querySelector('.tda-fx3d-air')).pointerEvents === 'none', groundPointerEventsNone: getComputedStyle(document.querySelector('.tda-fx3d-ground')).pointerEvents === 'none', cardPointerEventsNone: getComputedStyle(card).pointerEvents === 'none',
+        busy: document.querySelector('.tda-shell')?.dataset.busy === 'true', powerVisible: !!document.querySelector('.tda-spotlight'), revealActive: !!document.querySelector('.tda-root')?.dataset.reveal,
+        choiceVisible: !!document.querySelector('.tda-choice'), scoreVisible: !!document.querySelector('.tda-score'), confirmationVisible: !!document.querySelector('.tda-confirm-overlay, .site-confirm-overlay'), helpVisible: !!document.querySelector('.tda-help') };
       return { tier: stage.tier, ground: !!stage.ground, air: !!document.querySelector('.tda-fx3d-air'), groundCanvas: !!document.querySelector('.tda-plane > .tda-fx3d-ground'), dataFx: document.querySelector('.tda-shell')?.getAttribute('data-fx'), airShown: getComputedStyle(document.querySelector('.tda-fx3d-air')).display !== 'none', hitIsCard: !!hit && !!hit.closest('.tda-card'),
+        publicDiagnostic,
         rows: pts.map(([x, y, z]) => { const el = document.createElement('div'); el.style.cssText = `position:absolute;left:${x}px;top:${y}px;width:0;height:0;transform:translateZ(${z}px)`; plane.appendChild(el); const r = el.getBoundingClientRect(); el.remove(); const p = stage.project(x, y, z); return { x, y, z, err: Math.hypot(p.x - r.left, p.y - r.top) }; }) };
     });
+    writeFileSync(resolve(evidence, name + '-public-diagnostic.json'), JSON.stringify({ viewportKind: name, stageSnapshotPresent: !!res, airShown: res?.airShown ?? null, hitIsCard: res?.hitIsCard ?? null, ...res?.publicDiagnostic }, null, 2));
+    console.log('PUBLIC', name, JSON.stringify({ airShown: res?.airShown ?? null, hitIsCard: res?.hitIsCard ?? null }));
     assert.ok(res, `${name}: fx3d stage mounted (window.__tdaFx3d)`);
     assert.ok(res.air && res.groundCanvas && res.ground, `${name}: air and ground canvases present`);
     const worst = Math.max(...res.rows.map(r => r.err));
