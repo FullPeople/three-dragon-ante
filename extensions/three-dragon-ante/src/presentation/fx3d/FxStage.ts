@@ -2,7 +2,8 @@
  *  - 空中画布（.tda-fx3d-air）：屏幕对齐、盖在卡牌之上；针孔相机与 CSS 透视链精确对齐（stage.ts），
  *    平面上的东西放进 `air.group`（平面组，已做 rotateX(−tilt)），用 `local(x, y, z)` 把平面坐标换成组内坐标。
  *  - 地面画布（.tda-fx3d-ground）：放在 .tda-plane 里、随平面一起被 CSS 倾斜，画在毛毡之上、卡牌之下；
- *    正交相机直接用平面坐标（y 向下），负责法阵 / 光池 / 裂痕 / 焦痕这类必须被卡牌盖住的贴地效果。
+ *    正交相机 y 向上、原点在平面中心，与空中画布共用同一套 `local(x, y, z)`（评审指出：直接用 y 向下的正交相机会翻转手性，
+ *    three 只按物体矩阵的行列式补绕序，默认 FrontSide 的网格会整片被剔除）。负责法阵 / 光池 / 裂痕 / 焦痕这类必须被卡牌盖住的贴地效果。
  *  按需渲染：没有活动效果就不跑循环。WebGL 不可用时 mount 返回 null，调用方退回贴图粒子层。 */
 import { Group, OrthographicCamera, PerspectiveCamera, Scene, Vector3, WebGLRenderer } from "three";
 import { fitPlane, type Orientation, type PlaneSpec } from "../model/layout";
@@ -22,7 +23,7 @@ export interface FxStage {
   metrics(): StageMetrics;
   /** 视口像素（clientX/Y 或 getBoundingClientRect 的坐标）→ 平面坐标（z = 0） */
   toPlane(point: { x: number; y: number }): { x: number; y: number };
-  /** 平面坐标 → 空中平面组的本地坐标（three，y 向上） */
+  /** 平面坐标 → 本地坐标（three，y 向上，原点在平面中心）；空中画布放进 air.group，地面画布直接放进 ground.scene，两者同一套坐标 */
   local(x: number, y: number, z?: number): Vector3;
   /** 平面坐标 → 视口像素（用真实相机投影；对齐检查用） */
   project(x: number, y: number, z?: number): { x: number; y: number };
@@ -70,7 +71,7 @@ export function mountFxStage(host: HTMLElement, airCanvas: HTMLCanvasElement, gr
 
   const airScene = new Scene(), airCam = new PerspectiveCamera(), group = new Group();
   airScene.add(group);
-  const groundScene = new Scene(), groundCam = new OrthographicCamera(0, 1, 0, 1, -2000, 2000);
+  const groundScene = new Scene(), groundCam = new OrthographicCamera(-1, 1, 1, -1, -2000, 2000);
   groundCam.position.set(0, 0, 1000);
 
   const effects: Effect[] = [];
@@ -96,7 +97,7 @@ export function mountFxStage(host: HTMLElement, airCanvas: HTMLCanvasElement, gr
     if (groundRenderer && groundCanvas) {
       groundRenderer.setSize(Math.max(1, spec.w * fit.scale), Math.max(1, spec.h * fit.scale), false);
       groundCanvas.style.width = `${spec.w}px`; groundCanvas.style.height = `${spec.h}px`;
-      groundCam.left = 0; groundCam.right = spec.w; groundCam.top = 0; groundCam.bottom = spec.h; groundCam.updateProjectionMatrix();
+      groundCam.left = -spec.w / 2; groundCam.right = spec.w / 2; groundCam.top = spec.h / 2; groundCam.bottom = -spec.h / 2; groundCam.updateProjectionMatrix();
     }
     dirty = true;
   }
