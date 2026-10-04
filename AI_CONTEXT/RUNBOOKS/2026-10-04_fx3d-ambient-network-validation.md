@@ -66,3 +66,7 @@ nodecheck 和 diffcheck 已通过；ignored AST 对照 `.local-evidence/fx-integ
 真实点击 `#fx-quality` 后 stage generation 变为 2，stageAvailable=true、threeMode=true、choice=true、busy=false，specCalls 仍为 1、nullCalls 0。排除旧帧后，新阶段 air/ground 实际绘制、POINTS、alpha 全部为 0；不是用空画布或 stats 充当阳性。根因是画质重建销毁旧 composition 的 owned specs，而 presenter 只在能力事件时生成 hold，没有在新 FX 发布时重新生成已有 powerHold。该缺陷不能被此前完整 CI 或原 ambient24 通过掩盖。
 
 此轮 FieldLayer、presenter、composeFx、FxStage、TableScene 五个产品文件前后 SHA256 相同，脚本/console/外域/资源错误均 0，浏览器/静态服务 finally 已关闭。当前只准备工具与此留痕，不预修生产、不部署。遗留：修复 active hold 画质重建后的 producer 接线、独立审计、新冻结针对性验证与完整 CI；实际德鲁伊/牧师生产参数与真实最大粒子寿命尾清理仍未执行。TODO 由根代理统一双落，避免并行覆盖。
+
+根代理复核新 producer 工具发现，restore 回 3D 后直接 null、只断言 2D 为零缺少同段 2D 阳性前置。仅加强此新工具：在实际恢复 3D 阳性之后，再次真实双上下文 loss，确认两原生 context.isContextLost、stage 不可用，以及实际 2D draw/alpha/visible 均阳性，再调用 null 和原 life×1.3+900ms 尾等待、原 450ms 观察。原质量切换反例、checks、原断言和期限保持。该 null 明确调用真实 composition API，是路由清理控制，未验真实 presenter choice 解除路径；不会以它冒称能力选择实际提交或联机行为。此增强目前仅 nodecheck/diffcheck，未运行浏览器，旧失败使用的工具 SHA 与证据保持独立。
+
+增强后的 source boundary 在原五产品文件之外加入第六个 `mount.ts` 的前后 SHA256，覆盖实际 FX 发布接线；首次失败仍如实只有当时五文件的记录，不追补不存在的当时 hash。

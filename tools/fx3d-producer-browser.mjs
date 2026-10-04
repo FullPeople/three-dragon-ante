@@ -15,7 +15,7 @@ const root=resolve(import.meta.dirname,'..'), holdOnly=process.argv.includes('--
 const evidenceRoot=join(root,'.local-evidence/fx3d-producer');mkdirSync(evidenceRoot,{recursive:true});
 const out=mkdtempSync(join(evidenceRoot,'run-')),dist=join(out,'site'),entry=join(out,'fixture.ts');
 const source=execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8',windowsHide:true}).trim();
-const producerFiles=['scene/FieldLayer.tsx','app/presenter.ts','fx3d/composeFx.ts','fx3d/FxStage.ts','scene/TableScene.tsx'];
+const producerFiles=['scene/FieldLayer.tsx','app/presenter.ts','fx3d/composeFx.ts','fx3d/FxStage.ts','scene/TableScene.tsx','mount.ts'];
 const sourceHashes=()=>producerFiles.map(path=>({path,sha256:createHash('sha256').update(readFileSync(join(root,'extensions/three-dragon-ante/src/presentation',path))).digest('hex')}));
 const beforeHashes=sourceHashes(),observedSites={field:0,presenter:0,factory:0};
 writeFileSync(entry,`import {mountTableUI} from '/extensions/three-dragon-ante/src/presentation/mount.ts';
@@ -120,6 +120,10 @@ try{
     const loss=await page.evaluate(()=>({producer:window.__producer.public(),two:window.__producer.read2d()}));assert.ok(loss.two.draws>0&&loss.two.alpha>0&&loss.two.visible);measurements.push({hold:kind==='hold',loss});pass(kind+': the real producer parameters survive context loss in actual textured 2D');
     phase=kind+'-restore';await page.evaluate(()=>{const p=window.__producer;p.clearRenderer();p.airLoss.restoreContext();p.groundLoss.restoreContext();});await page.waitForFunction(()=>window.__producer.stage.available);await page.waitForTimeout(1600);
     const restored=await sample();assert.ok(actual3d(restored));measurements.push({hold:kind==='hold',restored});pass(kind+': both real restored canvases redraw the unchanged production resident');
+    // Give null cleanup a fresh actual 2D positive; a restored 3D resident alone cannot prove a 2D tail.
+    phase=kind+'-tail-loss';await page.evaluate(()=>{const p=window.__producer;p.clearRenderer();p.airLoss=p.stage.air.renderer.getContext().getExtension('WEBGL_lose_context');p.groundLoss=p.stage.ground.renderer.getContext().getExtension('WEBGL_lose_context');p.airLoss.loseContext();p.groundLoss.loseContext();});
+    await page.waitForFunction(()=>{const p=window.__producer;return !p.stage.available&&p.stage.air.renderer.getContext().isContextLost()&&p.stage.ground.renderer.getContext().isContextLost();});await page.waitForTimeout(1600);
+    const tailLoss=await page.evaluate(()=>({producer:window.__producer.public(),two:window.__producer.read2d()}));assert.equal(tailLoss.producer.stageAvailable,false);assert.ok(tailLoss.two.draws>0&&tailLoss.two.alpha>0&&tailLoss.two.visible);measurements.push({hold:kind==='hold',tailLoss});
     phase=kind+'-tail';const tailMs=Math.ceil(existing.producer.parameters.life*1.3*1000)+900;
     await page.evaluate(()=>{const p=window.__producer;p.fx.ambient(p.activeId,null);});await page.waitForTimeout(tailMs);await page.evaluate(()=>window.__producer.clearRenderer());await page.waitForTimeout(450);
     const tail=await page.evaluate(()=>window.__producer.read2d());assert.equal(tail.draws,0);assert.equal(tail.alpha,0);assert.equal(tail.visible,false);measurements.push({hold:kind==='hold',tailMs,tail});pass(kind+': actual producer lifetime determines the real 2D particle tail before null cleanup assertions');
@@ -131,6 +135,6 @@ try{
   failure={phase,kind:['AssertionError','TimeoutError','Error'].includes(error?.name)?error.name:'OtherError',observation,message:'Actual producer assertion failed; no private state, identities, selectors or pixels are retained.'};
 }finally{
   await browser.close();await new Promise(done=>server.close(done));
-  writeFileSync(join(out,'result.json'),JSON.stringify({source,beforeHashes,afterHashes:sourceHashes(),checks,completed:!failure,holdOnly,measurements,errors,external,resourceFailures,observedSites,scope:'Actual mountTableUI/FieldLayer/presenter, unchanged captured production AmbientSpecs, engine-legal synthetic fixtures. Component acceptance only, not networking/public players/human UAT/FPS.',...(failure?{failure}:{})},null,2));console.log(out);
+  writeFileSync(join(out,'result.json'),JSON.stringify({source,beforeHashes,afterHashes:sourceHashes(),checks,completed:!failure,holdOnly,measurements,errors,external,resourceFailures,observedSites,scope:'Actual mountTableUI/FieldLayer/presenter, unchanged captured production AmbientSpecs, engine-legal synthetic fixtures. Null uses the real composition API as a routing cleanup control; actual choice resolution is not exercised. Component acceptance only, not networking/public players/human UAT/FPS.',...(failure?{failure}:{})},null,2));console.log(out);
 }
 if(failure)throw Error(failure.phase+': '+failure.message);
