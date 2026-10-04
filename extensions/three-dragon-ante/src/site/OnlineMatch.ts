@@ -12,7 +12,7 @@ export interface OnlineMatchOptions {
   language: TableLanguage;
   onClose(): void;
   onLanguage(language: TableLanguage): void;
-  onStatus(connected: boolean, message: string | undefined, inProgress: boolean): void;
+  onStatus(connected: boolean, message: string | undefined, inProgress: boolean, spectating: boolean): void;
 }
 
 /** A lost website connection immediately discards the host-only projection. */
@@ -48,6 +48,7 @@ export function createOnlineMatch(parent: HTMLElement, options: OnlineMatchOptio
       if (destroyed) return;
       if (command.type === "close") { storeDraft(); options.onClose(); return; }
       if (command.type === "remember" || command.type === "display") { storeDraft(); return; }
+      if (saved.spectating && !["retry", "history", "leave"].includes(command.type)) throw Error("notAllowed");
       if (command.type === "omniscient" || command.type === "inspect") {
         if (!client.view.connected || !client.view.isHost || !client.view.game) throw Error("notAllowed");
         inspectionRequested = command.enabled;
@@ -59,9 +60,10 @@ export function createOnlineMatch(parent: HTMLElement, options: OnlineMatchOptio
   const client = new ServerTableClient(saved.session, view => {
     if (destroyed) return;
     host.dataset.connected = String(view.connected); host.dataset.selfPlayerId = view.selfPlayerId;
-    inProgress = !!view.game && view.game.phase !== "ended";
+    inProgress = !saved.spectating && !!view.game && view.game.phase !== "ended";
     if (!view.connected || !view.isHost) inspectionRequested = false;
-    surface.update(websiteView(view, inspectionRequested)); options.onStatus(view.connected, view.message, inProgress);
+    const visible = { ...websiteView(view, inspectionRequested), spectating: saved.spectating === true };
+    surface.update(visible); options.onStatus(view.connected, view.message, inProgress, saved.spectating === true);
     if (!restored && view.game) {
       restored = true;
       try { const draft = readUIDraft(JSON.parse(sessionStorage.getItem(draftKey) || "null")); if (draft) surface.restore(draft); } catch {}
@@ -69,11 +71,13 @@ export function createOnlineMatch(parent: HTMLElement, options: OnlineMatchOptio
   }, (seat, value) => surface.gesture(seat, value), identity => {
     if (!identity || destroyed) return;
     saved.session.owner = !!identity.owner; saved.session.role = identity.role === "GM" ? "GM" : "PLAYER";
+    saved.spectating = identity.spectating === true;
     saveGuestSession(saved);
   }, () => {
     inspectionRequested = false;
-    surface.update(websiteView({ ...client.view, connected: false, pending: false, message: "requestFailed" }, false));
-    surface.failed(); options.onStatus(false, "requestFailed", inProgress);
+    const visible = { ...websiteView({ ...client.view, connected: false, pending: false, message: "requestFailed" }, false), spectating: saved.spectating === true };
+    surface.update(visible);
+    surface.failed(); options.onStatus(false, "requestFailed", inProgress, saved.spectating === true);
   });
   const visibility = () => { if (document.hidden) surface.suspend(); else surface.resume(); };
   const pagehide = () => storeDraft();

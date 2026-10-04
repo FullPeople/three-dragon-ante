@@ -65,11 +65,12 @@ export function createTableService({database,origin='https://obr.dnd.center',max
    }catch{console.warn('[three-dragon] empty room cleanup will retry');}
   }
  }
- const admin=(state,m)=>!isGuest(m.room)&&(state.table.hostPlayerId===m.id||roleOf(m)==='GM');
- const mayInspect=(state,m)=>isGuest(m.room)?state.table.hostPlayerId===m.id:admin(state,m);
+ const spectator=m=>m.role==='SPECTATOR';
+ const admin=(state,m)=>!spectator(m)&&!isGuest(m.room)&&(state.table.hostPlayerId===m.id||roleOf(m)==='GM');
+ const mayInspect=(state,m)=>!spectator(m)&&(isGuest(m.room)?state.table.hostPlayerId===m.id:admin(state,m));
  function send(ws,value,compress=true){if(ws.readyState!==WebSocket.OPEN)return;if(ws.bufferedAmount>512000){ws.close(1013,'slowConsumer');return;}ws.send(JSON.stringify(value),{compress});}
  function view(ctx){
-  const s=load(ctx.room),m=member(ctx.room,ctx.token),seat=s.table.seats.find(p=>p.playerId===m.id),isHost=s.table.hostPlayerId===m.id;
+  const s=load(ctx.room),m=member(ctx.room,ctx.token),seat=!spectator(m)&&s.table.seats.find(p=>p.playerId===m.id),isHost=!spectator(m)&&s.table.hostPlayerId===m.id;
   if(ctx.receipt&&ctx.receipt.gameId!==s.game?.id)ctx.receipt=null;
   const live=s.game?{...s.game,history:(s.game.history||[]).slice(-4),historyComplete:false}:null;
   // Inspection belongs to this connection, and is revoked when ownership moves.
@@ -79,7 +80,7 @@ export function createTableService({database,origin='https://obr.dnd.center',max
   return {actionReceiptVersion:1,table:s.table,selfPlayerId:m.id,isHost,role:roleOf(m),canEdit:admin(s,m)||isGuest(m.room)&&isHost&&ctx.inspect,canKick:admin(s,m)||isGuest(m.room)&&isHost,canHandover:isHost&&s.table.seats.some(p=>p.playerId!==m.id),connected:true,pending:false,game,...(m.role==='PENDING'?{message:'admissionPending'}:{}),...(ctx.receipt?{actionReceipt:ctx.receipt}:{})};
  }
  function publish(ctx,full=false){const next=view(ctx),seq=ctx.seq+1;
-  if(full||!ctx.last){const m=member(ctx.room,ctx.token);send(ctx.ws,{type:'view',seq,view:next,identity:{memberId:m.id,challenge:m.challenge,role:next.role,owner:next.isHost,admitted:m.role!=='PENDING'}});}
+  if(full||!ctx.last){const m=member(ctx.room,ctx.token);send(ctx.ws,{type:'view',seq,view:next,identity:{memberId:m.id,challenge:m.challenge,role:next.role,owner:next.isHost,admitted:m.role!=='PENDING',spectating:spectator(m)}});}
   else{
    const {game,...root}=next,{game:oldGame,...oldRoot}=ctx.last;
    const patch=objectPatch(oldRoot,root),gamePatch=game&&oldGame?objectPatch(oldGame,game):undefined;
@@ -91,7 +92,7 @@ export function createTableService({database,origin='https://obr.dnd.center',max
  function publishRoom(id){for(const ctx of sockets.values())if(ctx.room===id)try{publish(ctx);}catch{ctx.ws.close(1011,'publicationFailed');}}
  function successor(id,state,previous){
   const online=new Set([...sockets.values()].filter(c=>c.room===id&&c.ws.readyState===WebSocket.OPEN).map(c=>c.member));
-  const members=stmt.members.all(id).filter(m=>m.id!==previous&&m.role!=='PENDING'&&online.has(m.id));
+  const members=stmt.members.all(id).filter(m=>m.id!==previous&&m.role!=='PENDING'&&!spectator(m)&&online.has(m.id));
   return members.find(m=>roleOf(m)==='GM')||state.table.seats.map(s=>members.find(m=>m.id===s.playerId)).find(Boolean);
  }
  function checkHost(id){
@@ -116,6 +117,11 @@ export function createTableService({database,origin='https://obr.dnd.center',max
   const {id,command:cmd}=message;if(!text(id,128)||!cmd||typeof cmd.type!=='string')fail('invalidCommand');
   const m=member(ctx.room,ctx.token),s=load(ctx.room),fingerprint=JSON.stringify(cmd),duplicate=stmt.receipt.get(ctx.room,m.id,id);
   if(duplicate){if(duplicate.fingerprint!==fingerprint)fail('invalidCommand');const response=JSON.parse(duplicate.response);if(response.actionReceipt)ctx.receipt=response.actionReceipt;publish(ctx,true);send(ctx.ws,response);return;}
+  // A persisted observer capability never becomes a seat or a host through a forged command.
+  if(spectator(m)){
+   if(cmd.type==='leave'){send(ctx.ws,{type:'ack',id,ok:true});return;}
+   if(cmd.type!=='history')fail('notAllowed');
+  }
   const owner=s.table.hostPlayerId===m.id,seat=s.table.seats.find(p=>p.playerId===m.id);
   if(cmd.type==='history'){
    if(!s.game||!Number.isSafeInteger(cmd.before)||cmd.before<1)fail('invalidCommand');
@@ -139,7 +145,7 @@ export function createTableService({database,origin='https://obr.dnd.center',max
    if(!playing)next.table.seats=next.table.seats.filter(p=>p.playerId!==target);
    if(target===next.table.hostPlayerId){const peer=successor(ctx.room,s,m.id);if(playing&&!peer)fail('noSuccessor');if(peer){next.table.hostPlayerId=peer.id;next.table.hostName=peer.name;}}
   }else if(cmd.type==='handover'){
-   if(!owner)fail('notHost');const peers=[...sockets.values()].filter(c=>c.room===ctx.room&&c.member!==m.id).map(c=>member(c.room,c.token));
+   if(!owner)fail('notHost');const peers=[...sockets.values()].filter(c=>c.room===ctx.room&&c.member!==m.id).map(c=>member(c.room,c.token)).filter(p=>!spectator(p));
    const successor=peers.find(p=>roleOf(p)==='GM')||peers.find(p=>s.table.seats.some(seat=>seat.playerId===p.id));if(!successor)fail('noSuccessor');next.table.hostPlayerId=successor.id;next.table.hostName=successor.name;
   }else if(cmd.type==='start'||cmd.type==='newGame'){
    if(!owner)fail('notHost');if(cmd.type==='newGame')next.game=null;
@@ -171,7 +177,7 @@ export function createTableService({database,origin='https://obr.dnd.center',max
  function json(res,status,value){res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(value));}
  async function body(req){let bytes=0,parts=[];for await(const chunk of req){bytes+=chunk.length;if(bytes>16000)fail('payloadTooLarge');parts.push(chunk);}return JSON.parse(Buffer.concat(parts).toString()||'{}');}
  function guestReply(code,m,token,reconnected,state){
-  return {room:{version:1,id:m.room,code},name:m.name,reconnected,session:{roomId:m.room,memberId:m.id,token,role:'PLAYER',owner:state.table.hostPlayerId===m.id,challenge:m.challenge}};
+  return {room:{version:1,id:m.room,code},name:m.name,reconnected,spectating:spectator(m),session:{roomId:m.room,memberId:m.id,token,role:'PLAYER',owner:!spectator(m)&&state.table.hostPlayerId===m.id,challenge:m.challenge}};
  }
  function createGuestRoom(value){
   const {name,key}=guestName(value.name),id=random(16),joinKey=random(32),token=random(32),memberId=random(16),challenge=random(24);
@@ -191,6 +197,10 @@ export function createTableService({database,origin='https://obr.dnd.center',max
  function guestSession(rawCode,value){
   const code=rawCode.toUpperCase(),room=guest.code.get(code);if(!room)fail('roomMissing');
   const {name,key}=guestName(value.name),existing=guest.name.get(room.room,key),state=load(room.room);
+  if(value.spectating!==undefined&&typeof value.spectating!=='boolean')fail('invalidCommand');
+  const spectating=value.spectating===true||value.spectating===undefined&&value.reconnect===true&&!!existing&&spectator(existing);
+  // Looking at a table cannot reclaim or convert an existing player's named seat.
+  if(existing&&spectator(existing)!==spectating)fail('nameTaken');
   if(value.reconnectToken!==undefined){
    const authenticated=member(room.room,value.reconnectToken);
    if(!existing||authenticated.id!==existing.id)fail('notAllowed');
@@ -200,10 +210,11 @@ export function createTableService({database,origin='https://obr.dnd.center',max
    if(value.reconnect!==true||existing.claimed_until>Date.now()||[...sockets.values()].some(c=>c.room===room.room&&c.member===existing.id&&c.ws.readyState===WebSocket.OPEN))fail('nameTaken');
   }else if(value.reconnect===true)fail('memberMissing');
   const seated=existing&&state.table.seats.some(p=>p.playerId===existing.id);
-  if(!seated&&stage(state.game)==='playing')fail('gameStarted');
-  if(!seated&&(state.table.seats.length>=6||!existing&&stmt.members.all(room.room).length>=64))fail('tableFull');
+  if(spectating&&seated)fail('notAllowed');
+  if(!spectating&&!seated&&stage(state.game)==='playing')fail('gameStarted');
+  if((!existing&&stmt.members.all(room.room).length>=64)||(!spectating&&!seated&&state.table.seats.length>=6))fail('tableFull');
   const token=random(32),memberId=existing?.id||random(16),challenge=random(24),storedName=existing?.name||name;
-  const next=seated?state:{...state,table:{...state.table,seats:[...state.table.seats,{playerId:memberId,seatId:memberId,name:storedName}],revision:state.table.revision+1}};
+  const next=seated||spectating?state:{...state,table:{...state.table,seats:[...state.table.seats,{playerId:memberId,seatId:memberId,name:storedName}],revision:state.table.revision+1}};
   transaction(()=>{
    if(existing){
     // Rotate rather than duplicate credentials: only the newly restored browser
@@ -212,17 +223,17 @@ export function createTableService({database,origin='https://obr.dnd.center',max
     db.prepare('UPDATE members SET token_hash=?,challenge=? WHERE id=?').run(hash(token),challenge,memberId);
     guest.claimed.run(Date.now()+guestClaimMs,memberId);
    }else{
-    db.prepare('INSERT INTO members(id,room,token_hash,name,external_id,role,challenge) VALUES(?,?,?,?,?,?,?)').run(memberId,room.room,hash(token),storedName,'','PLAYER',challenge);
+    db.prepare('INSERT INTO members(id,room,token_hash,name,external_id,role,challenge) VALUES(?,?,?,?,?,?,?)').run(memberId,room.room,hash(token),storedName,'',spectating?'SPECTATOR':'PLAYER',challenge);
     db.prepare('INSERT INTO guest_members VALUES(?,?,?,?)').run(memberId,room.room,key,Date.now()+guestClaimMs);
    }
    db.prepare('INSERT INTO credentials VALUES(?,?,?)').run(room.room,hash(token),memberId);
    if(!hasOnline(room.room))guest.empty.run(Date.now(),room.room);
-   if(!seated)stmt.save.run(JSON.stringify(next),Date.now(),room.room);
+   if(!seated&&!spectating)stmt.save.run(JSON.stringify(next),Date.now(),room.room);
   });
   if(rooms.has(room.room))rooms.set(room.room,next);
   if(existing)for(const ctx of [...sockets.values()])if(ctx.room===room.room&&ctx.member===memberId){sockets.delete(ctx.ws);ctx.ws.close(4001,'sessionReplaced');}
   publishRoom(room.room);checkHost(room.room);
-  return guestReply(code,{id:memberId,room:room.room,name:storedName,challenge},token,!!existing,next);
+  return guestReply(code,{id:memberId,room:room.room,name:storedName,challenge,role:spectating?'SPECTATOR':'PLAYER'},token,!!existing,next);
  }
  const server=createServer(async(req,res)=>{
   try{

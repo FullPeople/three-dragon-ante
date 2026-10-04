@@ -98,8 +98,8 @@ export function CardNode(props: CardNodeProps) {
   const shown = phase === "enter" && props.enterFrom ? (props.dropIn ? liftedAt(props.enterFrom, props.enterFrom.rot) : props.enterFrom)
     : phase === "flyup" || phase === "hover" ? above(placement.pose)
     : placement.pose;
-  // 手牌层：叠放 = 位置次序；悬浮 / 选中 / 拖动的那张临时置顶，右邻不再盖住它
-  const raised = props.hovered || props.selected || props.dragging ? 100 : 0;
+  // 当前指针指向的牌必须盖住先前选中的牌，避免移入重叠区后按下另一张牌。
+  const raised = props.dragging ? 300 : props.hovered ? 200 : props.selected ? 100 : 0;
   const style = { ...poseVars(shown), zIndex: (placement.layer === "hand" ? placement.order + raised : Math.round(shown.z)) + 10 } as CSSProperties;
   const interactive = !!cardId && !!(props.onClick || props.onPointerDown);
   return <div ref={ref} className={cls.join(" ")} style={style} data-key={placement.key} data-card={cardId} data-zone={placement.zone} data-seat={placement.seatId} data-layer={placement.layer}

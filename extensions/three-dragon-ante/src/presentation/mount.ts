@@ -7,7 +7,7 @@ import type { TableUICommand, TableDisplayMode, TableUIDraft } from "../game/ui-
 import { readUIDraft } from "../game/ui-command";
 import { readHandGesture, type HandGesture } from "../game/gesture";
 import type { TableLanguage } from "../game/text";
-import { createStore, emptyShow, privateGame, type Store, type UIState } from "./app/store";
+import { createStore, emptyShow, omniscientGame, privateGame, type Store, type UIState } from "./app/store";
 import { createController } from "./app/controller";
 import { pendingReceipt } from "./app/action-receipt";
 import { createPresenter } from "./app/presenter";
@@ -53,7 +53,7 @@ export interface TableUISurface {
 
 export function mountTableUI(root: HTMLElement, deps: TableUIDeps): TableUISurface {
   let soundOn = true; try { soundOn = localStorage.getItem("three-dragon-ante.sound.v2") !== "off"; } catch {}
-  const initial: UIState = { lang: deps.language, hostKind: deps.hostKind ?? "obr", mode: deps.mode ?? "full", view: null, display: null, flow: null, selected: [], hovered: null, keyboardCard: null, keyboardHeld: false, drag: null, pending: null, sending: false, localMessage: "", inspect: null, show: emptyShow(), busy: false, soundOn, gestures: {}, slowSeatIds: [], suspended: false, helpOpen: false, goldHold: null, knockAt: 0, orientation: "landscape" };
+  const initial: UIState = { lang: deps.language, hostKind: deps.hostKind ?? "obr", mode: deps.mode ?? "full", view: null, display: null, flow: null, selected: [], hovered: null, keyboardCard: null, keyboardHeld: false, drag: null, pending: null, sending: false, localMessage: "", inspect: null, revealOmniscientHands: false, show: emptyShow(), busy: false, soundOn, gestures: {}, slowSeatIds: [], suspended: false, helpOpen: false, goldHold: null, knockAt: 0, orientation: "landscape" };
   const store: Store = createStore(initial);
   let fx: FxLayer | null = null, fx3d: FxStage | null = null, orientation: Orientation = "landscape", destroyed = false, notifiedBusy = false;
   const audio = createAudio(root, () => store.get().soundOn);
@@ -96,9 +96,12 @@ export function mountTableUI(root: HTMLElement, deps: TableUIDeps): TableUISurfa
       const s = store.get(), previous = s.view;
       const live = !!previous?.connected && view.connected && !s.suspended && !document.hidden;
       const game = view.game, prevGame = previous?.game;
+      const keepHandsVisible = !!omniscientGame(previous) && !!omniscientGame(view) && !!view.connected && !s.suspended &&
+        !!previous?.connected && previous.table?.id === view.table?.id && prevGame?.id === game?.id && previous.selfPlayerId === view.selfPlayerId &&
+        (!!previous.isHost === !!view.isHost) && previous.role === view.role;
       const selectionKey = game ? `${game.id}:${game.gambit}:${game.round}:${game.phase}` : "";
       const prevKey = prevGame ? `${prevGame.id}:${prevGame.gambit}:${prevGame.round}:${prevGame.phase}` : "";
-      store.set({ view, sending: false, localMessage: s.localMessage === "requestFailed" && view.connected ? "" : s.localMessage, selected: selectionKey === prevKey ? s.selected : [], hovered: selectionKey === prevKey ? s.hovered : null });
+      store.set({ view, sending: false, revealOmniscientHands: keepHandsVisible && s.revealOmniscientHands === true, inspect: !keepHandsVisible && (omniscientGame(previous) || omniscientGame(view)) ? null : s.inspect, localMessage: s.localMessage === "requestFailed" && view.connected ? "" : s.localMessage, selected: selectionKey === prevKey ? s.selected : [], hovered: selectionKey === prevKey ? s.hovered : null });
       if (view.message === "requestFailed") store.set({ localMessage: "requestFailed" });
       applyReceipt(view);
       if (game && prevGame && game.id === prevGame.id && game.revision !== prevGame.revision) store.set({ gestures: {} });
@@ -128,9 +131,9 @@ export function mountTableUI(root: HTMLElement, deps: TableUIDeps): TableUISurfa
       const selector = zone === "hand" ? `[data-card="${own?.hand[0] ? CSS.escape(own.hand[0].id) : "-"}"]` : zone === "stakes" ? `.tda-stakes-plate` : `[data-drop-zone="${zone === "ownAnte" ? "ante" : "flight"}"][data-drop-seat="${own ? CSS.escape(own.selfSeatId) : "-"}"]`;
       return root.querySelector(selector)?.getBoundingClientRect() ?? null;
     },
-    suspend() { store.set({ suspended: true, drag: null, keyboardHeld: false }); presenter.clear(); audio.suspend(); },
+    suspend() { store.set({ suspended: true, drag: null, keyboardHeld: false, revealOmniscientHands: false, inspect: null }); presenter.clear(); audio.suspend(); },
     resume() { store.set({ suspended: false }); audio.resume(); const view = store.get().view; if (view) store.set({ display: view, flow: view }); },
-    failed() { const s = store.get(); store.set({ sending: false, localMessage: "requestFailed", pending: s.pending ? { ...s.pending, retryable: true } : null, view: s.view ? { ...s.view, pending: false, connected: false } : null }); presenter.clear(); },
+    failed() { const s = store.get(); store.set({ sending: false, revealOmniscientHands: false, inspect: null, localMessage: "requestFailed", pending: s.pending ? { ...s.pending, retryable: true } : null, view: s.view ? { ...s.view, pending: false, connected: false } : null }); presenter.clear(); },
     destroy() {
       if (destroyed) return; destroyed = true;
       presenter.destroy(); controller.destroy(); audio.destroy(); for (const timer of gestureTimers.values()) clearTimeout(timer); for (const timer of slowTimers.values()) clearTimeout(timer);

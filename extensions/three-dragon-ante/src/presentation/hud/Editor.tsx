@@ -6,25 +6,27 @@ import type { Controller } from "../app/controller";
 import type { Card } from "../../game/rules/cards";
 import { cardFaceURL } from "../../game/card-images";
 import { cardName, t } from "../i18n";
+import { CardBackArt } from "../scene/CardBack";
+import { DeckOrderPanel } from "./DeckOrderPanel";
 
 interface EditorCard { id: string; name: string; image: string; strength: number }
 const MAX_GOLD = 100000;
 
-function Face({ card, picked, onContext }: { card: EditorCard; picked: boolean; onContext(event: React.MouseEvent): void }) {
-  return <button type="button" className={`tda-editor-card${picked ? " is-picked" : ""}`} data-card={card.id} aria-pressed={picked} draggable
-    onDragStart={event => { event.dataTransfer.setData("text/plain", card.id); event.dataTransfer.effectAllowed = "move"; }} onContextMenu={onContext} title={`${card.name} · ${card.strength}`}>
-    <img src={card.image} alt="" draggable={false} /><span>{card.name}</span>
+function Face({ card, picked, hidden, backLabel, onContext }: { card: EditorCard; picked: boolean; hidden: boolean; backLabel: string; onContext(event: React.MouseEvent): void }) {
+  return <button type="button" className={`tda-editor-card${picked ? " is-picked" : ""}`} data-card={card.id} data-face={hidden ? "back" : "front"} aria-pressed={picked} draggable
+    onDragStart={event => { event.dataTransfer.setData("text/plain", card.id); event.dataTransfer.effectAllowed = "move"; }} onContextMenu={onContext} title={hidden ? backLabel : `${card.name} · ${card.strength}`}>
+    {hidden ? <div className="tda-editor-card-back"><CardBackArt /></div> : <img src={card.image} alt="" draggable={false} />}<span>{hidden ? backLabel : card.name}</span>
   </button>;
 }
 
-export function Editor({ state, controller }: { state: UIState; controller: Controller }) {
+export function Editor({ state, controller, onToggleHands }: { state: UIState; controller: Controller; onToggleHands(): void }) {
   const view = state.view, inspection = omniscientGame(view);
   const authorized = !!view?.isHost || view?.role === "GM";
-  if (!inspection || !authorized) return null;
-  return <EditorPanel key={inspection.id} state={state} controller={controller} />;
+  if (!inspection || !authorized || !view?.connected || state.suspended) return null;
+  return <EditorPanel key={inspection.id} state={state} controller={controller} onToggleHands={onToggleHands} />;
 }
 
-function EditorPanel({ state, controller }: { state: UIState; controller: Controller }) {
+function EditorPanel({ state, controller, onToggleHands }: { state: UIState; controller: Controller; onToggleHands(): void }) {
   const lang = state.lang, inspection = omniscientGame(state.view)!;
   const toCard = (value: Card): EditorCard => ({ id: value.id, name: cardName(value.id, lang), image: cardFaceURL(value.id), strength: value.strength });
   const seats = inspection.seats.map(seat => ({ id: seat.id, name: seat.name, gold: seat.gold, debt: seat.debt, isSelf: seat.id === inspection.selfSeatId, isLeader: seat.id === inspection.leaderSeatId, committed: seat.committed,
@@ -36,6 +38,10 @@ function EditorPanel({ state, controller }: { state: UIState; controller: Contro
   const [query, setQuery] = useState("");
   const [menu, setMenu] = useState<{ cardId: string; x: number; y: number; send: boolean } | null>(null);
   const [adding, setAdding] = useState<string | null>(null);
+  const [deckOpen, setDeckOpen] = useState(false);
+  const handsHidden = state.revealOmniscientHands !== true;
+  const backLabel = lang === "zh" ? "牌背" : "Card back";
+  const disabled = state.sending || !!state.pending || !!state.view?.pending || !state.view?.connected;
   const send = controller.send;
   const setGold = (seatId: string, amount: number) => send({ type: "edit", edit: { kind: "gold", seatId, amount } });
   const moveCard = (cardId: string, toSeatId: string | null) => send({ type: "edit", edit: { kind: "moveCard", cardId, toSeatId } });
@@ -54,9 +60,12 @@ function EditorPanel({ state, controller }: { state: UIState; controller: Contro
     <header className="tda-editor-head">
       <h2>{t("omniscientTitle", lang)}</h2>
       <p>{t("editorHint", lang)}</p>
+      <button type="button" className="tda-btn" data-testid="omniscient-hands-toggle" aria-pressed={!handsHidden} onClick={onToggleHands}>{lang === "zh" ? (handsHidden ? "显示所有手牌" : "隐藏所有手牌") : (handsHidden ? "Show all hands" : "Hide all hands")}</button>
+      <button type="button" className="tda-btn" data-testid="omniscient-deck-toggle" aria-expanded={deckOpen} onClick={() => setDeckOpen(value => !value)}>{lang === "zh" ? (deckOpen ? "隐藏牌堆" : "查看牌堆") : (deckOpen ? "Hide deck" : "View deck")}</button>
       <div className="tda-editor-piles">{info.map(([label, value]) => <span key={label} className="tda-editor-pile"><small>{label}</small><b className="tda-num">{value}</b></span>)}</div>
       <button id="table-editor-close" type="button" className="tda-btn tda-btn--quiet" onClick={() => send({ type: "omniscient", enabled: false })}>{t("close", lang)}</button>
     </header>
+    {deckOpen ? <DeckOrderPanel key={`${inspection.id}:${inspection.revision}`} cards={inspection.privateDeck ?? []} revision={inspection.revision} lang={lang} disabled={disabled} controller={controller} /> : null}
     <div className="tda-editor-body">
       {seats.map(seat => <article key={seat.id} className="tda-editor-seat" data-seat={seat.id} onDragOver={event => { if (picked || event.dataTransfer.types.includes("text/plain")) event.preventDefault(); }} onDrop={event => drop(event, seat.id)}>
         <h3>{seat.name}{seat.isSelf ? " ★" : ""}{seat.isLeader ? ` · ${t("leader", lang)}` : ""}</h3>
@@ -64,9 +73,9 @@ function EditorPanel({ state, controller }: { state: UIState; controller: Contro
           <input key={seat.gold} type="number" min={0} max={MAX_GOLD} defaultValue={seat.gold} aria-label={`${seat.name} ${t("editorAmount", lang)}`} onKeyDown={event => { if (event.key === "Enter") (event.target as HTMLInputElement).blur(); }}
             onBlur={event => { const value = Math.max(0, Math.min(MAX_GOLD, Math.round(event.target.valueAsNumber))); if (Number.isFinite(value) && value !== seat.gold) setGold(seat.id, value); }} />
           {seat.debt ? <small>· {t("debt", lang)} {seat.debt}</small> : null}</p>
-        <p className="tda-editor-ante">{t("editorAnte", lang)}: {seat.ante ? <Face card={seat.ante} picked={false} onContext={event => { event.preventDefault(); setPicked(seat.ante!.id); setReplacing(true); }} /> : <em>{seat.committed ? "•" : t("editorEmpty", lang)}</em>}</p>
+        <p className="tda-editor-ante">{t("editorAnte", lang)}: {seat.ante ? <Face card={seat.ante} picked={false} hidden={handsHidden} backLabel={backLabel} onContext={event => { event.preventDefault(); setPicked(seat.ante!.id); setReplacing(true); }} /> : <em>{seat.committed ? "•" : t("editorEmpty", lang)}</em>}</p>
         <div className="tda-editor-hand" aria-label={`${seat.name} ${t("editorHand", lang)}`}>
-          {seat.hand.length ? seat.hand.map(card => <Face key={card.id} card={card} picked={picked === card.id} onContext={event => { event.preventDefault(); setPicked(null); setReplacing(false); setMenu({ cardId: card.id, x: event.clientX, y: event.clientY, send: false }); }} />) : <em>{t("editorEmpty", lang)}</em>}
+          {seat.hand.length ? seat.hand.map(card => <Face key={card.id} card={card} picked={picked === card.id} hidden={handsHidden} backLabel={backLabel} onContext={event => { event.preventDefault(); setPicked(null); setReplacing(false); setMenu({ cardId: card.id, x: event.clientX, y: event.clientY, send: false }); }} />) : <em>{t("editorEmpty", lang)}</em>}
           <button type="button" className="tda-editor-card tda-editor-add" data-add={seat.id} title={t("editorAddCard", lang)} onClick={() => { setAdding(seat.id); setQuery(""); setPicked(null); setReplacing(false); }}>＋</button>
         </div>
       </article>)}

@@ -14,6 +14,10 @@ export class ServerTableClient {
  }
  get view(){return this.viewValue;}
  start(){this.stopped=false;this.connect();}
+ private clearInspectionPending(){
+  // Permission toggles belong to one connection, including when its close callback arrives late.
+  if(this.pending&&(this.pending.command.type==='inspect'||this.pending.command.type==='omniscient')){clearTimeout(this.commandTimer);this.pending=undefined;this.viewValue={...this.viewValue,pending:false};}
+ }
  private connect(){
   if(this.stopped)return;let authenticated=false;const ws=this.socket=new WebSocket(new URL(serverBase+'/socket',location.href).href.replace(/^http/,'ws'));
   ws.onopen=()=>ws.send(JSON.stringify({type:'auth',room:this.session.roomId,token:this.session.token}));
@@ -32,7 +36,9 @@ export class ServerTableClient {
    }else if(packet.type==='gestures')for(const item of packet.values||[])this.gesture(item.seatId,item.gesture);
   }catch{this.message='protocolMismatch';this.apply();}};
   // The service's pre-authentication deadline is temporary; rejected credentials remain terminal.
-  ws.onclose=event=>{if(this.socket!==ws||this.stopped)return;if(event.code===4001||event.code===1008&&!authenticated&&event.reason!=='authenticationRequired'){this.stopped=true;clearTimeout(this.commandTimer);this.pending=undefined;this.viewValue={...this.viewValue,connected:false,pending:false,message:event.code===4001?'sessionReplaced':'notAllowed'};this.changed(this.viewValue);return;}this.viewValue={...this.viewValue,connected:false,message:'connecting'};this.changed(this.viewValue);if(this.pending)this.stalled();this.timer=setTimeout(()=>this.connect(),Math.min(8000,500*2**Math.min(4,this.retry++)));};
+  ws.onclose=event=>{if(this.socket!==ws||this.stopped)return;
+   this.clearInspectionPending();
+   if(event.code===4001||event.code===1008&&!authenticated&&event.reason!=='authenticationRequired'){this.stopped=true;clearTimeout(this.commandTimer);this.pending=undefined;this.viewValue={...this.viewValue,connected:false,pending:false,message:event.code===4001?'sessionReplaced':'notAllowed'};this.changed(this.viewValue);return;}this.viewValue={...this.viewValue,connected:false,pending:!!this.pending,message:'connecting'};this.changed(this.viewValue);if(this.pending)this.stalled();this.timer=setTimeout(()=>this.connect(),Math.min(8000,500*2**Math.min(4,this.retry++)));};
   ws.onerror=()=>{};
  }
  private apply(historyPage?:TableView['historyPage']){
@@ -45,7 +51,7 @@ export class ServerTableClient {
  }
  async command(command:TableUICommand){
   if(command.type==='retry'){
-   if(this.socket?.readyState!==WebSocket.OPEN){clearTimeout(this.timer);this.socket?.close();this.stopped=false;this.connect();return;}
+   if(this.socket?.readyState!==WebSocket.OPEN){this.clearInspectionPending();clearTimeout(this.timer);this.socket?.close();this.stopped=false;this.connect();return;}
    if(this.pending){this.socket.send(JSON.stringify({type:'command',...this.pending}));return;}
    if('action'in command&&command.action)command={type:'action',action:command.action};else{this.socket.send(JSON.stringify({type:'sync'}));return;}
   }
@@ -55,5 +61,5 @@ export class ServerTableClient {
   clearTimeout(this.commandTimer);this.commandTimer=setTimeout(()=>{if(this.pending)this.stalled();},8000);
  }
  sendGesture(value:HandGesture){this.gestureValue=value;if(this.gestureTimer)return;this.gestureTimer=setTimeout(()=>{this.gestureTimer=undefined;const gesture=this.gestureValue;this.gestureValue=undefined;if(this.socket?.readyState===WebSocket.OPEN&&this.socket.bufferedAmount<16000&&gesture)this.socket.send(JSON.stringify({type:'gesture',gesture}));},250);}
- stop(){this.stopped=true;clearTimeout(this.timer);clearTimeout(this.gestureTimer);clearTimeout(this.commandTimer);this.socket?.close();}
+ stop(){this.stopped=true;this.clearInspectionPending();clearTimeout(this.timer);clearTimeout(this.gestureTimer);clearTimeout(this.commandTimer);this.socket?.close();}
 }

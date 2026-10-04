@@ -216,3 +216,21 @@
 /* 枭熊紧凑弹窗 */
 .tda-shell[data-mode="compact"] .tda-topbar-title { font-size: 15px; }
 .tda-shell[data-mode="compact"] .tda-topbar-tools .tda-btn { min-height: 30px; padding: 2px 8px; font-size: 12px; }
+
+/* 全能查看权限：隐藏卡面与独立牌堆顺序 */
+.tda-editor-card-back { position: relative; width: 100%; aspect-ratio: 1250 / 2208; overflow: hidden; border-radius: 2px; background: #301e13; }
+.tda-editor-card-back .tda-back-leather, .tda-editor-card-back .tda-back-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.tda-editor-deck { padding: 8px 10px; border: 1px solid #8a6a2a; background: rgba(255,255,255,.22); }
+.tda-editor-deck p { margin: 0 0 6px; }
+.tda-editor-deck-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.tda-editor-deck-list { list-style: none; margin: 8px 0 0; padding: 0; max-height: 22rem; overflow: auto; }
+.tda-editor-deck-list li { display: grid; grid-template-columns: 2em 30px minmax(0,1fr) auto; align-items: center; gap: 6px; padding: 3px 0; border-bottom: 1px solid rgba(60,40,20,.2); }
+.tda-editor-deck-list img { width: 30px; border-radius: 2px; }
+.tda-editor-deck-list span { overflow-wrap: anywhere; }
+.tda-editor-deck-moves { display: flex; gap: 3px; }
+.tda-editor-deck-moves button { min-width: 30px; min-height: 30px; border: 1px solid #8a6a2a; border-radius: 2px; background: rgba(255,255,255,.3); color: var(--ink); cursor: pointer; }
+.tda-editor-deck-moves button:disabled { opacity: .4; cursor: default; }
+
+/* 全能隐藏手牌候选：公开术士余牌/场上牌不受影响。 */
+.tda-choice-card-back { position: relative; width: 100%; aspect-ratio: 1250 / 2208; overflow: hidden; border-radius: 4px; background: #301e13; }
+.tda-choice-card-back .tda-back-leather, .tda-choice-card-back .tda-back-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }

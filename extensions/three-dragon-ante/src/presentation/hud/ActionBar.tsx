@@ -1,5 +1,5 @@
 import type { UIState } from "../app/store";
-import { privateGame } from "../app/store";
+import { omniscientGame, privateGame } from "../app/store";
 import type { Controller } from "../app/controller";
 import { cardName, t } from "../i18n";
 
@@ -8,14 +8,15 @@ export function ActionBar({ state, controller }: { state: UIState; controller: C
   const action = controller.action(), zone = controller.legalZone();
   const selected = state.selected[0] ?? null;
   const selectedCard = selected ? own?.hand.find(c => c.id === selected) : null;
+  const hidePrivateLabels = !!(omniscientGame(view) ?? omniscientGame(state.display)) && state.revealOmniscientHands !== true;
   let prompt = "";
   if (state.pending) prompt = state.pending.retryable ? t("requestFailed", lang) : t("pendingReceipt", lang);
   else if (state.localMessage) prompt = t(state.localMessage, lang);
   else if (view?.message && !["connecting"].includes(view.message)) prompt = t(view.message, lang);
   else if (!view?.connected) prompt = t("connecting", lang);
   else if (action?.kind === "choose") prompt = "";
-  else if (zone && selectedCard) prompt = `${cardName(selectedCard.id, lang)} · ${selectedCard.strength}`;
-  else if (own?.committedAnte && game?.phase === "ante") prompt = `${t("committedAnte", lang)} · ${cardName(own.committedAnte.id, lang)} ${own.committedAnte.strength}`;
+  else if (zone && selectedCard) prompt = hidePrivateLabels ? (lang === "zh" ? "牌背" : "Card back") : `${cardName(selectedCard.id, lang)} · ${selectedCard.strength}`;
+  else if (own?.committedAnte && game?.phase === "ante") prompt = t("committedAnte", lang) + (hidePrivateLabels ? "" : ` · ${cardName(own.committedAnte.id, lang)} ${own.committedAnte.strength}`);
   return <div className="tda-actionbar">
     <div className="tda-actionbar-prompt">{prompt}</div>
     <div className="tda-actionbar-buttons">

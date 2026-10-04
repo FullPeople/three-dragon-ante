@@ -21,6 +21,7 @@ function LobbyPanel({ state, controller }: { state: UIState; controller: Control
   const [deckId, setDeckId] = useState<DeckId>(initial.deckId);
   const [specialIds, setSpecialIds] = useState<string[]>(initial.specialIds ? [...initial.specialIds] : SPECIAL_CARDS.slice(0, 10).map(c => c.id));
   const seated = !!table?.seats.some(seat => seat.playerId === view.selfPlayerId);
+  const spectating = "spectating" in view && view.spectating === true;
   const canRetry = !view.connected || !!view.message || !!state.localMessage || !!state.pending?.retryable;
   const selected = SPECIAL_CARDS.map(c => c.id).filter(id => specialIds.includes(id));
   const variant: TableVariant = deckId === "selected-specials-v1" ? { ruleSetId, deckId, specialIds: selected } : { ruleSetId, deckId };
@@ -58,7 +59,7 @@ function LobbyPanel({ state, controller }: { state: UIState; controller: Control
         <p className="tda-lobby-note">{t("setupNote", lang)}</p>
       </fieldset> : null}
       <div className="tda-end-actions">
-        {!seated && table.stage !== "playing" ? <button type="button" className="tda-btn tda-btn--primary" disabled={locked || table.seats.length >= 6} onClick={() => controller.send({ type: "join" })}>{t("join", lang)}</button> : null}
+        {!spectating && !seated && table.stage !== "playing" ? <button type="button" className="tda-btn tda-btn--primary" disabled={locked || table.seats.length >= 6} onClick={() => controller.send({ type: "join" })}>{t("join", lang)}</button> : null}
         {seated && table.stage !== "playing" ? <button type="button" className="tda-btn" disabled={locked} onClick={() => controller.send({ type: "leave" })}>{t("leave", lang)}</button> : null}
         {view.isHost && view.canHandover && table.hostConnectionId !== "server" ? <button type="button" className="tda-btn" disabled={locked} onClick={() => controller.send({ type: "handover" })}>{t("handover", lang)}</button> : null}
         {view.isHost && table.stage === "lobby" ? <button type="button" className="tda-btn tda-btn--primary" disabled={startDisabled} onClick={() => controller.send({ type: "start", options: { ...(startingGold === undefined ? {} : { startingGold }), startingHand, variant } })}>{t("start", lang)}</button> : null}

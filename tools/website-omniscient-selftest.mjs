@@ -15,7 +15,7 @@ const out = mkdtempSync(join(evidenceRoot, 'run-')), dist = join(out, 'site');
 const checks = [], errors = [], external = [], actors = [], sockets = [];
 const transports = new Map();
 const transportEvents = [];
-let refreshDiagnostics;
+let refreshDiagnostics, cleanupDiagnostics, cleanupActor, cleanupCutMs;
 const traceTransport = (kind, key) => {
   if (transportEvents.length < 64) transportEvents.push({ kind, actor: key === 'TDA-omniscient-Host' ? 'host' : key === 'TDA-omniscient-Player' ? 'player' : 'other', ms: Date.now() });
 };
@@ -153,11 +153,24 @@ try {
   pass('a wrong sequence does not open inspection; a browser refresh reconnects as a normal host and requires a new sequence');
 
   await shortcut(host); await host.page.locator('#table-editor').waitFor();
+  // Observe actual DOM commits without changing the original wait, deadline or assertion.
+  await host.page.evaluate(() => {
+    const observation = window.__tdaInspectionCleanup = { startedMs: Date.now(), disconnectedMs: null, editorRemovedMs: null };
+    const observer = new MutationObserver(() => {
+      if (!observation.disconnectedMs && document.querySelector('.site-online-match')?.getAttribute('data-connected') === 'false') observation.disconnectedMs = Date.now();
+      if (!observation.editorRemovedMs && !document.querySelector('#table-editor, .tda-editor-card, .tda-editor-gold')) observation.editorRemovedMs = Date.now();
+    });
+    observer.observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-connected', 'data-omniscient'] });
+    window.__tdaInspectionCleanupStop = () => observer.disconnect();
+  });
   const disconnectedAt = Date.now(), transport = transports.get('TDA-omniscient-Host'); assert.ok(transport);
+  cleanupActor = host; cleanupCutMs = disconnectedAt;
   transport.destroy();
   await host.page.waitForFunction(() => document.querySelector('.site-online-match')?.getAttribute('data-connected') === 'false' && document.querySelector('.tda-shell')?.getAttribute('data-omniscient') === 'false');
   assert.equal(await host.page.locator('#table-editor, .tda-editor-card, .tda-editor-gold').count(), 0);
   assert.ok(Date.now() - disconnectedAt < 500, 'host-only DOM disappears before the first automatic reconnect');
+  cleanupDiagnostics = { ...await host.page.evaluate(() => { window.__tdaInspectionCleanupStop?.(); return window.__tdaInspectionCleanup; }), cutMs: disconnectedAt, observedMs: Date.now() };
+  console.log('PUBLIC inspection-cleanup ' + JSON.stringify(cleanupDiagnostics));
   await host.page.locator('.site-online-match[data-connected=true]').waitFor();
   await wait(() => host.view?.connected && !host.view.game.omniscient, 'disconnected website reconnects without inspection');
   assert.equal(host.view.canEdit, false); assert.equal(await host.page.locator('#table-editor').count(), 0);
@@ -220,11 +233,17 @@ try {
   pass('disconnect succession and reconnect clear inspection, and losing then regaining ownership cannot revive a previous inspection flag');
 
   assert.deepEqual(errors, []); assert.deepEqual(external, []); pass('real website authority checks complete with no script errors or external requests');
-} catch (error) { failure = error; }
+ } catch (error) {
+  failure = error;
+  if (cleanupActor && !cleanupDiagnostics) try {
+    cleanupDiagnostics = { ...await cleanupActor.page.evaluate(() => { window.__tdaInspectionCleanupStop?.(); return window.__tdaInspectionCleanup; }), cutMs: cleanupCutMs, observedMs: Date.now() };
+    console.log('PUBLIC inspection-cleanup ' + JSON.stringify(cleanupDiagnostics));
+  } catch { cleanupDiagnostics = { observationFailed: true }; }
+}
 finally {
   for (const socket of sockets) socket.terminate(); await browser.close(); await service.close(); await new Promise(done => server.close(done));
   const stats = { checks: checks.length, completed: !failure, scope: 'Real loopback website and authoritative service with synthetic data only; no production rooms or accounts.' };
-  writeFileSync(join(out, 'result.json'), JSON.stringify({ checks, stats, errors, external, transportEvents, refreshDiagnostics, ...(failure ? { failure: { message: failure.message, stack: failure.stack } } : {}) }, null, 2));
+  writeFileSync(join(out, 'result.json'), JSON.stringify({ checks, stats, errors, external, transportEvents, refreshDiagnostics, cleanupDiagnostics, ...(failure ? { failure: { message: failure.message, stack: failure.stack } } : {}) }, null, 2));
   console.log(JSON.stringify(stats)); console.log(out);
 }
 if (failure) throw failure;

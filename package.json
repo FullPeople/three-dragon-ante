@@ -1,6 +1,6 @@
 {
   "name": "three-dragon-ante",
-  "version": "0.9.1-dev",
+  "version": "0.9.3-dev",
   "private": true,
   "description": "三龙牌独立网页、Owlbear Rodeo 扩展及权威游戏服务",
   "type": "module",
@@ -33,7 +33,13 @@
     "test:site-websocket-fixture": "node tools/site-websocket-fixture-selftest.mjs",
     "test:website-omniscient-live": "node tools/website-omniscient-live.mjs",
     "test:host-refresh-grace": "node tools/website-refresh-grace-selftest.mjs",
-    "test:website-auth-timeout": "node tools/website-auth-timeout-selftest.mjs"
+    "test:website-auth-timeout": "node tools/website-auth-timeout-selftest.mjs",
+    "test:website-pending-inspection": "node tools/website-pending-inspection-selftest.mjs",
+    "test:website-spectator": "node tools/website-spectator-selftest.mjs",
+    "test:website-spectator-browser": "node tools/website-spectator-browser.mjs",
+    "test:website-deck-order": "node tools/website-deck-order-selftest.mjs",
+    "test:website-omniscient-controls": "node tools/website-omniscient-controls-browser.mjs",
+    "test:website-input-feedback": "node tools/website-feedback2-input-browser.mjs"
   },
   "dependencies": {
     "@fontsource/cinzel": "5.2.6",

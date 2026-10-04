@@ -1,5 +1,7 @@
 # 三龙牌 · Three-Dragon Ante
 
+> 当前线上0.9.1已由用户确认可用；0.9.3候选增加公开观战、默认隐藏手牌的全能查看与牌堆排序，以及术士前注牌落点/快速拖拽修复（仍在验证）。网站与必要权威服务定向发布，Suite/枭熊沿用网站链接，不重发其他插件。状态和证据见AI_CONTEXT/GOAL.md §13、RUNBOOKS/2026-10-04_website-feedback2.md。
+
 D&D 桌游《三龙牌·传奇版》的在线网站：通过房间码或邀请链接和名字进行多人对局，无需账号。**独立 Owlbear Rodeo 插件**及 **Suite 三龙牌入口**只提供线上网站链接，不在枭熊内运行游戏。本地机器人模式已删除。规则引擎是纯函数；公共投影永不含牌库顺序与他人手牌。
 
 2026-10-03 起表现层整体重做（分支 `rebuild/presentation`）：写实风 2.5D 牌桌，照片扫描材质（CC0）与 WebGL 法线贴图光照，无渐变、无发光的 HUD；去掉了历史回放与练习课程。决策与阶段记录见 `AI_CONTEXT/GOAL.md`，视觉规格见 `docs/design/VISUAL_SPEC.md` 与 `docs/design/ANTI_AI_FEEL.md`。

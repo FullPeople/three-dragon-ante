@@ -44,8 +44,8 @@ const OPPONENT_ANCHORS: Record<Orientation, Record<number, Anchor[]>> = {
   },
 };
 export const CENTER: Record<Orientation, { table: Point; deck: Point; discard: Point; stakes: Point; hole: Point; neutral: Point; self: Point; fan: Point; fanRadius: number }> = {
-  landscape: { table: { x: 900, y: 550 }, deck: { x: 720, y: 520 }, discard: { x: 1080, y: 520 }, stakes: { x: 900, y: 430 }, hole: { x: 1250, y: 580 }, neutral: { x: 900, y: 650 }, self: { x: 900, y: 800 }, fan: { x: 900, y: 1000 }, fanRadius: 900 },
-  portrait: { table: { x: 550, y: 750 }, deck: { x: 398, y: 822 }, discard: { x: 702, y: 822 }, stakes: { x: 550, y: 608 }, hole: { x: 550, y: 870 }, neutral: { x: 550, y: 960 }, self: { x: 550, y: 1090 }, fan: { x: 550, y: 1340 }, fanRadius: 700 },
+  landscape: { table: { x: 900, y: 550 }, deck: { x: 720, y: 520 }, discard: { x: 1080, y: 520 }, stakes: { x: 900, y: 430 }, hole: { x: 1250, y: 580 }, neutral: { x: 550, y: 490 }, self: { x: 900, y: 800 }, fan: { x: 900, y: 1000 }, fanRadius: 900 },
+  portrait: { table: { x: 550, y: 750 }, deck: { x: 398, y: 822 }, discard: { x: 702, y: 822 }, stakes: { x: 550, y: 608 }, hole: { x: 550, y: 870 }, neutral: { x: 850, y: 1080 }, self: { x: 550, y: 1090 }, fan: { x: 550, y: 1340 }, fanRadius: 700 },
 };
 
 const rad = (deg: number) => deg * Math.PI / 180;
@@ -81,6 +81,14 @@ export interface SeatPlacement {
 }
 
 const pose = (x: number, y: number, scale = 1, rot = 0, z = 0): Pose => ({ x, y, rot, scale, z });
+
+/** 无座位归属的公开前注用独立紧凑排位，避免压住本家牌阵及牌库、弃牌堆。
+ * 连锁能力积累更多公开牌时收紧间距，仍保留每张牌可点击的边缘。 */
+export function neutralAntePose(index: number, count: number, orientation: Orientation): Pose {
+  const center = CENTER[orientation].neutral, scale = orientation === "landscape" ? 0.5 : 0.55;
+  const step = Math.min(CARD.w * scale + 8, 90 / Math.max(1, count - 1));
+  return pose(center.x + (index - (count - 1) / 2) * step, center.y, scale, 0, 3 + index);
+}
 
 /** 本家永远底部居中；对手按投影顺序顺时针（屏幕上从左到右）分布。 */
 export function seatPlacements(view: PublicView, selfSeatId: string | null, orientation: Orientation): SeatPlacement[] {
@@ -204,7 +212,7 @@ export function cardPlacements(view: PublicView | SeatView | OmniscientView, ori
   view.ante.forEach(card => {
     const seat = seats.find(seat => seat.id === origins.get(card.id));
     if (seat) result.push({ layer: "table", key: card.id, cardId: card.id, card, zone: "ante", seatId: seat.id, pose: { ...seat.ante, z: 3 }, faceDown: false, order: 1 });
-    else { const i = neutral.findIndex(v => v.id === card.id); result.push({ layer: "table", key: card.id, cardId: card.id, card, zone: "ante", pose: pose(center.neutral.x + (i - (neutral.length - 1) / 2) * 110, center.neutral.y, 0.9, 0, 3 + i), faceDown: false, order: i }); }
+    else { const i = neutral.findIndex(v => v.id === card.id); result.push({ layer: "table", key: card.id, cardId: card.id, card, zone: "ante", pose: neutralAntePose(i, neutral.length, orientation), faceDown: false, order: i }); }
   });
   return result;
 }
