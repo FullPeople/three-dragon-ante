@@ -127,3 +127,5 @@
 - 后续 e934fbb 首次完整 Linux CI37208665316 在新增 input 首布局测量失败：真实artifact里卡牌computed transform仍为deck入场起点、尚未最终排位，原门禁后续全部跳过。仅工具保留850ms并加真实阶段/transition/坐标终态等待，首次本机12/12；e934独立包1正11负通过但因CI失败保持未部署。新CI/原13/独立终审/定向发布与公网待；线上仍801，详见website-feedback2末节。
 
 - 真实settled排位等待工具已独立审阅，旧排位负对照仍严格失败；原全能新source本机13/13 run-hANAPe、原500ms清场通过，e290历史Linux失败不覆盖。新精确完整Linux CI和发布闭环仍待。
+
+- 0588精确CI37209674413新专项和原全能/演出/Node/browser/serverbrowser实际通过，原多人17后wsAttempts5!=4失败：初WS在5s认证期限前未送auth、JSopen迟23.8s，收到临时authRequired后一次正常重试并notAllowed终态；根因未证。安全握手/CDP/GL数字诊断准备，原计数/期限保持。后续FX全skipped，两个候选包held，线上801未变；本机新功能公网工具预验15/15不是公网，正本website-feedback2。

@@ -149,3 +149,5 @@
 - [ ] e934fbb 首次完整 CI37208665316 在新增 input 的最终排位测量失败（其后原门禁跳过）；原artifact显示固定850ms后computed transform仍是deck入场起点。只测试工具加真实阶段/transition/目标坐标到位等待，首本机综合12/12，旧负对照/独立审阅/原13及新精确CI待闭环；e934独立包1正11负通过但禁止部署，见website-feedback2末节。
 
 - [x] 本批真实入场等待修正已独立只读审阅，旧settled排位负对照仍遮挡失败；原全能首次本机13/13 run-hANAPe且原500ms门禁通过。新冻结精确完整Linux CI/发布终审/上线与公网仍待。
+
+- [ ] 0588精确CI37209674413在原多人17后单次WebSocket断言5!=4停止；初upgrade后23.8s才JSopen，5秒先触发authenticationRequired，正常一次重试再notAllowed终态。新增/原演出/原browser/serverbrowser通过但全部后续FX skipped；只补原握手/CDP/longtask/桌面GL安全元数据取证，不放宽计数/期限。0588包独立本地通过仍held，线上801保持，见website-feedback2末节。

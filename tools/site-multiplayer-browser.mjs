@@ -29,9 +29,9 @@ async function publicDiagnostics() {
       const value = await Promise.race([actor.page.evaluate(() => {
         const status = document.querySelector('.site-room-identity [role="status"]')?.textContent?.trim();
         const allowed = ['已连接', 'Connected', '座位已在其他窗口连接', 'Seat connected in another window', '连接已失效，请返回首页重连', 'Session expired; return home to reconnect', '连接失败', 'Connection failed', '重连中', 'Reconnecting'];
-        return { lang: ['zh-CN', 'en'].includes(document.documentElement.lang) ? document.documentElement.lang : 'other', status: status == null ? null : allowed.includes(status) ? status : 'other', connected: document.querySelector('.site-online-match')?.getAttribute('data-connected') || null, closes: window.__siteSocketCloseDiagnostics || [], socketEvents: window.__siteSocketEventDiagnostics || [], lifecycle: window.__sitePageLifecycleDiagnostics || [], dropped: window.__siteLifecycleDiagnosticsDropped || { socket: 0, page: 0 } };
+        return { lang: ['zh-CN', 'en'].includes(document.documentElement.lang) ? document.documentElement.lang : 'other', status: status == null ? null : allowed.includes(status) ? status : 'other', connected: document.querySelector('.site-online-match')?.getAttribute('data-connected') || null, closes: window.__siteSocketCloseDiagnostics || [], socketEvents: window.__siteSocketEventDiagnostics || [], lifecycle: window.__sitePageLifecycleDiagnostics || [], dropped: window.__siteLifecycleDiagnosticsDropped || { socket: 0, page: 0 }, longTasks: window.__siteLongTaskDiagnostics || [], surfaceGL: window.__siteSurfaceGLDiagnostics || [] };
       }), new Promise((_, reject) => { timer = setTimeout(() => { const error = new Error('Public diagnostic read timed out'); error.name = 'DiagnosticsTimeout'; reject(error); }, 3000); })]);
-      return { actor: actor.label, wsAttempts: actor.wsAttempts, ...value };
+      return { actor: actor.label, wsAttempts: actor.wsAttempts, handshakes: actor.handshakes, ...value };
     } catch (error) { return { actor: actor.label, wsAttempts: actor.wsAttempts, readError: error.name }; }
     finally { clearTimeout(timer); }
   }));
@@ -67,8 +67,9 @@ staticServer.on('upgrade', (req, socket, head) => {
   const key = req.headers['user-agent'], connectionId = ++nextConnectionId;
   const upstream = httpRequest({ hostname: '127.0.0.1', port: upstreamPort, path: req.url, headers: req.headers });
   upstream.on('upgrade', (response, backend, backendHead) => {
-    socket.write('HTTP/1.1 101 Switching Protocols\r\n' + Object.entries(response.headers).map(([key, value]) => key + ': ' + value).join('\r\n') + '\r\n\r\n');
+    socket.write('HTTP/1.1 101 Switching Protocols\r\n' + Object.entries(response.headers).map(([key, value]) => key + ': ' + value).join('\r\n') + '\r\n\r\n', () => tcpTrace(key, 'handshake-write-callback', socket, undefined, { connectionId, bytesWritten: socket.bytesWritten }));
     if (backendHead.length) socket.write(backendHead); if (head.length) backend.write(head);
+    tcpTrace(key, 'handshake-header-written', socket, undefined, { connectionId, corked: socket.writableCorked, bytesWritten: socket.bytesWritten });
     const entry = { socket, backend }; connections.set(key, entry);
     const trace = (event, target, code, frame) => tcpTrace(key, event, target, code, { connectionId, ...frame });
     trace('upgrade', socket, undefined, { frontendHeadBytes: head.length, backendHeadBytes: backendHead.length });
@@ -111,6 +112,26 @@ async function actor(label, narrow = false) {
   const value = { label, privateFrames: 0, wsAttempts: 0, beforeUnloadPrompts: 0, wire: null }, context = await browser.newContext({ userAgent: 'TDA-site-browser-' + label, locale: 'zh-CN', viewport: narrow ? { width: 390, height: 844 } : { width: 1280, height: 900 }, isMobile: narrow, hasTouch: narrow, reducedMotion: 'reduce' });
   await context.addInitScript(started => {
     const closes = window.__siteSocketCloseDiagnostics = [];
+    const longTasks = window.__siteLongTaskDiagnostics = [];
+    const glCalls = window.__siteSurfaceGLDiagnostics = [], observedContexts = new WeakSet();
+    const nativeContext = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (...args) {
+      const surface = this.classList.contains('tda-surface-gl'), before = performance.now(), gl = nativeContext.apply(this, args);
+      const record = (operation, at) => { if (glCalls.length < 32) glCalls.push({ operation, ms: Math.round(Date.now() - started), durationMs: Math.round(performance.now() - at) }); };
+      if (surface && args[0] === 'webgl2') {
+        record('context', before);
+        if (gl && !observedContexts.has(gl)) {
+          observedContexts.add(gl);
+          for (const operation of ['compileShader', 'linkProgram', 'texImage2D', 'generateMipmap', 'drawArrays', 'drawElements']) {
+            const native = gl[operation];
+            gl[operation] = function (...values) { const at = performance.now(); try { return native.apply(this, values); } finally { if (performance.now() - at >= 50) record(operation, at); } };
+          }
+        }
+      }
+      return gl;
+    };
+
+    new PerformanceObserver(list => { for (const task of list.getEntries()) { if (longTasks.length < 32) longTasks.push({ ms: Math.round(Date.now() - started - performance.now() + task.startTime), durationMs: Math.round(task.duration) }); } }).observe({ type: 'longtask', buffered: true });
     // Fixed public states only; no URLs, event text, room/player identifiers or payloads.
     const socketEvents = window.__siteSocketEventDiagnostics = [], lifecycle = window.__sitePageLifecycleDiagnostics = [];
     const dropped = window.__siteLifecycleDiagnosticsDropped = { socket: 0, page: 0 };
@@ -151,6 +172,11 @@ async function actor(label, narrow = false) {
     };
   }, traceStarted);
   value.context = context; value.page = await context.newPage(); actors.push(value);
+  value.handshakes = [];
+  const network = await context.newCDPSession(value.page), requests = new Map();
+  await network.send('Network.enable');
+  network.on('Network.webSocketWillSendHandshakeRequest', event => { requests.set(event.requestId, event.timestamp); });
+  network.on('Network.webSocketHandshakeResponseReceived', event => { const start = requests.get(event.requestId); if (value.handshakes.length < 16) value.handshakes.push({ observedMs: Date.now() - traceStarted, durationMs: start === undefined ? null : Math.round((event.timestamp - start) * 1000), status: event.response.status }); });
   context.on('request', request => { if (!request.url().startsWith(origin + '/')) external.push(request.url()); });
   await context.route('**/*', route => route.request().url().startsWith(origin + '/') ? route.continue() : route.abort());
   value.page.on('pageerror', error => errors.push(value.label + ': ' + error.message));

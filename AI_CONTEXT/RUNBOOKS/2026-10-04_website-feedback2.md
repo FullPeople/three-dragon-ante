@@ -42,3 +42,22 @@ e934冻结网站包本地独立校验实际exit0：1948 tar记录、450 Git源�
 遗留（同步TODO）：确认真实等待不弱化门禁的旧基线负对照/独立审阅，原全能13诊断首次执行，新精确完整CI及新冻结包发布终审；以上完成后再 fresh baseline、定向两个网站与必要authority、独立after和公网新功能验收。线上仍801/0.9.1，Suite/card/nginx/unit/env/旧稳定未部署。
 
 真实等待修正经原模型之外的gpt-6.1-sol/high只读复核：27条原断言/计数/失败行、原等待参数和快拖时序不变。旧排位baseline-wPMWsF在真实settled后仍严格遮挡失败exit1（预期负对照）：computed等于目标845/955/650/z3/4，flight等覆盖采样25/17/25/18；六源一致。这不是依靠不落地的异常帧保留失败。原website-omniscient首次新source实际13/13 exit0 run-hANAPe，500ms逐字原门禁通过；cleanup observer：cut9375→断线观察9381→editor移除观察9382→Node观察9419（绝对Date.now前缀179112432，约7/44ms，仅回调时刻）。错误/外域0，原e290六项后Linux失败保留且根因未查明，不能用本机13替代新Linux全门禁。
+
+
+## 0588ab8 精确 CI 首次多人门禁失败，发布继续 held
+
+精确CI37209674413 / job111458106186实际：新增input12/12、观战13/13、全能控件19/19、原全能13/13（原500ms也通过）、铭牌21/21、双客户端演出软件14/14与3D16/16、原npm8/8与server2/2、browser15/15与serverbrowser4/4及前置所有Node/入口/发布保护等均通过；原 site-multiplayer 17项后 line364 的 wsAttempts 单次断言5!==4失败。FX9及全部后续FX/lifecycle/ambient/producer/structure没有运行，不冒称完整成功。日志、一次下载artifact在.local-evidence/feedback2/ci-0588-*。
+
+原失败KumP9B安全记录：owner stale refresh初WScreate88930/代理upgrade88934；5秒后93934服务发1008（无auth）；浏览器直到112724才open，113128收到clean authenticationRequired；依原500ms backoff重试113631→113635open→113637auth→113640notAllowed clean失效终态。最终拒绝正确，但多一次开口违背原计数。不要调计数/放宽期限/去改5000ms权威认证期限。浏览器收到握手晚、事件调度晚或GL阻塞的具体原因尚无证据。
+
+仅原工具新增安全元数据准备：HTTP101写入后corked/aggregate bytes、CDP handshake101 native持续时间、原JSopen时序、PerformanceObserver数字longtask与桌面GL调用时段，不保留payload/header/URL/token/player数据；不更改原assert/重试计数/等待参数。第一轮本机 --reconnect-only（部分路径）w1qGD5实际13/13 exit0，未复现Linux延迟，本机初stale handshake36ms；不是原全22或新Linux成功。当时GL元数据增量未运行，后续首次实测见本节末段；仍需精确原Linux环境首次诊断，不盲重跑以绿掩盖问题。换模型只读确认TableSurface初始无game也可同步编译/纹理上传，但未证根因，且reducedMotion测试不启three舞台，不能归因three.js。
+
+新公网验收工具仅ignored .local-evidence/feedback2/public-feedback2.mjs，SHA3e9c5da723014231681179d4c5f31af9a970fdcda1156b61203f28455de1a56a。两个冻结真实构建+loopback authority的新功能本机预验15/15 NVK9Dw：稳定1280/开发390、lobby/latewatch/refresh/exit/reconnect无私字段、全部手牌/暗注默认背、显隐无write、独立牌堆/精确单次排序revision/其他投影zone不变、刷新顺序持久且显隐撤销、三个overflow0、脚本/资源/外域0。不是公网，无生产SQL/现存房数据。保留该工具准备失败：缺少名字focus导致Snmacd/jDy3yI（以及Python默认GBK修改失败后的原样f4lTaH），旧alias再次加入符合nameTaken导致zTcF8w，误把压缩wire字符串当Card.id导致iGrGr2/CmUXA9；都只修验收工具，没有据此改产品或网络codec。
+
+0588新冻结包独立根checker和换模型额外逐项校验1948 tar文件/450 git源码blob/GPL均通过，1正11负仅合成快照且remote false；源0588ab852019e88dbb389f1cebb80c0212d54ef5，tar51621fafed9e029ac611933597d87bfaf0da5d356cc5e56f27df58b1e3a067b1、sourceZIP63a7880d082139592f0419891feeefac6d6344575f7ea833bd34758cb941040b、authoritybundleb16e8519210ceac218c335c8df5f82aea8a3e441965ea16e2843035f966a406a。但精确CI失败所以继续冻结不部署。
+
+遗留（同步TODO）：原多人口径的精确Linux握手/JS/GL安全取证与根因修复，原计数/期限不改；精确完整CI和全后续FX门禁、最终新source/GPL归档、fresh before/部署/after独立保全与新老公网验收。两个e934/0588包都held，线上801/0.9.1保持。
+
+GL数值元数据增量首次本机 --reconnect-only nZCYIL实际13/13 exit0，错误/资源/外域0，语法/diffcheck0；原124条assert/wait/pass/timeout行按0588机械核逐行完全一致。此为工具安全运行预验，不能替代原完整22或精确Linux根因证据，接下来仅正常推送新增诊断的head跑原全部Linux门禁。
+
+换模型只读复核本轮诊断与公网工具准备通过：较宽筛选127条原门禁/计时行逐字未变，authority source无改。socket.write调用后corked/总bytes本身不证明flush或收到，追加真实write callback数值记录（回调也只证明stream写完成，不是客户端收到）；CDP本机13正常、GL确有数值样本但没有Linux23.8s根因证明。公网工具用冻结两前端与repo当前loopback service，不冒称包内entry现场运行或公网。
