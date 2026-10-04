@@ -14,6 +14,7 @@ import { GhostLayer } from "./GhostLayer";
 import { t } from "../i18n";
 import { mountFx, type FxLayer } from "../fx/particles";
 import { mountFxStage, type FxStage } from "../fx3d/FxStage";
+import { composeFx } from "../fx3d/composeFx";
 import { debugMarkers } from "../fx3d/debug";
 
 export interface TableSceneProps { state: UIState; controller: Controller; onFx(fx: FxLayer | null): void; onFx3d?(stage: FxStage | null): void; onOrientation(orientation: Orientation): void; onLand?(key: string, zone: string): void }
@@ -40,6 +41,7 @@ export function TableScene({ state, controller, onFx, onFx3d, onOrientation, onL
   const host = useRef<HTMLDivElement>(null), canvas = useRef<HTMLCanvasElement>(null), airCanvas = useRef<HTMLCanvasElement>(null), groundCanvas = useRef<HTMLCanvasElement>(null);
   const fxRef = useRef<FxLayer | null>(null), fx3dRef = useRef<FxStage | null>(null);
   const fx3dDebug = typeof location !== "undefined" && new URLSearchParams(location.search).get("fx3dDebug") === "1";
+  const fx3dGallery = typeof location !== "undefined" && new URLSearchParams(location.search).get("fx3dGallery") === "1";
   const [fit, setFit] = useState(() => fitPlane(1440, 820));
   useLayoutEffect(() => {
     const el = host.current; if (!el) return;
@@ -47,13 +49,15 @@ export function TableScene({ state, controller, onFx, onFx3d, onOrientation, onL
     measure(); const observer = new ResizeObserver(measure); observer.observe(el); return () => observer.disconnect();
   }, []);
   useEffect(() => { onOrientation(fit.orientation); }, [fit.orientation]);
-  useEffect(() => { const c = canvas.current, h = host.current; if (!c || !h) return; const fx = mountFx(c, h); fxRef.current = fx; onFx(fx); return () => { fx.destroy(); fxRef.current = null; onFx(null); }; }, []);
-  // three.js 特效舞台（空中 + 地面两张画布）；WebGL 不可用时为 null，只剩贴图粒子层
+  // 2D 贴图层 + three.js 舞台（空中 + 地面两张画布）合成一个 FxLayer：舞台不可用（WebGL / 减少动态 / 用户关掉 / 软件 GL）时就是纯 2D 层
   useEffect(() => {
-    const h = host.current, a = airCanvas.current; if (!h || !a) return;
+    const c = canvas.current, h = host.current, a = airCanvas.current; if (!c || !h || !a) return;
+    const fx2d = mountFx(c, h);
     const stage = mountFxStage(h, a, groundCanvas.current); fx3dRef.current = stage; onFx3d?.(stage);
-    if (stage && fx3dDebug) (window as unknown as { __tdaFx3d?: FxStage }).__tdaFx3d = stage;
-    return () => { stage?.destroy(); fx3dRef.current = null; onFx3d?.(null); };
+    if (stage && (fx3dDebug || fx3dGallery)) (window as unknown as { __tdaFx3d?: FxStage }).__tdaFx3d = stage;
+    const fx = composeFx(fx2d, stage); fxRef.current = fx; onFx(fx);
+    if (stage && (fx3dDebug || fx3dGallery)) (window as unknown as { __tdaFx?: FxLayer }).__tdaFx = fx;
+    return () => { fx.destroy(); stage?.destroy(); fxRef.current = null; fx3dRef.current = null; onFx(null); onFx3d?.(null); };
   }, []);
 
   const view = state.display, game = view?.game ?? null, own = privateGame(view);
@@ -68,8 +72,22 @@ export function TableScene({ state, controller, onFx, onFx3d, onOrientation, onL
     const pts = [center.deck, center.discard, center.stakes, center.hole, ...seats.flatMap(s => [s.ante, s.coins, s.flight])];
     return debugMarkers(stage, pts);
   }, [fx3dDebug, game?.id, seats.length, orientation]);
+  // 画廊（截图验收用）：开局 0.8 s 后在固定锚点各放一个图元
+  useEffect(() => {
+    const stage = fx3dRef.current, fx = fxRef.current; if (!stage || !fx || !fx3dGallery || !game || !seats.length) return;
+    const at = (p: { x: number; y: number }) => stage.project(p.x, p.y, 0);
+    const timer = setTimeout(() => {
+      void fx.sigil(at(center.deck), "arcane", 130, 1800);
+      void fx.beam(at(center.discard), at(center.stakes), "tide", 800);
+      fx.burst(at(seats[0].flight), "ember", 1);
+      void fx.flare(at(center.hole), "crown", 1000);
+      void fx.ring(at(seats[0].ante), "grove", 150, 900);
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [fx3dGallery, game?.id, seats.length]);
   const handAt = handLayerPlacement(orientation);
   const shape = tableShape(game?.seats.length ?? 3);
+  useEffect(() => { fx3dRef.current?.setShape(shape); }, [shape]);
   const legalZone = controller.legalZone();
   const targetSeatId = state.show.power?.targetSeatIds?.[0] ?? game?.resolutionStack.find(step => step.status === "active")?.targetSeatId ?? null;
   const waitingIds = new Set(game?.waitingSeatIds ?? []);

@@ -5,7 +5,7 @@
  *    正交相机 y 向上、原点在平面中心，与空中画布共用同一套 `local(x, y, z)`（评审指出：直接用 y 向下的正交相机会翻转手性，
  *    three 只按物体矩阵的行列式补绕序，默认 FrontSide 的网格会整片被剔除）。负责法阵 / 光池 / 裂痕 / 焦痕这类必须被卡牌盖住的贴地效果。
  *  按需渲染：没有活动效果就不跑循环。WebGL 不可用时 mount 返回 null，调用方退回贴图粒子层。 */
-import { Group, OrthographicCamera, PerspectiveCamera, Scene, Vector3, WebGLRenderer } from "three";
+import { Group, NoToneMapping, OrthographicCamera, PerspectiveCamera, Scene, Vector2, Vector3, WebGLRenderer } from "three";
 import { fitPlane, type Orientation, type PlaneSpec } from "../model/layout";
 import { airCamera, screenToPlane, stageMetrics, type StageMetrics } from "./stage";
 import { reducedMotion } from "../fx/motion";
@@ -29,6 +29,11 @@ export interface FxStage {
   local(x: number, y: number, z?: number): Vector3;
   /** 平面坐标 → 视口像素（用真实相机投影；对齐检查用） */
   project(x: number, y: number, z?: number): { x: number; y: number };
+  /** 地面图元共用的桌形裁剪 uniform（毛毡半尺寸、0 圆 / 1 方）；随布局与桌形更新 */
+  tableUniforms(): { uTableHalf: { value: Vector2 }; uTableShape: { value: number } };
+  setShape(shape: "round" | "square"): void;
+  /** 点精灵尺寸系数：gl_PointSize = size × pointScale / 深度 */
+  pointScale(): number;
   add(effect: Effect): void;
   /** 唤醒渲染循环（场景里有东西变了） */
   wake(): void;
@@ -60,7 +65,7 @@ function makeRenderer(canvas: HTMLCanvasElement, antialias: boolean): WebGLRende
   try {
     const renderer = new WebGLRenderer({ canvas, alpha: true, antialias, premultipliedAlpha: true, powerPreference: "high-performance", stencil: false, preserveDrawingBuffer: false });
     renderer.setClearColor(0x000000, 0);
-    renderer.autoClear = true;
+    renderer.autoClear = true; renderer.toneMapping = NoToneMapping;
     return renderer;
   } catch { return null; }
 }
@@ -90,6 +95,8 @@ export function mountFxStage(host: HTMLElement, airCanvas: HTMLCanvasElement, gr
 
   const effects: Effect[] = [];
   let raf = 0, last = 0, dirty = true, destroyed = false, lost = false;
+  const tableUniforms = { uTableHalf: { value: new Vector2(826, 486) }, uTableShape: { value: 0 } };
+  let pointScaleValue = 1000;
   let metrics: StageMetrics = stageMetrics(1440, 820, fitPlane(1440, 820).spec, fitPlane(1440, 820).scale, "landscape");
   let orientation: Orientation = "landscape", spec: PlaneSpec = fitPlane(1440, 820).spec;
 
@@ -106,6 +113,9 @@ export function mountFxStage(host: HTMLElement, airCanvas: HTMLCanvasElement, gr
     airCam.projectionMatrix.makePerspective(f.left, f.right, f.top, f.bottom, f.near, f.far);
     airCam.projectionMatrixInverse.copy(airCam.projectionMatrix).invert();
     airCam.updateMatrixWorld(true);
+    // 点精灵：像素/单位 = 绘制缓冲高度 / (视锥高度 × 深度/近平面)
+    pointScaleValue = r.height * dpr * f.near / (f.top - f.bottom);
+    tableUniforms.uTableHalf.value.set(spec.w / 2 - 74, spec.h / 2 - 64);
     group.position.set(spec.w / 2, -spec.h / 2, 0); group.rotation.set(-spec.tilt * Math.PI / 180, 0, 0); group.updateMatrixWorld(true);
     // 地面：CSS 尺寸 = 平面单位（在 stage 的缩放之内），后备存储按显示像素 × dpr
     if (groundRenderer && groundCanvas) {
@@ -127,7 +137,7 @@ export function mountFxStage(host: HTMLElement, airCanvas: HTMLCanvasElement, gr
   function frame(now: number) {
     raf = 0; if (destroyed) return;
     const dt = Math.min(0.05, last ? (now - last) / 1000 : 0.016); last = now;
-    for (let i = effects.length - 1; i >= 0; i--) { let alive = false; try { alive = effects[i].update(dt, now); } catch { alive = false; } if (!alive) { const e = effects.splice(i, 1)[0]; e.dispose?.(); } }
+    for (let i = effects.length - 1; i >= 0; i--) { let alive = false; try { alive = effects[i].update(dt, now); } catch (err) { alive = false; console.error("fx3d effect failed", effects[i]?.constructor?.name, err); } if (!alive) { const e = effects.splice(i, 1)[0]; try { e.dispose?.(); } catch (err) { console.error("fx3d dispose failed", err); } } }
     airRenderer.render(airScene, airCam);
     if (groundRenderer) groundRenderer.render(groundScene, groundCam);
     dirty = false;
@@ -149,6 +159,9 @@ export function mountFxStage(host: HTMLElement, airCanvas: HTMLCanvasElement, gr
       const v = stage.local(x, y, z); group.localToWorld(v); v.project(airCam);
       const r = hostRect(); return { x: r.left + (v.x + 1) / 2 * r.width, y: r.top + (1 - v.y) / 2 * r.height };
     },
+    tableUniforms: () => tableUniforms,
+    setShape(shape) { tableUniforms.uTableShape.value = shape === "square" ? 1 : 0; },
+    pointScale: () => pointScaleValue,
     add(effect) { effects.push(effect); wake(); },
     wake,
     destroy() {

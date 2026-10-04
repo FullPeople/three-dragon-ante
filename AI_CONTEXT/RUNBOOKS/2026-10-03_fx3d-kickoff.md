@@ -32,6 +32,25 @@
 | 测试 | `test:fx3d` 7 项：对齐 + data-fx + 画布可见时指针仍落在卡牌上 + 零错误零外部请求 + 分包闸（launcher / background 不引用 three chunk）；自测第 16 项：相机纯数学（中心、往返、视锥、离地方向） | `tools/fx3d-alignment-check.mjs`、`presentation-selftest.mjs` |
 | 分包 | three 单独 chunk（见上表体积行） | `vite.config.ts` |
 
+## 2.2 P1 第一批图元与接入（2026-10-04）
+
+评审裁决（两位评审一致，详见工作流 `fx3d-understand-design` 的 judges 输出）：以 integration 稿的接入层为骨架（`composeFx` 适配器、presenter 零改动、`FxLayer` 不变），嫁接 fidelity 稿的正确性（y 向上地面相机、统一 `local()`、预乘输出 + 发光 alpha=最亮通道、无色调映射）与 mobile 稿的治理（桌形 SDF 裁剪、噪声像素预算、用户三态开关、自适应降档）。合成稿因额度中断尚未产出，先按一致项推进。
+
+| 文件 | 内容 |
+|---|---|
+| `fx3d/shaders/lib.ts` | 共用 GLSL：hash / value noise / fbm3、SDF（圆、环、圆角矩形、椭圆、桌形、线段）、抗锯齿填充 / 描边、包络、桌形裁剪 `tableMask`、预乘输出 `solidOut` / `glowOut` |
+| `fx3d/palette.ts` | 家族色来自 tokens（ember / tide / grove / arcane / crown / gold / dust），派生亮色与深色；不引入新饱和色 |
+| `fx3d/textures.ts` | Kenney 软贴图 → three 纹理（sRGB，mipmap） |
+| `primitives/GroundMark.ts` | 地面法阵（外环 / 内环 / 12 刻度 / 8 个按 seed 变体的符文，符文环旋转、内环反向、噪声呼吸；可驻留 `release()`）与单环扩散（mode 1）；乘桌形裁剪 |
+| `primitives/Pillar.ts` | 竖直光柱：两张十字立面（欧拉 ZYX：先立起再偏航），底亮顶淡，噪声条纹上流 |
+| `primitives/Burst.ts` | GPU 粒子爆发：Points + 顶点着色器解析运动（阻尼 + 重力，z 为桌面法线），按贴图分组每种一次 draw call |
+| `primitives/Beam.ts` | 光束飘带：顶点着色器沿抬升贝塞尔摆放的带子，头亮尾淡、宽度收窄 |
+| `fx3d/composeFx.ts` | 适配器：有舞台时 sigil（法阵 + 光柱 + 上升粒子）/ ring / beam（飘带 + 命中爆发）/ burst / flare 走 three，其余仍走 2D；按档位缩放粒子数 |
+| `FxStage` | `tableUniforms()`（毛毡半尺寸、桌形）、`setShape()`、`pointScale()`、NoToneMapping、effect 异常改为 console.error 并移除 |
+| `TableScene` | 一个 effect 里挂 2D 层 + 舞台并合成；`?fx3dGallery=1` 画廊（开局 0.8 s 后在固定锚点放五个图元） |
+
+证据：`.local-evidence/shots/fx3d-gallery-1.png`（法阵 + 紫色光柱、金色爆发 + 光柱、绿色扩散环、红色粒子、蓝色飘带头）、`fx3d-gallery-2.png`（0.5 s 后法阵驻留）。测试：冒烟 20/20、`test:fx3d` 7/7、`npm test` 8/8（自测 16 项）。
+
 ## 3. 下一步（设计评审工作流 `fx3d-understand-design` 的产出落地后填写）
 
 - §4 设计定稿（画布 / 渲染策略 / 图元工具箱 / 脚本相位机 / 家族签名表 / 分期）
