@@ -14,7 +14,7 @@
 - 仓库 `https://github.com/FullPeople/three-dragon-ante`（GPL-3.0）。当前分支 **`rebuild/presentation`**，最新提交以 `git log -1` 为准（压缩包含 2026-10-03/04 的全部提交：`8d23298` 第三轮审计整改、`619ada5` three.js 特效层地基 + 复审整改，之后可能还有）；`main` 停在拆分基线 `eb74f62`。
 - 原机器 push 被 403 拒绝（凭据账号对该仓库无写权限），这些提交**还没到 GitHub**。你的第一件实事就是用有写权限的账号把它推上去。
 - 2026-10-03 起表现层整体重做：写实风 2.5D 牌桌（DOM + CSS 3D + WebGL2 桌面材质 + 贴图粒子 + three.js 特效层地基）。**规则引擎、协议、私牌边界、权威服务端、旧稳定频道一个字节都没改**，联机逻辑原样保留。
-- 原机器会继续在同一分支上做 three.js 特效层（目录 `extensions/three-dragon-ante/src/presentation/fx3d/` 及 `presentation/fx/`）。你**不要改表现层代码**（`src/presentation/`）；你负责环境、推送、部署与枭熊联机验证，以及部署过程中必须改的构建配置。任何 commit 前先 `git fetch` 看远端；绝不 force-push。
+- 原机器会继续在同一分支上做 three.js 特效层（目录 `extensions/three-dragon-ante/src/presentation/fx3d/` 及 `presentation/fx/`）。默认你**不改表现层代码**（`src/presentation/`），负责环境、推送、部署与枭熊联机验证，以及部署过程中必须改的构建配置。**若用户要你接着做特效**，先完成本启动词 §1–§3，再按 `AI_CONTEXT/HANDOFF_FX3D.md` 的启动词推进 fx3d（那份文档有当前进度、口径与待做清单）。任何 commit 前先 `git fetch` 看远端；绝不 force-push。
 
 ### 1. 冷启动读取顺序（不要跳）
 
@@ -38,7 +38,7 @@ npm test                      # 8/8（规则、私牌边界、控制器、交接
 npm run test:server           # 2/2 真实本地 WebSocket + SQLite
 npm run test:browser          # 20/20 生产构建冒烟：桌面 + 390px；零外部请求（Windows 用已装的 Edge，其它系统先 npx playwright install chromium）
 npm run test:server-browser   # 4/4 四客户端 + 本地服务
-npm run test:fx3d             # 4/4 three.js 特效层相机对齐
+npm run test:fx3d             # 7/7 三龙牌 three.js 特效层：对齐 / data-fx / 指针穿透 / 分包闸（7 项）
 ```
 
 预期基线：typecheck 0 错误；以上数字一个不少。少了先自己查根因修环境（不改测试去凑），修不好的记进 `AI_CONTEXT/TODO.md` 并继续后面的步骤。
