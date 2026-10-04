@@ -7,7 +7,9 @@
 
 - [x] 新goal续轮：原FX合取断言安全诊断准备获换模型独立认可，28assert/7page+locator wait/6pass/取点与fixture逐字保持，仅公开数字/布尔/固定类别于原assert前输出；tool9a2c1064，见fx3d-pointer-diagnostic runbook。
 - [x] 6d2首次本机构建/服务端构建exit0、FX9/9；Linux37197852779两个屏幕可见/命中均true、前7项通过，原ticks >20合取失败，当前原写入顺序导致实际两侧计数缺失；保留失败与本地边界。
-- [ ] 新冻结首次Linux计数诊断/完整CI：仅既有comparison写入提前+安全数字输出，独立AST原断言/等待/时长/门槛精确保持；未得计数前不猜哪侧或原因，0.9.2继续未部署。
+- [ ] 最新1117450首次Linux CI37199170133在多人17checks后原expired-status30s等待失败，后续FX及所有步骤skipped，未取得ticks；先补安全连接/lifecycle观测查明确切延迟，不能事后expired代原结果或称凭据复活。保留旧6d2计数缺失与d580指针未知；原断言/期限不变，0.9.2继续未部署。
+- [x] 首次有界性能profiling两capture完成、原5checks/18样本保留，tracked产品零改，surface/coin原生计数增量0；renderer事件耗时未解释全部400ms间隔，候选具体CSS/GPU/输入因果未证实。见performance-profiling runbook。
+- [ ] 后续性能单变量/公开role绘制归属对照及实体设备体验；不盲重跑原样本，不把插桩FPS或后台control全局GPU算候选性能。
 
 
 - [x] 线上0.9.1/801已发布双网站及必要server，公网12/默认GPU隐藏8完整通过；其他插件保留网站链接，不重发。

@@ -23,7 +23,7 @@
 
 ## B. 当前状态（最近为真；过时即更新）
 
-- **19:30续轮当前**：冻结6d2本机构建/服务端构建均exit0，首次FX同帧诊断9/9；Linux首次CI37197852779两个屏幕airShown/hitIsCard均true、前7项通过，随后原baseline/candidate ticks >20合取失败，原comparison写入晚于断言使两计数缺失，不能猜原因。仅原样提前保存comparison及安全数字输出，tool6e4c43cf获换模型AST审查，原28断言/7等待/900及1250ms采样/门槛保持，等待新Linux首次计数采证；两个历史失败均保留。线上仍801/0.9.1，0.9.2不部署，完整目标继续；见fx3d-pointer-diagnostic runbook。
+- **2026-10-04 续轮最新查证**：线上仍801/0.9.1，两manifest/正确release marker/服务health新读均200。6d2本机构建与FX9/9、Linux两个屏幕可见/命中true后ticks合取失败分别保留；仅提前既有计数输出的新冻结1117450首次CI37199170133在更早多人第26步骤17checks后过期status等待30s超时，FX全skipped、没有新ticks，不猜旧token授权或把事后expired代原等待。安全artifact看到第一1008无auth帧、第二auth被notAllowed拒，延迟原因未知；准备补连接/lifecycle安全观察，原断言期限保留。首次有界性能profiling两capture/5checks/18样本完成，长帧期间surface与coin原生计数零增量，具体CSS/GPU/输入因果未证实，插桩FPS不替原基线。候选仍未部署、目标继续；见website-release-status及performance-profiling runbooks。
 
 
 - **2026-10-04 最新状态**：线上仍801/0.9.1(-dev)，一般公网12/默认GPU隐藏8完整通过；Suite/枭熊维持网站链接不重发。附件d580独立分支已推送，真实hold画质6/生产参数14通过且包审查通过，但精确CI37196321804特效合取断言失败、后六CI检查跳过，停止0.9.2发布。两个boolean未记录，根因未证实，未改断言期限凑数。软件hover/drag长帧仍在；正本RUNBOOKS/2026-10-04_website-release-status.md。
