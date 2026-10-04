@@ -5,13 +5,17 @@ import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve, extname } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { chromium, browserLaunchOptions } from './browser-runtime.mjs';
 const root = resolve(import.meta.dirname, '..');
 const dist = resolve(root, 'extensions/three-dragon-ante/dist');
 const base = '/three-dragon-ante-dev/';
+const {createTableService}=await import(pathToFileURL(resolve(root,process.env.TDA_SERVER_OUT||'dist-server','service.mjs')));
+let service;
 const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.webp': 'image/webp', '.png': 'image/png', '.svg': 'image/svg+xml', '.ogg': 'audio/ogg', '.woff2': 'font/woff2', '.ico': 'image/x-icon' };
 const server = createServer((request, response) => {
   const path = decodeURIComponent(new URL(request.url, 'http://x').pathname);
+  if(path.startsWith('/three-dragon-api/v1/')){service.server.emit('request',request,response);return;}
   if (!path.startsWith(base)) { response.writeHead(404); response.end(); return; }
   const file = resolve(dist, path.slice(base.length) || 'index.html');
   if (!existsSync(file)) { response.writeHead(404); response.end(); return; }
@@ -19,6 +23,8 @@ const server = createServer((request, response) => {
 });
 await new Promise(r => server.listen(0, '127.0.0.1', r));
 const origin = 'http://127.0.0.1:' + server.address().port;
+service=createTableService({database:':memory:',origin});
+server.on('upgrade',(request,socket,head)=>service.server.emit('upgrade',request,socket,head));
 const browser = await chromium.launch({ ...browserLaunchOptions(), headless: true, args: ['--enable-webgl', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 let passed = 0; const pass = m => { passed++; console.log('PASS', m); };
 try {
@@ -30,7 +36,13 @@ try {
     const page = await context.newPage();
     page.on('pageerror', e => errors.push(String(e)));
     await page.goto(origin + base + 'index.html?fx3dDebug=1');
+    await page.getByRole('button', { name: '创建房间', exact: true }).click();
+    await page.locator('.site-online-match[data-connected="true"]').waitFor();
+    const code=await page.getByTestId('online-room-code').textContent();
+    const joined=await fetch(origin+'/three-dragon-api/v1/guest/rooms/'+code+'/sessions',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({name:'Camera peer'})});
+    assert.equal(joined.status,201,'a second synthetic seat joins the actual local authority');
     await page.getByRole('button', { name: '开始', exact: true }).click();
+    await page.locator('.tda-card--hand[data-card]').first().waitFor();
     await page.locator('.tda-plane').waitFor({ timeout: 30000 });
     await page.waitForTimeout(600);
     const res = await page.evaluate(() => {
@@ -50,5 +62,5 @@ try {
     pass(`${name} no script errors and no external requests with the effects stage mounted`);
     await context.close();
   }
-} finally { await browser.close(); server.close(); }
+} finally { await browser.close(); await service.close(); await new Promise(done=>server.close(done)); }
 console.log(`${passed} checks passed`);

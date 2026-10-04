@@ -20,7 +20,7 @@
 - 无人房间最终专项 **9/9**，`.local-evidence/empty-room/run-4wbPbI/result.json`。覆盖未连接过期/容量拒绝、单人在线保留、最后断线缓存释放及宽限重连、所有关联数据删除与旧码/凭据拒绝、事务失败重试、服务重启恢复、旧 Owlbear 存档隔离、旧版本两列 INSERT 与再次升级纳管。曾考虑给 guest_rooms 加列，会破坏旧版 positional INSERT；正式改用独立 guest_room_lifecycle 表，不改变原 guest_rooms 两列，保持代码回退兼容。
 - 原 guest 15 项的最后容量夹具原来在 maxRooms=1 时同时 HTTP 创建两网站房间，与新增“创建也限额”冲突，首次运行 14/15 后 503 != 201。保留原暂态 WS 1013、租约/缓存/原凭据恢复全部断言；第一占用房改历史 /rooms，第二 guest 是唯一允许网站房，复跑 **15/15**。新创建上限独立由空房专项验证；未删断言或凑数字。证据 `.local-evidence/guest-server/run-QdQc8t/result.json`。
 - `npm run build` 含 tsc **0 错误**；构建 `.local-evidence/online-only-build.log`。一次 quiet forwarding 命令被 npm/PowerShell 转成 `vite build warn` 返回 1；恢复精确 `npm run build` 后通过，不作为源码失败或忽略项。
-- `npm test` **8/8**，`test:server` **2/2**，`test:fx3d` **4/4**，历史 `test:page-route` **12/12**。fx3d 未修改，实际 camera 对齐 0.009/0.011px。
+- `npm test` **8/8**，`test:server` **2/2**，历史 `test:page-route` **12/12**。最初 fx3d 与构建并行的结果读到旧产物，已撤销为新版证据；修正后按顺序运行真实在线房间相机检查 **4/4**，桌面/窄屏最差偏差分别0.009/0.000px，双画布挂载、脚本错误与外部请求均0。fx3d 运行时未修改。
 - 新在线首页 **15/15**（独立审计运行 `.local-evidence/site-controls/run-APsJK8/result.json`）：随机名字、编辑与未聚焦只读、空名不发请求、规则帮助、语言刷新、桌面/390窄屏按钮真实命中。
 - 链接入口 **15/15**，`.local-evidence/site-entry/run-9Z916q/result.json`；审计独立复核 `run-IHSl3X` 同样 15/15。table/launcher/所有 iframe 只有原生新窗口链接，parent 不导航，无游戏 API/WS。保留原 manifest background_url 与 action.popover 两个断言，另外直接核验通过；不凑原本地机器人20项数字。
 - 历史服务宿主浏览器 **4/4**，`.local-evidence/server-browser-MST8Zx/result.json`；虚拟测试 entry 直接加载保留的 server-page，不给用户新增历史牌桌公开入口，仍验证四客户端准入/私牌/全能/恢复。不是新版插件游戏验收。
@@ -36,9 +36,11 @@ Web 从实际线上 fbccf572 基线隔离修改，Suite dev 从207f584（243）/
 
 本地预览现用新服务 `.local-data/preview-online-only-20261004.sqlite`（ignored，合成局），`http://127.0.0.1:4173/three-dragon-ante-dev/`，不连接真实玩家存档。
 
-最终宿主清单：`U:/CodexWork/2026-10-04/three-dragon-host-link-overlay-final-complete/host-overlay-manifest.json`；Web源 b681f78dccad90ab407738074dedba62b13db470、Suite dev源32ed4bb661b11587bc74fe78a36ed4971945178d、stable源3dc4bbd9836279a95dfd1ffba7eac812af1d7321。原产品hash未变，Web补强测试/docs进入对应源ZIP。三源归档随host49项发布，提供精确GPL对应源码。
+最终宿主清单：`U:/CodexWork/2026-10-04/three-dragon-host-link-overlay-final-complete/host-overlay-manifest.json`；Web源 b681f78dccad90ab407738074dedba62b13db470、Suite dev源32ed4bb661b11587bc74fe78a36ed4971945178d、stable源3dc4bbd9836279a95dfd1ffba7eac812af1d7321。原产品hash未变，Web补强测试/docs进入对应源ZIP。三源归档随host49项发布，提供精确对应源码；保留各自既有许可证，Web为LicenseRef-DND-Card-NC-SA-1.0，Suite和三龙牌为GPL-3.0，未将Web改称GPL。
 
 第一次冻结 fa83fad 已 push，CI `37165076697` 在入口最后直接访问场景失败：该 `browser.newPage()` 未设 locale，Windows 默认中文通过，Linux 默认英文正确显示 Create room，但测试硬编码“创建房间”等待超时。修为明确 zh-CN/en-US 两个独立访问场景，保留全部原断言并新增英文 default-language 断言；新入口总16项，不改产品语言策略。首次候选保留、未部署；正式冻结将包含此跨平台测试修正并重打包。
+
+第二冻结 6e3d4d9 的 CI `37165303318` 已通过在线多人22项，却在 fx3d 原测试点击已删本地首页“开始”时失败。先前本机fx检查和前端构建并行，检查读取了旧产物，不能算0.9新版证据。本轮纠正依赖顺序，并将相机测试改为内存SQLite真实HTTP/WS在线房间、第二合成座位与实际发牌后检查；保留原桌面/窄屏8点<0.5px对齐、双画布、脚本/外部请求0共4条，未改fx3d源码或相机阈值。6e候选保留、未部署，正式冻结必须含此适配并通过CI。
 
 ## 遗留
 
