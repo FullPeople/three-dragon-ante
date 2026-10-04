@@ -21,7 +21,7 @@
 - [x] **原 push 被拒已解除（2026-10-04）**：有写权限账号已将 `619ada5` 推至 `origin/rebuild/presentation`，未合并 main。历史原因：用户 2026-10-03 授权"修复完之后推送"，但 `git push -u origin rebuild/presentation` 返回 403——Git Credential Manager 里的 GitHub 账号 `pzy197684` 对 `FullPeople/three-dragon-ante` 无写权限（本机未装 gh）。需用户：给该账号写权限 / 在凭据管理器换成有权限的账号 / 或改推到自己的 fork；之后重跑 push。是否合并 main 由用户定。
 - [ ] **three.js 特效层 fx3d（用户 2026-10-03 批准）**：地基已交付（runbook `2026-10-03_fx3d-kickoff.md` §2）；待办：设计定稿 → 图元工具箱 → 家族签名 → 单牌变体 → 传说牌定制 → 持续 / 环境 → 尘土与手；MIT 署名文件待随首个移植图元一起加入 `docs/design/ASSETS.md` 与 THIRD_PARTY 说明。
 - [ ] 字体子集化：vendor CSS 约 500 kB 来自 fontsource 全部 unicode-range 子集声明；可改为只保留 chinese-simplified + latin 子集或自建子集。
-- [ ] 枭熊真实房间验收（双账号、紧凑弹窗、全屏模态）；实体手机。
+- [ ] 网站实体手机验收；原枭熊双账号/紧凑弹窗游戏验收按 GOAL §10 退出当前范围，历史未通过不改称通过。
 - [ ] `src/modules/threeDragonAnte`（旧稳定频道）是否删除或也切新表现层，待用户定。
 - [x] 阶段 6：从 `package.json` 与 `.github/workflows/verify.yml` 移除 `verify:source`；`docs/EXTRACTION.md` 注明 `SOURCE.json` 已成历史记录；删除旧表现层文件与 `three` / `@types/three` 依赖；重写 `tools/production-practice-smoke.mjs` 与 `tools/three-dragon-server-browser.mjs` 选择器。
 - [x] 枭熊适配（阶段 5，2026-10-03 完成）：`table.html` 两种模式（全屏模态 / 紧凑弹窗）、大厅、全能编辑器视觉重做；`index.ts` 中 `assetUrl("index.html")` 改 `table.html`。
@@ -52,8 +52,8 @@
 
 ## 2026-10-04 在线网站调整（GOAL §10）
 
-- [ ] 删除本地对战及入口/死分支，在线服务与旧私牌边界保持。
-- [ ] Suite 顶栏不再被三龙牌全屏禁用；独立插件和所有内嵌入口提供可点击网站链接。
-- [ ] 默认随机名字与随机按钮、禁个人姓名自动填充；网站控制按钮与进行中退出/新局确认实际浏览器验收。
-- [ ] 网站空房 60 秒宽限与持久化/内存清理、数量上限，事务与重连专项验收。
-- [ ] 0.9.0(-dev) 源码冻结、换模型审计、定向发布和公网复核；留痕 `RUNBOOKS/2026-10-04_online-only.md`。
+- [x] 删除本地对战及入口/死分支，在线服务与旧私牌边界保持。
+- [x] Suite 顶栏不再被三龙牌全屏禁用；独立插件和所有内嵌入口提供可点击网站链接。宿主实际构建浏览器2/2、链接6/6；公网入口200、独立SHA通过。
+- [x] 默认随机名字与随机按钮、禁个人姓名自动填充；网站控制按钮与进行中退出/新局确认实际浏览器验收。首页15/15，联机22/22，公网12/12。
+- [x] 网站空房60秒宽限与持久化/内存清理、数量上限，事务与重连专项9/9；公网全部离开后66秒重连拒绝。
+- [x] 0.9.0(-dev) 冻结7555f99、换模型审计通过、CI37166008634成功、四目标定向发布与独立远端复核通过；留痕 `RUNBOOKS/2026-10-04_online-only.md`。

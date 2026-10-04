@@ -53,7 +53,7 @@ npm run dev:server
 - 独立枭熊扩展：在“扩展 → 添加”中填写 <https://obr.dnd.center/three-dragon-ante/manifest.json>；dev 频道为 <https://obr.dnd.center/three-dragon-ante-dev/manifest.json>。
 - Suite 三龙牌入口打开网站新窗口，保留原顶栏、功能开关和设置可操作；不在 Suite 内创建新牌局。
 
-当前源码版本为 0.9.0 / 0.9.0-dev；线上版本及精确源提交读取 `manifest.json` 与 `three-dragon-release.json`，后者提供对应冻结源码 ZIP 路径。当前网站与链接入口的验证/发布记录见 `AI_CONTEXT/RUNBOOKS/2026-10-04_online-only.md`；旧 0.8.0 部署回执保留在同日 `owlbear-deploy` runbook，不作为新版证据。
+已上线 0.9.0 / 0.9.0-dev，网站 <https://obr.dnd.center/three-dragon-ante/>。线上冻结源为 `7555f99e05a2853f495422d5b3c0f62a1a74c990`，CI、换模型审计和公网12项验收通过；后续纯文档提交不改变该冻结源。精确版本与源码 ZIP 路径读取 `manifest.json` 与 `three-dragon-release.json`。当前验证/发布记录见 `AI_CONTEXT/RUNBOOKS/2026-10-04_online-only.md`；旧0.8.0回执保留在同日 `owlbear-deploy` runbook。
 
 ## 验证
 

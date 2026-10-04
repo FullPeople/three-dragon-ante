@@ -26,7 +26,7 @@
 | 浏览器冒烟 | `npm run test:browser`、`npm run test:server-browser`（Windows 用已安装 Edge；当前新表现层选择器）；新增 `test:site-multiplayer` |
 | 来源字节校验 | `npm run verify:source`（对 `SOURCE.json`；重构开始后作废，见 GOAL §4） |
 | 证据目录 | `.local-evidence/`（gitignore） |
-| 凭证 | `.env.local`（不进 git；明文不记录）。本地对战与练习不需要任何凭证 |
+| 配置 | `.env.local`（不进 git；明文不记录）可指定 API；网站房间使用名字，无需登录。已删除本地对战与练习 |
 
 ## 3. 是否允许 AI 执行
 
