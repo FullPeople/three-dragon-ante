@@ -1,8 +1,9 @@
 # 待办清单 — 三龙牌
 
-- [x] 801线上基线独立移植四反馈+必要权限pending已审delta，原FX/相机4/演出/飞牌0diff、原23CI命令同序完整保持+6专项；尚未新验收或部署。
+- [x] 801基线独立移植四反馈+必要权限pending，原FX/相机4/演出/飞牌0diff，原23CI命令同序完整保持+6专项；0.9.3(-dev)冻结062dd41已部署两个网站及必要服务。
 - [x] 本分支首次npmci双0/buildtsc0/serverbuild0、unit8/server2、watchNode13/browser13、deck10、pending13、controls19、input12/术士10组20点击、原相机4；换模型源审22功能文件/120保护文件与接缝通过，无P1/P2，完整发布条件待。
-- [ ] 新分支本机环境/build/原回归与四专项、精确完整CI、换模型终审、冻结GPL包/独立校验、fresh稳定保护基线、双网站+必要server/after/公网12+8+15；线上仍801/0.9.1。正本RUNBOOKS/2026-10-05_website-feedback-hotfix.md。
+- [x] 精确062dd41 CI37218363801全29run成功，冻结GPL包1942记录/408源码blob独立核验通过；fresh前后、定向部署apply exit0和远端SHA/权限/保护服务独立通过；原公网12与权限8通过。
+- [ ] 新增公网15尚未通过：正常缓存两视口14功能项实际通过但资源断言因2次watch webp ERR_ABORTED失败；后加有界页面/关闭前加载等待与同revision基线，6PASS后观战显式重连requestTimeout。原因未证，保留全部旧失败；停止重复全套browser，不放宽资源/权限/时限，后续只在有新因果证据或真实用户复现时做定向修复与终验。公网12/8及部署成功不被改写。实体手机/真实玩家UAT独立待，正本RUNBOOKS/2026-10-05_website-feedback-hotfix.md。
 - [ ] 组合分支053新附件FX真实25帧2161.1ms降medium、workload18，原9项未通过；继续独立归因，不改原门槛/时钟/自适应或冒称本次热修复已解决该性能问题。
 > 跨会话遗留登记处。任何未完成事项写这里（实质改动的遗留**双落**：runbook + 本文件）。
 > 完成的移到底部「已完成」并注 commit。

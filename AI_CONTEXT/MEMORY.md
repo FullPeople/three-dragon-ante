@@ -1,8 +1,8 @@
 # AI_CONTEXT/MEMORY.md — 三龙牌 长期记忆（可移植正本）
 
-> 本分支首次本机：双ci/buildtsc/serverbuild0、原unit8/server2、watch13/13、deck10、pending13、controls19、input12/术士10组20点击、旧相机4通过；独立源审22功能/120保护字节及旧接缝通过，无P1/P2。精确全CI/冻结GPL包/发布终审/fresh前后及公网待，线上801未变，附件FX9失败保持另验。
+> 当前实态：0.9.3(-dev)源码062dd411cab245c418223a051a8a653b35d9eac2已部署到两个网站及必要服务，apply真实exit0。精确CI37218363801全29run，源码/冻结GPL包/实际fresh前后独立复核通过，Suite、角色卡、nginx、relay保全。公网原12/权限8通过；正常缓存两视口新增14功能项通过但整轮资源断言失败，下一轮6PASS后观战重连requestTimeout，根因未证。停止重复浏览器全验，保留失败，不报新增15/最终全验通过；最新只读公网health200 0.149s、网站200 0.133s、server active/NRestarts0/loopback200 0.000776s。附件FX9仍失败/未部署，正本RUNBOOKS/2026-10-05_website-feedback-hotfix.md。
 
-> 2026-10-05 当前：线上仍801/0.9.1用户确认可用。四反馈与权限pending已审delta移植到线上基线隔离热修复，候选0.9.3(-dev)，原23条CI命令完整保持+6专项；本分支新验证/独立终审/GPL包/定向双网站+必要server/公网待。新附件FX组合候选053首次CI仍7/9失败，另验，未改门槛或混入本包。正本RUNBOOKS/2026-10-05_website-feedback-hotfix.md；旧段落保留历史，不覆盖当前状态。
+> 发布前历史：四反馈与权限pending已审delta移植到801线上基线隔离热修复，原23条CI命令完整保持+6专项。本机双ci/buildtsc/serverbuild0、unit8/server2、watch13/13、deck10、pending13、controls19、input12/术士10组20点击、原相机4通过；独立源审22功能/120保护文件及旧接缝通过。新附件FX组合候选053首次CI仍7/9失败，另验，不改门槛或混入本包；4项不是其9项通过。
 
 > 本项目「长期决策 + 当前状态」的**跨 AI 正本**。工具私有 Memory 只存指针指这里、不复制正文。
 > 写路由：长期决策/坑 → §A；当前运行态/风险 → §B；未完成 → `TODO.md`；每次实质改动 → `RUNBOOKS/`。
