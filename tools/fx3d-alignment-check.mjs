@@ -23,7 +23,7 @@ const controlEntry = resolve(evidence, 'control.ts');
 writeFileSync(controlEntry, 'export {mountFxStage} from "./old-stage";');
 await build({ root, configFile: false, logLevel: 'error', base: base + '__fx-control/', build: { outDir: control, emptyOutDir: true, lib: { entry: controlEntry, formats: ['es'], fileName: 'control' } } });
 const {createTableService}=await import(pathToFileURL(resolve(root,process.env.TDA_SERVER_OUT||'dist-server','service.mjs')));
-let service;
+let service, browser, origin;
 const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.webp': 'image/webp', '.png': 'image/png', '.svg': 'image/svg+xml', '.ogg': 'audio/ogg', '.woff2': 'font/woff2', '.ico': 'image/x-icon' };
 const server = createServer((request, response) => {
   const path = decodeURIComponent(new URL(request.url, 'http://x').pathname);
@@ -33,11 +33,6 @@ const server = createServer((request, response) => {
   if (!existsSync(file)) { response.writeHead(404); response.end(); return; }
   response.writeHead(200, { 'content-type': types[extname(file)] ?? 'application/octet-stream' }); response.end(readFileSync(file));
 });
-await new Promise(r => server.listen(0, '127.0.0.1', r));
-const origin = 'http://127.0.0.1:' + server.address().port;
-service=createTableService({database:':memory:',origin});
-server.on('upgrade',(request,socket,head)=>service.server.emit('upgrade',request,socket,head));
-const browser = await chromium.launch({ ...browserLaunchOptions(), headless: true, args: ['--enable-webgl', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 let passed = 0; const pass = m => { passed++; console.log('PASS', m); };
 async function startOnline(page, query) {
   await page.goto(origin + base + 'index.html' + query);
@@ -51,6 +46,11 @@ async function startOnline(page, query) {
   await page.locator('.tda-plane').waitFor({ timeout: 30000 });
 }
 try {
+  await new Promise((done, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', () => { server.off('error', reject); done(); }); });
+  origin = 'http://127.0.0.1:' + server.address().port;
+  service=createTableService({database:':memory:',origin});
+  server.on('upgrade',(request,socket,head)=>service.server.emit('upgrade',request,socket,head));
+  browser = await chromium.launch({ ...browserLaunchOptions(), headless: true, args: ['--enable-webgl', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['narrow', { width: 390, height: 844 }]]) {
     const context = await browser.newContext({ viewport, locale: 'zh-CN', isMobile: name === 'narrow', hasTouch: name === 'narrow' });
     const external = [], errors = [];
@@ -127,15 +127,32 @@ try {
       window.requestAnimationFrame = callback => nativeRaf.call(window, now => { const previous = logicalFrame; logicalFrame = now; try { callback(now); } finally { logicalFrame = previous; } });
       async function sample(stage) {
         const render = stage.air.renderer.render, ticks = new Map(), before = stage.frameStats?.();
-        let triggered = 0, updates = 0;
-        stage.air.renderer.render = function (...args) { ticks.set(logicalFrame, (ticks.get(logicalFrame) ?? 0) + 1); return Reflect.apply(render, this, args); };
-        const until = performance.now() + 900;
+        const observedTicks = new Set(), targetTicks = 24, started = performance.now();
+        let triggered = 0, updates = 0, renderCalls = 0, effectsPending = 1, stopping = false, deadline, drainRaf = 0, finish;
+        const completed = new Promise((done, reject) => {
+          finish = done;
+          deadline = setTimeout(() => { stopping = true; reject(new Error(`render sample did not complete within 15000ms: observedTicks=${observedTicks.size}, triggered=${triggered}, effectsPending=${effectsPending}`)); }, 15000);
+        });
+        const active = () => !stopping && observedTicks.size < targetTicks;
+        // Keep the hook through a whole native frame with no renders: historical nested chains can outlive the last effect.
+        function drain() {
+          const previousRenders = renderCalls;
+          drainRaf = nativeRaf.call(window, () => { drainRaf = 0; if (renderCalls !== previousRenders) drain(); else finish(); });
+        }
+        const dispose = () => { if (--effectsPending === 0 && !stopping) drain(); };
+        stage.air.renderer.render = function (...args) {
+          ticks.set(logicalFrame, (ticks.get(logicalFrame) ?? 0) + 1);
+          const result = Reflect.apply(render, this, args);
+          renderCalls++;
+          if (logicalFrame !== null) observedTicks.add(logicalFrame);
+          return result;
+        };
         try {
-          stage.add({ update(_dt, now) { updates++; if (triggered < 3) { triggered++; stage.add({ update: (_dt, time) => time < until }); stage.wake(); } return now < until; } });
-          await new Promise(resolve => setTimeout(resolve, 1250));
+          stage.add({ update(_dt, now) { updates++; if (triggered < 3) { triggered++; effectsPending++; stage.add({ update: active, dispose }); stage.wake(); } return active(); }, dispose });
+          await completed;
           const after = stage.frameStats?.();
-          return { tier: stage.tier, triggered, updates, ticks: ticks.size, maxRendersPerTick: Math.max(...ticks.values()), effectsAfter: after?.effects ?? null, frames: before && after ? after.frames - before.frames : null, renders: before && after ? after.renders - before.renders : null };
-        } finally { stage.air.renderer.render = render; }
+          return { tier: stage.tier, triggered, updates, ticks: ticks.size, observedTicks: observedTicks.size, outsideRafRenders: ticks.get(null) ?? 0, elapsedMs: performance.now() - started, maxRendersPerTick: Math.max(...ticks.values()), effectsAfter: after?.effects ?? null, frames: before && after ? after.frames - before.frames : null, renders: before && after ? after.renders - before.renders : null };
+        } finally { stopping = true; clearTimeout(deadline); if (drainRaf) cancelAnimationFrame(drainRaf); stage.air.renderer.render = render; }
       }
       let old;
       try {
@@ -165,8 +182,8 @@ try {
     }, origin + base + '__fx-control/control.js');
     writeFileSync(resolve(evidence, 'render-chain.json'), JSON.stringify(comparison, null, 2));
     console.log('PUBLIC render-chain', JSON.stringify({
-      baseline: { triggered: comparison.baseline.triggered, updates: comparison.baseline.updates, ticks: comparison.baseline.ticks, maxRendersPerTick: comparison.baseline.maxRendersPerTick, frames: comparison.baseline.frames, renders: comparison.baseline.renders, effectsAfter: comparison.baseline.effectsAfter },
-      candidate: { triggered: comparison.candidate.triggered, updates: comparison.candidate.updates, ticks: comparison.candidate.ticks, maxRendersPerTick: comparison.candidate.maxRendersPerTick, frames: comparison.candidate.frames, renders: comparison.candidate.renders, effectsAfter: comparison.candidate.effectsAfter },
+      baseline: { triggered: comparison.baseline.triggered, updates: comparison.baseline.updates, ticks: comparison.baseline.ticks, observedTicks: comparison.baseline.observedTicks, outsideRafRenders: comparison.baseline.outsideRafRenders, elapsedMs: comparison.baseline.elapsedMs, maxRendersPerTick: comparison.baseline.maxRendersPerTick, frames: comparison.baseline.frames, renders: comparison.baseline.renders, effectsAfter: comparison.baseline.effectsAfter },
+      candidate: { triggered: comparison.candidate.triggered, updates: comparison.candidate.updates, ticks: comparison.candidate.ticks, observedTicks: comparison.candidate.observedTicks, outsideRafRenders: comparison.candidate.outsideRafRenders, elapsedMs: comparison.candidate.elapsedMs, maxRendersPerTick: comparison.candidate.maxRendersPerTick, frames: comparison.candidate.frames, renders: comparison.candidate.renders, effectsAfter: comparison.candidate.effectsAfter },
       workload: { frames: comparison.workload.frames, renders: comparison.workload.renders, maxRendersPerTick: comparison.workload.maxRendersPerTick, effectsAfter: comparison.workload.effectsAfter }
     }));
     assert.equal(comparison.baseline.triggered, 3); assert.equal(comparison.candidate.triggered, 3);
@@ -180,7 +197,10 @@ try {
     pass(`high tier nested add/wake: historical ${comparison.baseline.maxRendersPerTick} renders/tick, candidate ${comparison.candidate.maxRendersPerTick}`);
     await context.close();
   }
-} finally { await browser.close(); await service.close(); await new Promise(done=>server.close(done)); }
+} finally {
+  try { await browser?.close(); }
+  finally { try { await service?.close(); } finally { if (server.listening) await new Promise(done=>server.close(done)); } }
+}
 // No entry preloads three: it becomes a lazy dependency only after the actual table mounts.
 for (const html of ['launcher.html', 'background.html', 'index.html', 'table.html']) { const text = readFileSync(resolve(dist, html), 'utf8'); assert.ok(!/assets\/three-[\w-]+\.js/.test(text), `${html} must not statically reference the three chunk`); }
 assert.ok(readdirSync(resolve(dist, 'assets')).some(file => /^three-[\w-]+\.js$/.test(file)), 'the lazy three chunk is still included in the local build');
