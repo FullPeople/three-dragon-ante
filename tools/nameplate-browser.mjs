@@ -74,6 +74,7 @@ try {
         const contained = [...row.children].every(child => { const r = child.getBoundingClientRect(); return r.left >= rect.left - 1 && r.top >= rect.top - 1 && r.right <= rect.right + 1 && r.bottom <= rect.bottom + 1; });
         return {name: text.textContent, title: name.title, font: parseFloat(getComputedStyle(text).fontSize), clipped: text.scrollWidth > text.clientWidth, gold: gold.textContent, contained, height:plate.offsetHeight, width:plate.offsetWidth, fundsWidth:row.scrollWidth, availableWidth:row.clientWidth};
       }));
+      measurements.push({layout, count, values});
       assert.equal(values.length, count);
       for (let i=0; i<count; i++) {
         const value = values[i]; assert.equal(value.gold, i % 2 ? '999999' : '12345');
@@ -82,7 +83,6 @@ try {
         assert.equal(value.name, value.title); assert.ok(value.font >= 12 && value.font <= 18);
         if (i<2) assert.equal(value.clipped, false, 'Normal long Chinese/English names fit through font compression');
       }
-      measurements.push({layout, count, values});
       errors.push(...await page.evaluate(() => window.__fixtureErrors));
       pass(layout + ' ' + count + ' seats keep names and complete multi-digit finances inside bounded plates');
       const material = await page.evaluate(() => ({funds:getComputedStyle(document.querySelector('.tda-seat-plate')).backgroundImage, score:getComputedStyle(document.querySelector('.tda-strength-plate')).backgroundImage, overflow:document.documentElement.scrollWidth > innerWidth}));
