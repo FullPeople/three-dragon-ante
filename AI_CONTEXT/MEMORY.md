@@ -1,5 +1,7 @@
 # AI_CONTEXT/MEMORY.md — 三龙牌 长期记忆（可移植正本）
 
+> 最新发布指针：四反馈独立冻结062dd411cab245c418223a051a8a653b35d9eac2已实际部署0.9.3(-dev)两网站/必要服务；精确29run CI/GPL408blob/1942payload及前后独立保全、公网12/8通过。新增正常缓存14功能过但资源失败，下一轮6后观战重连requestTimeout未定因，不能报15全验通过；停止重复browser、换模型阶段有条件通过并交付当前已上线状态。正本release/website-feedback-hotfix-20261005的RUNBOOKS/2026-10-05_website-feedback-hotfix.md。本组合053 FX7/9/四包仍held，不能借热修复4相机称本9过；未来集成版使用新版本区分线上0.9.3。下列0.9.1段落为历史。
+
 > 最新053首次CI37216297279前31再次通过，FX仍7/9失败（initialhigh→medium，25帧2161.1ms，workload18且降low）；有界trace未证明GPU/合成原因，原断言不改、未部署。为优先发布四bug，新隔离release/website-feedback-hotfix-20261005以线上801仅移植四反馈+必要pending，原FX与原23CI保持+6专项，独立验收/审计/发布；本组合与四包held，不能用新热修复原相机4替本9。正本本runbook与新分支2026-10-05_website-feedback-hotfix.md。
 
 > 2026-10-05 当前：971首次精确CI37213956287前31步通过（四反馈专项及原多人22），FX7/9后真实降档medium≠high，workload16亦未达原>20，后6步skipped。971冻结包独立1948/GPL450核验通过但held，线上801/0.9.1未变。仅工具新增有界真实帧/绘制数字取证，本机首次FX9/9，不降低门槛；新Linux与最终发布待。只读线上发现suite-dev/card/其他服务相对旧before变化，来源未知，须fresh稳定保全基线。正本RUNBOOKS/2026-10-05_website-feedback2-fx-timing.md。
