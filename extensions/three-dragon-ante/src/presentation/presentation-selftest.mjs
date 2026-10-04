@@ -21,8 +21,9 @@ export { createStore, emptyShow } from ${abs('presentation/app/store.ts')};
 export { createController } from ${abs('presentation/app/controller.ts')};
 export { createPresenter, landingFrame, settlementFrame, revealFrame, applyReplacements, powerSegment, revealTally, scoreTally, SETTLE_MS, BEAT_MS, FOCUS_MS, TALLY_MS, MARK_MS } from ${abs('presentation/app/presenter.ts')};
 export { freshPublicEvents, derivePresentation, formationCues } from ${abs('presentation/model/cues.ts')};
-export { seatPlacements, tableShape } from ${abs('presentation/model/layout.ts')};
-export { layoutOverlaps, outsideTable } from ${abs('presentation/model/layout-check.ts')};`;
+export { seatPlacements, tableShape, fitPlane } from ${abs('presentation/model/layout.ts')};
+export { layoutOverlaps, outsideTable } from ${abs('presentation/model/layout-check.ts')};
+export * as fx3dStage from ${abs('presentation/fx3d/stage.ts')};`;
 await build({ input: 'entry', plugins: [{ name: 'entry', resolveId(id) { if (id === 'entry') return '\0entry.ts'; }, load(id) { if (id === '\0entry.ts') return entry; } }], output: { file: join(out, 'bundle.mjs'), format: 'esm', codeSplitting: false }, logLevel: 'silent' });
 const m = await import(pathToFileURL(join(out, 'bundle.mjs')).href);
 const checks = []; const pass = name => { checks.push(name); console.log('PASS ' + name); };
@@ -300,6 +301,20 @@ assert.ok(events.some(e => e.code === 'CARD_PLAYED' && e.cardIds?.[0] === ready)
   assert.ok(r.frame.game.discard.some(c => c.id === copper), 'the copper dragon went to the discard pile');
   assert.equal(m.applyReplacements(landing, events, 2).fromDeck.length, 0, 'nothing is replaced before the first power resolves');
   pass('copper chain: explanation, then replacement lands, then the new card explains');
+
+  // 16. three.js 特效层相机数学：平面中心落在 stage 中心；屏幕→平面→屏幕往返一致；视锥合法
+  {
+    const st = m.fx3dStage;
+    for (const [o, w, h] of [['landscape', 1440, 900], ['portrait', 390, 844]]) {
+      const fit = m.fitPlane(w, h), mt = st.stageMetrics(w, h, fit.spec, fit.scale, fit.orientation);
+      const c = st.planeToScreen(mt, fit.spec.w / 2, fit.spec.h / 2, 0);
+      assert.ok(Math.abs(c.x - w / 2) < 1e-6 && Math.abs(c.y - h * st.STAGE_CENTER_Y[fit.orientation]) < 1e-6, `${o}: plane centre maps to the stage centre`);
+      for (const [x, y] of [[0, 0], [fit.spec.w, fit.spec.h], [300, 900], [fit.spec.w / 2, 100]]) { const p = st.planeToScreen(mt, x, y, 0), back = st.screenToPlane(mt, p.x, p.y); assert.ok(Math.hypot(back.x - x, back.y - y) < 1e-6, `${o}: round trip (${x},${y})`); }
+      const f = st.airCamera(mt); assert.ok(f.left < f.right && f.bottom < f.top && f.near > 0 && f.far > f.near && f.eye.z === mt.d, `${o}: frustum is well-formed`);
+      const up = st.planeToScreen(mt, fit.spec.w / 2, fit.spec.h / 2, 100); assert.ok(up.y < c.y, `${o}: a point above the table projects higher on screen`);
+    }
+    pass('fx3d camera math: centre, round trip, frustum and height direction hold in both orientations');
+  }
 }
 
 writeFileSync(join(out, 'result.json'), JSON.stringify({ checks }, null, 2));

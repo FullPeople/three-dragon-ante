@@ -64,7 +64,7 @@ export function mountTableUI(root: HTMLElement, deps: TableUIDeps): TableUISurfa
   const presenter = createPresenter(store, controller, { fx: () => fx, fx3d: () => fx3d, root: () => root, onBusy: busy => { if (busy !== notifiedBusy) { notifiedBusy = busy; deps.onPresentationChange?.(busy); } }, sound: (kind, key) => audio.play(kind, key) });
   root.classList.add("tda-root");
   const reactRoot: Root = createRoot(root);
-  const render = () => flushSync(() => reactRoot.render(createElement(TableApp, { store, controller, onFx: value => { fx = value; }, onFx3d: value => { fx3d = value; }, onOrientation: value => { orientation = value; store.set({ orientation: value }); }, showTopBar: deps.topBar !== false, onLand: (key, zone) => audio.play("thud", `${key}:${zone}:${store.get().view?.game?.revision ?? 0}`) })));
+  const render = () => flushSync(() => reactRoot.render(createElement(TableApp, { store, controller, onFx: value => { fx = value; root.dataset.fx = fx3d ? fx3d.mode : fx ? "canvas2d" : "none"; }, onFx3d: value => { fx3d = value; root.dataset.fx = fx3d ? fx3d.mode : fx ? "canvas2d" : "none"; }, onOrientation: value => { orientation = value; store.set({ orientation: value }); }, showTopBar: deps.topBar !== false, onLand: (key, zone) => audio.play("thud", `${key}:${zone}:${store.get().view?.game?.revision ?? 0}`) })));
   // 本家拍桌：声音在这里，震动与手掌在场景层
   let knockSeen = 0; store.subscribe(() => { const at = store.get().knockAt; if (at && at !== knockSeen) { knockSeen = at; audio.play("slap", `knock:${at}`); } });
   render();

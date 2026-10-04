@@ -17,6 +17,8 @@ export interface Effect {
   dispose?(): void;
 }
 export interface FxStage {
+  /** 写进 root 的 data-fx：three-high / three-medium / three-low */
+  readonly mode: `three-${Tier}`;
   readonly air: { scene: Scene; camera: PerspectiveCamera; group: Group; renderer: WebGLRenderer };
   readonly ground: { scene: Scene; camera: OrthographicCamera; renderer: WebGLRenderer } | null;
   readonly tier: Tier;
@@ -33,12 +35,19 @@ export interface FxStage {
   destroy(): void;
 }
 
+/** 用户三态开关（帮助面板）：localStorage["tda.fx"] = auto | off | low | high；URL ?fx3d=0 关、?fx3d=1 强制开（含软件 GL，测试用） */
+export function fxPreference(): "auto" | "off" | "low" | "high" {
+  const url = typeof location !== "undefined" ? new URLSearchParams(location.search).get("fx3d") : null;
+  if (url === "0") return "off"; if (url === "1") return "auto";
+  try { const v = localStorage.getItem("tda.fx"); if (v === "off" || v === "low" || v === "high") return v; } catch { /* 隐私模式 */ }
+  return "auto";
+}
+const forced = () => typeof location !== "undefined" && new URLSearchParams(location.search).get("fx3d") === "1";
+const softwareGL = (renderer: WebGLRenderer) => { const gl = renderer.getContext(); const info = gl.getExtension("WEBGL_debug_renderer_info"); const name = info ? String(gl.getParameter(info.UNMASKED_RENDERER_WEBGL)) : ""; return /swiftshader|llvmpipe|software/i.test(name); };
+
 function detectTier(renderer: WebGLRenderer, hostW: number): Tier {
   if (reducedMotion()) return "low";
-  const gl = renderer.getContext();
-  const info = gl.getExtension("WEBGL_debug_renderer_info");
-  const name = info ? String(gl.getParameter(info.UNMASKED_RENDERER_WEBGL)) : "";
-  if (/swiftshader|llvmpipe|software/i.test(name)) return "low";
+  if (softwareGL(renderer)) return "low";
   const coarse = matchMedia("(pointer: coarse)").matches;
   if (hostW < 640 || (coarse && (navigator.hardwareConcurrency ?? 4) <= 4)) return "low";
   if (coarse || (navigator.hardwareConcurrency ?? 4) <= 4) return "medium";
@@ -58,11 +67,16 @@ function makeRenderer(canvas: HTMLCanvasElement, antialias: boolean): WebGLRende
 
 /** host = .tda-table；airCanvas 盖在 host 上；groundCanvas 位于 .tda-plane 内（可为 null：只要空中层） */
 export function mountFxStage(host: HTMLElement, airCanvas: HTMLCanvasElement, groundCanvas: HTMLCanvasElement | null): FxStage | null {
+  const pref = fxPreference();
+  const hostRect = () => host.getBoundingClientRect();
+  const r0 = hostRect();
+  // 门控：用户关掉 / 减少动态 / 枭熊紧凑弹窗（< 420×320）→ 不建；软件 GL 默认不建（?fx3d=1 可强制，测试用）
+  if (pref === "off" || (!forced() && (reducedMotion() || (r0.width > 0 && r0.width < 420 && r0.height < 320)))) return null;
   const made = makeRenderer(airCanvas, true);
   if (!made) return null;
   const airRenderer: WebGLRenderer = made;
-  const hostRect = () => host.getBoundingClientRect();
-  const tier = detectTier(airRenderer, hostRect().width || 1440);
+  if (!forced() && softwareGL(airRenderer)) { airRenderer.dispose(); airRenderer.forceContextLoss(); return null; }
+  const tier: Tier = pref === "low" ? "low" : pref === "high" ? "high" : detectTier(airRenderer, r0.width || 1440);
   if (tier !== "high") { /* 低档：关掉抗锯齿，重建一次更省 */ }
   const dpr = Math.min(DPR_CAP[tier], devicePixelRatio || 1);
   airRenderer.setPixelRatio(dpr);
@@ -75,7 +89,7 @@ export function mountFxStage(host: HTMLElement, airCanvas: HTMLCanvasElement, gr
   groundCam.position.set(0, 0, 1000);
 
   const effects: Effect[] = [];
-  let raf = 0, last = 0, dirty = true, destroyed = false;
+  let raf = 0, last = 0, dirty = true, destroyed = false, lost = false;
   let metrics: StageMetrics = stageMetrics(1440, 820, fitPlane(1440, 820).spec, fitPlane(1440, 820).scale, "landscape");
   let orientation: Orientation = "landscape", spec: PlaneSpec = fitPlane(1440, 820).spec;
 
@@ -105,6 +119,10 @@ export function mountFxStage(host: HTMLElement, airCanvas: HTMLCanvasElement, gr
   airCam.updateProjectionMatrix = () => { const f = airCamera(metrics); airCam.projectionMatrix.makePerspective(f.left, f.right, f.top, f.bottom, f.near, f.far); airCam.projectionMatrixInverse.copy(airCam.projectionMatrix).invert(); };
   const observer = new ResizeObserver(() => { layout(); if (effects.length) wake(); });
   observer.observe(host); layout(); setVisible(false);
+  // 上下文丢失：停循环；恢复后重新布局并继续（three 自己会重建 GL 状态）
+  const onLost = (e: Event) => { e.preventDefault(); lost = true; if (raf) { cancelAnimationFrame(raf); raf = 0; } };
+  const onRestored = () => { lost = false; layout(); if (effects.length) wake(); };
+  for (const c of [airCanvas, groundCanvas]) if (c) { c.addEventListener("webglcontextlost", onLost); c.addEventListener("webglcontextrestored", onRestored); }
 
   function frame(now: number) {
     raf = 0; if (destroyed) return;
@@ -117,9 +135,10 @@ export function mountFxStage(host: HTMLElement, airCanvas: HTMLCanvasElement, gr
   }
   // 没有活动效果时两张画布都不参与合成
   function setVisible(on: boolean) { airCanvas.style.display = on ? "" : "none"; if (groundCanvas) groundCanvas.style.display = on ? "" : "none"; }
-  function wake() { if (!raf && !destroyed) { setVisible(true); raf = requestAnimationFrame(frame); } }
+  function wake() { if (!raf && !destroyed && !lost) { setVisible(true); raf = requestAnimationFrame(frame); } }
 
   const stage: FxStage = {
+    mode: `three-${tier}`,
     air: { scene: airScene, camera: airCam, group, renderer: airRenderer },
     ground: groundRenderer ? { scene: groundScene, camera: groundCam, renderer: groundRenderer } : null,
     tier,
@@ -135,7 +154,9 @@ export function mountFxStage(host: HTMLElement, airCanvas: HTMLCanvasElement, gr
     destroy() {
       destroyed = true; observer.disconnect(); if (raf) cancelAnimationFrame(raf);
       for (const e of effects.splice(0)) e.dispose?.();
-      airRenderer.dispose(); groundRenderer?.dispose();
+      for (const c of [airCanvas, groundCanvas]) if (c) { c.removeEventListener("webglcontextlost", onLost); c.removeEventListener("webglcontextrestored", onRestored); }
+      // 释放 GL 上下文（浏览器每页上限约 16 个；牌桌反复挂载时不能堆积）
+      airRenderer.dispose(); airRenderer.forceContextLoss(); if (groundRenderer) { groundRenderer.dispose(); groundRenderer.forceContextLoss(); }
     },
   };
   return stage;

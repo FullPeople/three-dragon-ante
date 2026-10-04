@@ -1,5 +1,5 @@
 /** 牌桌根组件：顶栏 / 流程轨 + 等待行 / 场景 / 行动栏，再叠选择面板、详视、横幅、聚光、计分板、终局、大厅。 */
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { omniscientGame, privateGame, useStore, type Store } from "./store";
 import { Editor } from "../hud/Editor";
 import type { Controller } from "./controller";
@@ -20,6 +20,12 @@ import type { Orientation } from "../model/layout";
 export interface TableAppProps { store: Store; controller: Controller; onFx(fx: FxLayer | null): void; onFx3d?(stage: FxStage | null): void; onOrientation(orientation: Orientation): void; showTopBar: boolean; onLand?(key: string, zone: string): void }
 
 export function TableApp({ store, controller, onFx, onFx3d, onOrientation, showTopBar, onLand }: TableAppProps) {
+  // data-fx 五态：three-high / three-medium / three-low / canvas2d / none（测试与排障读它）
+  const fxRef = useRef<FxLayer | null>(null), fx3dRef = useRef<FxStage | null>(null);
+  const [fxMode, setFxMode] = useState("none");
+  const syncFxMode = () => setFxMode(fx3dRef.current ? fx3dRef.current.mode : fxRef.current ? "canvas2d" : "none");
+  const handleFx = (value: FxLayer | null) => { fxRef.current = value; syncFxMode(); onFx(value); };
+  const handleFx3d = (value: FxStage | null) => { fx3dRef.current = value; syncFxMode(); onFx3d?.(value); };
   const state = useStore(store);
   const view = state.view, display = state.display, game = display?.game ?? null, own = privateGame(display);
   const flowGame = (state.flow ?? display)?.game ?? null;
@@ -31,7 +37,7 @@ export function TableApp({ store, controller, onFx, onFx3d, onOrientation, showT
   useEffect(() => { const el = root.current; if (!el) return; const onKey = (event: KeyboardEvent) => { if ((event.target as HTMLElement)?.closest?.("input, select, textarea")) return; controller.keyboard(event); }; el.addEventListener("keydown", onKey); return () => el.removeEventListener("keydown", onKey); }, [controller]);
   const inGame = !!game;
   const omniscient = !!omniscientGame(view);
-  return <div ref={root} className={`tda-shell${state.busy ? " is-busy" : ""}${state.pending ? " is-pending" : ""}`} data-phase={game?.phase ?? "lobby"} data-busy={state.busy} data-pending-action={state.pending ? "true" : "false"} data-omniscient={String(omniscient)} data-mode={state.mode} data-renderer="dom25" tabIndex={-1}>
+  return <div ref={root} className={`tda-shell${state.busy ? " is-busy" : ""}${state.pending ? " is-pending" : ""}`} data-phase={game?.phase ?? "lobby"} data-fx={fxMode} data-busy={state.busy} data-pending-action={state.pending ? "true" : "false"} data-omniscient={String(omniscient)} data-mode={state.mode} data-renderer="dom25" tabIndex={-1}>
     {showTopBar ? <header className="tda-topbar">
       <div className="tda-topbar-title">{t("siteTitle", lang)}</div>
       <div className="tda-topbar-tools">
@@ -48,7 +54,7 @@ export function TableApp({ store, controller, onFx, onFx3d, onOrientation, showT
       <FlowRail game={flowGame} lang={lang} flags={flags} />
       <WaitingLine line={line} game={flowGame} selfSeatId={own?.selfSeatId ?? null} />
     </div>
-    <TableScene state={state} controller={controller} onFx={onFx} onFx3d={onFx3d} onOrientation={onOrientation} onLand={onLand} />
+    <TableScene state={state} controller={controller} onFx={handleFx} onFx3d={handleFx3d} onOrientation={onOrientation} onLand={onLand} />
     <ActionBar state={state} controller={controller} />
     {state.helpOpen ? <aside className="tda-help tda-parchment" role="dialog" aria-label={t("help", lang)}>
       <h3>{t("helpFlow", lang)}</h3><p>{t("helpFlowText", lang)}</p>

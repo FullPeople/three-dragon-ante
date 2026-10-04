@@ -22,6 +22,16 @@
 | 接线 | `TableScene` 挂两张画布并 `mountFxStage`；`TableApp` / `mount.ts` 透传 `onFx3d`；`PresenterHooks.fx3d()` 已留位（presenter 尚未使用）；`?fx3dDebug=1` 暴露 `window.__tdaFx3d` 并在锚点画调试环 / 立柱 | `.local-evidence/shots/fx3d-debug-desktop.png`：环在卡牌之下、立柱在卡牌之上，全部落在锚点 |
 | 体积 | three 0.186.1 单独成包 514 kB（只随牌桌 mount 加载；background / launcher 仍只用 267 kB vendor，审计低项①已处理）；冒烟 20/20、自测 15/15 不变 | `npm run build` 输出；`dist/*.html` 的脚本引用 |
 
+## 2.1 P0（评审一致的硬规定，2026-10-04 已落地）
+
+| 项 | 内容 | 证据 |
+|---|---|---|
+| 地面相机手性 | 正交相机改 y 向上（−W/2, W/2, H/2, −H/2），与空中画布共用 `local(x,y,z)=(x−W/2, H/2−y, z)`；默认 FrontSide 网格不再被剔除（调试环去掉 DoubleSide 仍可见） | commit `2e8557e`，截图 `.local-evidence/shots/fx3d-debug-ground-yup.png` |
+| 门控 | 用户三态开关 `localStorage["tda.fx"]`（auto / off / low / high）与 URL `?fx3d=0/1`；减少动态、枭熊紧凑弹窗（< 420×320）、软件 GL（SwiftShader）默认不建舞台，`?fx3d=1` 强制开（测试用）；root `.tda-shell` 的 `data-fx` 五态 three-high / three-medium / three-low / canvas2d / none | `FxStage.ts`、`TableApp.tsx`、`test:fx3d` 断言 |
+| 上下文 | `webglcontextlost` 停循环、`restored` 重布局；destroy 时 `forceContextLoss()`（每页上限约 16 个上下文） | `FxStage.ts` |
+| 测试 | `test:fx3d` 7 项：对齐 + data-fx + 画布可见时指针仍落在卡牌上 + 零错误零外部请求 + 分包闸（launcher / background 不引用 three chunk）；自测第 16 项：相机纯数学（中心、往返、视锥、离地方向） | `tools/fx3d-alignment-check.mjs`、`presentation-selftest.mjs` |
+| 分包 | three 单独 chunk（见上表体积行） | `vite.config.ts` |
+
 ## 3. 下一步（设计评审工作流 `fx3d-understand-design` 的产出落地后填写）
 
 - §4 设计定稿（画布 / 渲染策略 / 图元工具箱 / 脚本相位机 / 家族签名表 / 分期）
