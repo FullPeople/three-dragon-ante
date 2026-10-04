@@ -125,7 +125,38 @@ try {
       const nativeRaf = window.requestAnimationFrame;
       let logicalFrame = null;
       window.requestAnimationFrame = callback => nativeRaf.call(window, now => { const previous = logicalFrame; logicalFrame = now; try { callback(now); } finally { logicalFrame = previous; } });
+      // Numeric observations only: do not change native rAF timestamps, quality adaptation, or workloads.
+      const longTasks = [], longTaskObserver = typeof PerformanceObserver === 'function' ? new PerformanceObserver(list => {
+        for (const entry of list.getEntries()) { if (longTasks.length < 64) longTasks.push({ atMs: entry.startTime, durationMs: entry.duration }); }
+      }) : null;
+      if (PerformanceObserver.supportedEntryTypes?.includes('longtask')) longTaskObserver?.observe({ type: 'longtask' });
+      function profile(stage) {
+        const started = performance.now(), rows = [], methods = [], initialTier = stage.tier;
+        const dimensions = renderer => renderer ? { width: renderer.domElement.width, height: renderer.domElement.height, pixelRatio: renderer.getPixelRatio(), antialias: renderer.getContext().getContextAttributes()?.antialias ?? null } : null;
+        const initialDimensions = { air: dimensions(stage.air.renderer), ground: dimensions(stage.ground?.renderer) };
+        let previousFrame = null;
+        for (const [layer, renderer] of [['air', stage.air.renderer], ['ground', stage.ground?.renderer]]) {
+          if (!renderer) continue;
+          const render = renderer.render; methods.push([renderer, render]);
+          renderer.render = function (...args) {
+            const entered = performance.now(), frame = logicalFrame, priorFrame = previousFrame;
+            const result = Reflect.apply(render, this, args);
+            if (layer === 'air' && frame !== null) previousFrame = frame;
+            if (rows.length < 256) rows.push({ layer, atMs: entered - started, frameMs: frame === null ? null : frame - started,
+              gapMs: layer === 'air' && priorFrame !== null && frame !== null ? frame - priorFrame : null,
+              callbackDelayMs: frame === null ? null : entered - frame, renderMs: performance.now() - entered, tier: stage.tier,
+              calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, points: renderer.info.render.points, lines: renderer.info.render.lines });
+            return result;
+          };
+        }
+        return {
+          snapshot: () => ({ initialTier, finalTier: stage.tier, elapsedMs: performance.now() - started, initialDimensions,
+            finalDimensions: { air: dimensions(stage.air.renderer), ground: dimensions(stage.ground?.renderer) }, rows }),
+          restore: () => { for (const [renderer, render] of methods) renderer.render = render; }
+        };
+      }
       async function sample(stage) {
+        const timing = profile(stage);
         const render = stage.air.renderer.render, ticks = new Map(), before = stage.frameStats?.();
         const observedTicks = new Set(), targetTicks = 24, started = performance.now();
         let triggered = 0, updates = 0, renderCalls = 0, effectsPending = 1, stopping = false, deadline, drainRaf = 0, finish;
@@ -151,8 +182,8 @@ try {
           stage.add({ update(_dt, now) { updates++; if (triggered < 3) { triggered++; effectsPending++; stage.add({ update: active, dispose }); stage.wake(); } return active(); }, dispose });
           await completed;
           const after = stage.frameStats?.();
-          return { tier: stage.tier, triggered, updates, ticks: ticks.size, observedTicks: observedTicks.size, outsideRafRenders: ticks.get(null) ?? 0, elapsedMs: performance.now() - started, maxRendersPerTick: Math.max(...ticks.values()), effectsAfter: after?.effects ?? null, frames: before && after ? after.frames - before.frames : null, renders: before && after ? after.renders - before.renders : null };
-        } finally { stopping = true; clearTimeout(deadline); if (drainRaf) cancelAnimationFrame(drainRaf); stage.air.renderer.render = render; }
+          return { tier: stage.tier, triggered, updates, ticks: ticks.size, observedTicks: observedTicks.size, outsideRafRenders: ticks.get(null) ?? 0, elapsedMs: performance.now() - started, maxRendersPerTick: Math.max(...ticks.values()), effectsAfter: after?.effects ?? null, frames: before && after ? after.frames - before.frames : null, renders: before && after ? after.renders - before.renders : null, timing: timing.snapshot() };
+        } finally { stopping = true; clearTimeout(deadline); if (drainRaf) cancelAnimationFrame(drainRaf); stage.air.renderer.render = render; timing.restore(); }
       }
       let old;
       try {
@@ -164,6 +195,7 @@ try {
           // Retain the incoming actual persistent tether + four beam workload alongside the strong nested-wake control.
           const point = selector => { const rect = document.querySelector(selector)?.getBoundingClientRect(); if (!rect) throw new Error('public anchor missing'); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }; };
           const fx = window.__tdaFx, plate = point('[data-seat-plate]'), deck = point('[data-pile="deck"]'), start = stage.frameStats();
+          const timing = profile(stage);
           const render = stage.air.renderer.render, ticks = new Map();
           stage.air.renderer.render = function (...args) { ticks.set(logicalFrame, (ticks.get(logicalFrame) ?? 0) + 1); return Reflect.apply(render, this, args); };
           let workload;
@@ -173,12 +205,12 @@ try {
             await new Promise(resolve => setTimeout(resolve, 600));
             const finish = stage.frameStats(); fx.ambient('chain:hold', null);
             await new Promise(resolve => setTimeout(resolve, 2600));
-            workload = { frames: finish.frames - start.frames, renders: finish.renders - start.renders, maxRendersPerTick: Math.max(...ticks.values()), effectsAfter: stage.frameStats().effects };
-          } finally { fx.ambient('chain:hold', null); stage.air.renderer.render = render; }
-          return { baseline, candidate, workload };
+            workload = { frames: finish.frames - start.frames, renders: finish.renders - start.renders, maxRendersPerTick: Math.max(...ticks.values()), effectsAfter: stage.frameStats().effects, timing: timing.snapshot() };
+          } finally { fx.ambient('chain:hold', null); stage.air.renderer.render = render; timing.restore(); }
+          return { baseline, candidate, workload, longTasks };
         }
         finally { old?.destroy(); air.remove(); ground.remove(); }
-      } finally { window.requestAnimationFrame = nativeRaf; }
+      } finally { longTaskObserver?.disconnect(); window.requestAnimationFrame = nativeRaf; }
     }, origin + base + '__fx-control/control.js');
     writeFileSync(resolve(evidence, 'render-chain.json'), JSON.stringify(comparison, null, 2));
     console.log('PUBLIC render-chain', JSON.stringify({

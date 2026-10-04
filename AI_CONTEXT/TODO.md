@@ -1,5 +1,8 @@
 # 待办清单 — 三龙牌
 
+- [x] 971首次精确CI前31步/原多人22通过，原controls19和input12亦通过；971冻结包1948/GPL450独立核验通过但未上线。线上801/0.9.1保持。
+- [ ] FX原门禁仍阻塞：971真实25帧2922ms降medium、workload16，后6检查skipped；工具仅补真实帧/绘制数字，本机首次9/9，须独立复核和新精确Linux取证/根因修复，禁止冻降档或改原门槛凑绿。见RUNBOOKS/2026-10-05_website-feedback2-fx-timing.md。
+- [ ] 发布前fresh只读稳定基线：suite-dev/card/其他服务相对旧before变化且来源未知，不能覆盖或沿用旧baseline。全门禁后再新包/终审/双网站+必要server/after/公网；旧四包均held。
 - [x] 网站四反馈候选0.9.3实现与本机专项：术士场上前注/快拖12、公开观战Node13/browser13、全能牌背及牌堆Node10/browser19；原unit8/server2和build/tsc0通过。
 - [ ] 新冻结完整CI、独立发布终审/GPL包、双网站与必要server定向部署和公网新功能验收；当前线上仍801/0.9.1。见RUNBOOKS/2026-10-04_website-feedback2.md。
 - [ ] 4473030首次CI37211445407在新增全能controls 1/19组合步骤30秒超时；原多人诊断和全部FX均skipped。仅工具补细分等待标签/失败白名单取证，禁止据此猜产品根因、重跑凑绿或放宽原次数/期限；0588原多人延迟仍待闭环。见website-feedback2末节。
