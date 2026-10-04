@@ -75,13 +75,17 @@ try {
     }
     await context.close();
   }
-  const page = await browser.newPage();
-  page.on('pageerror', error => errors.push(String(error)));
-  page.on('request', request => { if (!request.url().startsWith(origin + '/')) external.push(request.url()); });
-  await page.goto(origin + base + 'index.html?instance=direct-visit&mode=full');
-  await page.getByRole('button', { name: '创建房间', exact: true }).waitFor();
-  assert.ok(page.url().includes('index.html?instance=direct-visit'));
-  pass('direct website visits retain the online admission form');
+  for(const [locale,label] of [['zh-CN','创建房间'],['en-US','Create room']]){
+    const page = await browser.newPage({locale});
+    page.on('pageerror', error => errors.push(String(error)));
+    page.on('request', request => { if (!request.url().startsWith(origin + '/')) external.push(request.url()); });
+    await page.goto(origin + base + 'index.html?instance=direct-visit&mode=full');
+    await page.getByRole('button', { name: label, exact: true }).waitFor();
+    assert.ok(page.url().includes('index.html?instance=direct-visit'));
+    assert.equal(await page.evaluate(()=>document.documentElement.lang),locale==='zh-CN'?'zh-CN':'en');
+    pass(`${locale} direct website visits retain the localized online admission form`);
+    await page.close();
+  }
   assert.deepEqual(apiRequests, []); assert.deepEqual(sockets, []);
   pass('link-only embedded and extension entries start no room requests or WebSocket gameplay');
   assert.deepEqual(errors, []); assert.deepEqual(external, []);

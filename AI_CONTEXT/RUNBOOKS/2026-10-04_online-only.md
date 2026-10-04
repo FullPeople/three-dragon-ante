@@ -38,6 +38,8 @@ Web 从实际线上 fbccf572 基线隔离修改，Suite dev 从207f584（243）/
 
 最终宿主清单：`U:/CodexWork/2026-10-04/three-dragon-host-link-overlay-final-complete/host-overlay-manifest.json`；Web源 b681f78dccad90ab407738074dedba62b13db470、Suite dev源32ed4bb661b11587bc74fe78a36ed4971945178d、stable源3dc4bbd9836279a95dfd1ffba7eac812af1d7321。原产品hash未变，Web补强测试/docs进入对应源ZIP。三源归档随host49项发布，提供精确GPL对应源码。
 
+第一次冻结 fa83fad 已 push，CI `37165076697` 在入口最后直接访问场景失败：该 `browser.newPage()` 未设 locale，Windows 默认中文通过，Linux 默认英文正确显示 Create room，但测试硬编码“创建房间”等待超时。修为明确 zh-CN/en-US 两个独立访问场景，保留全部原断言并新增英文 default-language 断言；新入口总16项，不改产品语言策略。首次候选保留、未部署；正式冻结将包含此跨平台测试修正并重打包。
+
 ## 遗留
 
 0.9.0 最终产物冻结/定向发布、公网网站与空房清理仍待完成，同时在 TODO 本轮段登记。旧本地机器人20条已删除并替换为以上在线控制/交互专项，报告真实条数。
