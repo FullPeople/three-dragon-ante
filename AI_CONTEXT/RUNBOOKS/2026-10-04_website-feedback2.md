@@ -77,3 +77,19 @@ ignored fx-website-acceptance.mjs基于原公网12项工具保留全部原验收
 更正observer后实际run-CX0XIT完整14/14 exit0，使用0588冻结稳定/开发前端与仓库当前loopback authority、实际UI自建合成房间。两人2次前注、6次出牌、3次能力选择、1次可见权威结算；air POINTS4125/4016与ground draws1132/1109，舞台three-high/three-medium；刷新、运输断线恢复、自动房主继任、名字恢复与最后所有浏览器离开66秒后的房间解散通过。脚本、资源失败、外域均0。这是本机完整对局及真实绘制证据，不是公网、Linux全门禁、物理GPU或FPS证明。公网版本未更新。
 
 遗留同步TODO：先定位447新增controls实际超时步骤；0588原多人23.8秒延迟原因仍未知，保留原次数/期限；精确完整CI/后续FX、最终发布终审与新冻结GPL包、fresh before/定向部署/after保全及新老公网验收仍待。
+
+### a91c9d9 首次 CI 明确步骤与合法输入前提
+
+精确a91c9d912685722c9e39136a6097af0dacffc736首次CI37212830710/job111467289383仍在新增controls 1/19失败，但新诊断明确为inspection-editor-visible/TimeoutError/源码187；普通私牌inspect已显示，fuvtt之后editor没有出现。脚本/外域0、临时SQLite已删除；原多人诊断和FX仍全skipped。原始artifact一次下载保存ci-a91-artifacts/run-Fy651J，日志ci-a91-job.log。没有盲目重跑此CI。
+
+受控前提证明只在ignored两个副本、当前真实构建与loopback自建房：实际原生WebSocket的前注匹配ACK在进入真实client.onmessage监听器前延迟350ms，authority/产品/原测试源都不改，ID仅RAM匹配。旧输入前提run-ZBviEp实际exit1、同editor步骤超时：ante-command4501→ack-held4544→ack-delivered4909（浏览器performance ms），fuvtt Enter4670时busy=false、UIactionpending=false但真实房主按钮disabled=true；发送1前注/0inspection，ACK之后仍editor0。证明DB revision或演出结束不等于客户端确认完成，且UI action receipt也可先于ACK清除pending；测试actor.view是服务端raw wire pending=false，更不能作客户端ACK证据。原controller.send113的真实pending保护会吞一次入口，通常未进入OnlineMatch或privateSync；不把它误报为网络/权限产品缺陷。该机制已本机实证，但原Linux没有ACK时间记录，仍不声称原Linux根因已证明。
+
+只修controls的shortcut测试前提：在原一次focus/type/Enter前，按默认期限等待真实既有输入保护解除（busy=false/UIactionpending=false/房主newGame按钮disabled=false，按钮本身包含client view.pending、sending与actionpending）。不重试按键、不跳过guard、不修改产品保护或原断言。失败观察器增加固定pending/button布尔和f/u/v/t枚举键，key观察提前到window capture以记录被隐藏入口消费的Enter；不记任意输入/文字/私牌。
+
+同350ms注入加新前提run-gNhsHZ实际exit0，单desktop的6项run检查加1全局共7项；ignored副本的静态expected6和继承both-viewports全局标签不准确，仅按实际1个viewport解释，不改旧result或声称19项。正式tracked工具无注入首次run-2WnSKd完整19/19 exit0，两视口/合法私候选与公开术士/显隐/排序/刷新均真过，错误/外域0。根AST比对原150调用逐字同序保留，只新增1个readiness wait，proof controls-ready-gates.json；tool SHA89b28281538a7324add70148d7e9f2f2ae4d8da3ca9aabd7b0cb83e5843eaa61。
+
+a91冻结包制备实际exit0，website-only、两目标973文件、源码450个Git跟踪文件，tar97393890字节/SHA b79f427099c2729e35d14a2d4778b5105436e2b37358a70fdd6cd3766a70deb2，source ZIP71556f477bda4c250ecaf7eaba1cdf18298ef1795e661871454e9bb2826c24d2，deploy script与先前7f606d1c一致。因精确CI失败，仅保持第三个held包，无上传/apply/restart；未做本包独立完整核验，不沿用0588的审计作为a91事实。
+
+gpt-6.1-sol独立只读本轮复查通过：86原assert/9pass/36原等待全部同序保持，仅新增1个合法真实输入前提，未误用wire.pending，不重试入口或绕过guard；350ms负对照实物及注入源码支持本机机制，未发现阻止修正的必要问题。ignored observer的每个旧event内controlledAckEvents数组共享引用，可能含后来delivered项，按各条独立at和Enter原始布尔解读，不能把嵌套数组作事件当时快照。正式本机19和新Linux仍分开报告。
+
+遗留同步TODO：合法输入前提增量独立审阅与新精确完整CI；原多人延迟诊断尚未到达，全部后续FX/最终发布终审/新冻结包及公网仍待，线上仍801/0.9.1。

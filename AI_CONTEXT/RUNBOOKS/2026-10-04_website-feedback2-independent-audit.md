@@ -85,6 +85,8 @@
 本批功能裁决：通过源码与新增专项证据审阅，未发现未闭环P1/P2。维持前述观战/deck权威审查及Ghost公共信息界限；完整发布仍须原13、冻结提交完整CI、冻结包/源码审计与公网验收，不能把19/19或12组当作整体发布通过，也不能当实体手机或真实玩家UAT。
 # 23时工具诊断只读复查附记
 
+后续a91→输入前提增量（审计模型仍gpt-6.1-sol）只读通过：原86个assert/9pass/36等待逐字同序，只加1个默认期限真实DOM guard解除等待；按钮涵盖client view.pending/sending/actionpending，没有采用raw wire pending或重试键/绕过guard。ZBviEp负对照真实匹配ACK延迟与输入时禁用布尔支持受控机制；gNhsHZ只有单桌面7/expected6，按有限范围解释。嵌套ACK数组共享引用不能当事件当时快照，按primitive时间/布尔解读；原LinuxACK根因未证。根正式tracked run-2WnSKd完整19/19另有真实产物（没有ACK注入），新精确CI/全部后续原门禁和最终发布审阅仍待。
+
 审计模型：gpt-6.1-sol。对4473030后的controls诊断工具增量独立只读复核：原86个assert表达式、9个pass调用、36个await wait/waitFor/Function逐字同序，19expected/viewport/循环/期限/cleanup/exitCode保持；组合行只拆分插固定step。不保存DOM文本/私牌ID/token/投影；事件环48条passive固定分类，失败后contexts关闭前采样并原样rethrow。每actor采样2秒，双actor串行约4秒；成功路径少量DOM查询有观察成本，不能叫零扰动。裁决：该诊断工具增量通过；不代表447 Linux失败已定位或完整发布终审通过。根本机新增工具19/19已读，不替Linux。
 
 补读冻结网站本机完整对局run-CX0XIT实物14项、127.0.0.1、deployedServer false、2前注/6出牌/3选择/1结算与两个真实air POINTS/ground draw计数；只证明本机真实对局/绘制/恢复/继任/空房，不替公网/Linux/FPS。线上801、发布held事实不变。

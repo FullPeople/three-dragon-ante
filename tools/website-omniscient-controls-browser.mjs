@@ -67,12 +67,12 @@ async function actor(label, viewport) {
     const snapshot = () => {
       const shell = document.querySelector('.tda-shell');
       const flag = name => shell?.getAttribute(name) === 'true' ? true : shell?.getAttribute(name) === 'false' ? false : null;
-      return { focus: zone(document.activeElement), busy: flag('data-busy'), omniscient: flag('data-omniscient'), inspectorCount: document.querySelectorAll('.tda-inspector').length, ownHandCount: document.querySelectorAll('.tda-card--hand[data-layer=hand][data-card]').length, editorCount: document.querySelectorAll('#table-editor').length, powerCount: document.querySelectorAll('.tda-spotlight').length, formationCount: document.querySelectorAll('.tda-formation-spot').length };
+      return { focus: zone(document.activeElement), busy: flag('data-busy'), pendingAction: flag('data-pending-action'), hostNewGameDisabled: document.querySelector('[data-testid=table-new-game]')?.disabled ?? null, omniscient: flag('data-omniscient'), inspectorCount: document.querySelectorAll('.tda-inspector').length, ownHandCount: document.querySelectorAll('.tda-card--hand[data-layer=hand][data-card]').length, editorCount: document.querySelectorAll('#table-editor').length, powerCount: document.querySelectorAll('.tda-spotlight').length, formationCount: document.querySelectorAll('.tda-formation-spot').length };
     };
     globalThis.__tdaControlsDiagnostics = { events, snapshot };
-    for (const type of ['focusin', 'focusout', 'pointerover', 'pointerout', 'keydown']) document.addEventListener(type, event => {
+    for (const type of ['focusin', 'focusout', 'pointerover', 'pointerout', 'keydown']) (type === 'keydown' ? window : document).addEventListener(type, event => {
       if (!(event.target instanceof Element) || !event.target.closest('.tda-shell')) return;
-      if (type === 'keydown' && !['ArrowLeft', 'ArrowRight', 'Enter', 'Escape', ' '].includes(event.key)) return;
+      if (type === 'keydown' && !['ArrowLeft', 'ArrowRight', 'Enter', 'Escape', ' ', 'f', 'u', 'v', 't'].includes(event.key)) return;
       events.push({ at: Math.round(performance.now()), type, zone: zone(event.target), ...(type === 'keydown' ? { key: event.key === ' ' ? 'Space' : event.key } : {}), ...snapshot() });
       if (events.length > 48) events.shift();
     }, { capture: true, passive: true });
@@ -100,7 +100,14 @@ async function actor(label, viewport) {
   await page.locator('#guest-name').click(); await page.locator('#guest-name').fill(label);
   return value;
 }
-async function shortcut(actor) { await actor.page.locator('.tda-shell').focus(); await actor.page.keyboard.type('fuvtt'); await actor.page.keyboard.press('Enter'); }
+async function shortcut(actor) {
+  // A committed server revision and busy=false can precede the action ACK.
+  // The real host control also reflects client pending/sending, unlike the
+  // raw service view's pending=false. Wait for that existing input guard;
+  // then send the shortcut once. Never retry keys or bypass authority guards.
+  await actor.page.waitForFunction(() => document.querySelector('.tda-shell')?.getAttribute('data-busy') === 'false' && document.querySelector('.tda-shell')?.getAttribute('data-pending-action') === 'false' && document.querySelector('[data-testid=table-new-game]')?.disabled === false);
+  await actor.page.locator('.tda-shell').focus(); await actor.page.keyboard.type('fuvtt'); await actor.page.keyboard.press('Enter');
+}
 async function ordinaryOwnHand(actor, admission) {
   const saved = state(admission), ownId = actor.view.game.selfSeatId, hand = saved.game.seats.find(seat => seat.id === ownId).hand;
   await actor.page.waitForFunction(() => document.querySelector('.tda-shell')?.getAttribute('data-busy') === 'false');
