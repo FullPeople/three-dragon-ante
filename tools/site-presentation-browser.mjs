@@ -10,9 +10,16 @@ import { build as buildSite } from 'vite';
 import { build as buildServer } from 'rolldown';
 import { chromium, browserLaunchOptions } from './browser-runtime.mjs';
 import { traceWebSocketFrames } from './site-websocket-fixture.mjs';
+import { installPresentationRenderProbe } from './site-presentation-render-probe.mjs';
 
 const root = resolve(import.meta.dirname, '..'), base = '/three-dragon-ante-dev/';
 const baseline = process.argv.includes('--baseline-presenter');
+const gpuIndex = process.argv.indexOf('--gpu');
+const gpu = gpuIndex === -1 ? 'software' : process.argv[gpuIndex + 1];
+if (!['default', 'software'].includes(gpu)) throw Error('--gpu must be default or software');
+const forceFx3d = process.argv.includes('--fx3d'), observeThree = forceFx3d || gpu === 'default';
+const renderMeasurements = [];
+
 const evidenceRoot = join(root, '.local-evidence/site-presentation'); mkdirSync(evidenceRoot, { recursive: true });
 const out = mkdtempSync(join(evidenceRoot, baseline ? 'baseline-' : 'run-')), dist = join(out, 'site');
 const checks = [], measurements = [], errors = [], external = [], actors = [];
@@ -66,7 +73,7 @@ server.on('upgrade', (req, socket, head) => {
   socket.once('close', () => { traceTransport({ connectionId, kind: 'close' }); socket.write = nativeWrite; outgoing.removeAllListeners(); });
   service.server.emit('upgrade', req, socket, head);
 });
-const browser = await chromium.launch({ ...browserLaunchOptions(), headless: true, args: ['--no-proxy-server', '--enable-webgl', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await chromium.launch({ ...browserLaunchOptions(), headless: true, args: ['--no-proxy-server', '--enable-webgl', ...(gpu === 'software' ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : [])] });
 const post = async (path, value) => {
   const response = await fetch(origin + '/three-dragon-api/v1' + path, { method: 'POST', headers: { Origin: origin, 'Content-Type': 'application/json' }, body: JSON.stringify(value) });
   assert.ok(response.ok, 'synthetic admission succeeds'); return response.json();
@@ -138,7 +145,7 @@ async function actor(admission) {
         return result;
       }
     };
-    const probe = window.__presentationProbe = { active: false, events: [], seen: {}, fxDraws: 0 };
+    const probe = window.__presentationProbe = { active: false, events: [], seen: {}, fxDraws: 0, effectCapture: false, powerVisible: false, powerOpenCount: 0, powerCloseCount: 0 };
     const nativeDraw = CanvasRenderingContext2D.prototype.drawImage;
     CanvasRenderingContext2D.prototype.drawImage = function(...args) { if (probe.active && this.canvas.classList.contains('tda-fx')) probe.fxDraws++; return Reflect.apply(nativeDraw, this, args); };
     const scan = () => {
@@ -149,10 +156,14 @@ async function actor(admission) {
         price: !!document.querySelector('.tda-ghost img'), flip: !!document.querySelector('.tda-ghost:not(.is-face-down) img'),
         draw: [...document.querySelectorAll('.tda-ghost')].some(ghost => !ghost.querySelector('.tda-card-face img')),
       };
+      if (flags.power && !probe.powerVisible) probe.powerOpenCount++;
+      if (!flags.power && probe.powerVisible) probe.powerCloseCount++;
+      probe.powerVisible = flags.power;
       for (const [key, value] of Object.entries(flags)) if (value && !probe.seen[key]) { probe.seen[key] = true; probe.events.push({ kind: key, ms: performance.now() }); }
     };
     new MutationObserver(scan).observe(document, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'data-busy', 'data-phase'] });
   }, admission);
+  await context.addInitScript(installPresentationRenderProbe, { countThreeDraws: observeThree });
   const page = await context.newPage(), actor = { context, page, acknowledgements: 0, actionFrames: [], lastRevision: 0, loadStep: 'navigation', waitingFor: 'navigation-load', closes: [], authSent: false, authSentMs: null, viewCount: 0, viewPresence: [] }; actors.push(actor);
   context.on('request', request => { if (!request.url().startsWith(origin + '/')) external.push('unexpected-origin'); });
   await context.route('**/*', route => route.request().url().startsWith(origin + '/') ? route.continue() : route.abort());
@@ -166,9 +177,10 @@ async function actor(admission) {
     else if (packet.type === 'view' && packet.view.game) { actor.lastRevision = packet.view.game.revision; actor.actionFrames.push('view'); }
     else if (packet.type === 'patch') { if (packet.gamePatch?.set?.revision) actor.lastRevision = packet.gamePatch.set.revision; actor.actionFrames.push('view'); }
   }); });
-  await page.goto(origin + base + '?room=' + admission.room.code); actor.loadStep = 'connected'; actor.waitingFor = 'authority-connected'; await page.locator('.site-online-match[data-connected=true]').waitFor();
+  await page.goto(origin + base + '?room=' + admission.room.code + (forceFx3d ? '&fx3d=1' : '')); actor.loadStep = 'connected'; actor.waitingFor = 'authority-connected'; await page.locator('.site-online-match[data-connected=true]').waitFor();
   actor.loadStep = 'own-hand'; actor.waitingFor = 'own-hand-visible';
   await page.locator('.tda-card--hand[data-card]').first().waitFor();
+  if (observeThree) await page.waitForFunction(() => /^three-(low|medium|high)$/.test(document.querySelector('.tda-shell')?.dataset.fx ?? ''));
   assert.equal(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches), false);
   actor.loadStep = 'ready'; actor.waitingFor = null; return actor;
 }
@@ -185,7 +197,7 @@ async function scenario(kind) {
   const pair = [];
   for (const admission of admissions) pair.push(await actor(admission));
   const submitter = pair[seats.findIndex(seat => seat.id === found.move.seatId)], observer = pair.find(value => value !== submitter);
-  for (const value of pair) await value.page.evaluate(() => { const probe = window.__presentationProbe; probe.active = true; probe.events = []; probe.seen = {}; probe.fxDraws = 0; });
+  for (const value of pair) await value.page.evaluate(() => { const probe = window.__presentationProbe; probe.active = true; probe.events = []; probe.seen = {}; probe.fxDraws = 0; probe.powerVisible = false; probe.powerOpenCount = 0; probe.powerCloseCount = 0; });
   const ownCount = await submitter.page.locator('.tda-card--hand[data-card]').count();
   stage = kind + '-submit';
   const played = submitter.page.locator('.tda-card--hand.is-legal[data-card="' + found.move.cardId + '"]');
@@ -228,7 +240,7 @@ try {
       const active = await actor.page.locator('.tda-seat.is-active').getAttribute('data-seat'); assert.equal(active, power.found.move.seatId);
     }
     pass('real view then ack clears the exact pending action without cancelling either the submitting player or observer ability description');
-    for (const actor of power.pair) await actor.page.evaluate(() => { window.__presentationProbe.fxDraws = 0; });
+    for (const actor of power.pair) await actor.page.evaluate(() => { window.__presentationProbe.fxDraws = 0; window.__presentationProbe.effectCapture = true; window.__presentationRenderProbe.reset(); });
     await Promise.all(power.pair.map(actor => actor.page.locator('.tda-spotlight [data-dismiss-hint]').click()));
     await wait(async () => (await Promise.all(power.pair.map(probe))).every(value => value.fxDraws > 20), 'both actual ability canvases draw after dismissal');
     pass('both the player own page and observer draw the actual textured ability effect after dismissing its description');
@@ -237,6 +249,29 @@ try {
     pass('the own page and observer both display the finite turn transition instead of jumping directly to the next active seat');
     await Promise.all(power.pair.map(actor => actor.page.waitForFunction(() => document.querySelector('.tda-shell')?.getAttribute('data-busy') === 'false')));
     for (const actor of power.pair) { const value = await probe(actor); assert.ok(time(value, 'turn') > time(value, 'power')); }
+    stage = 'power-render-observations';
+    for (const actor of power.pair) {
+      const value = await actor.page.evaluate(() => ({ render: window.__presentationRenderProbe.capture(), opens: window.__presentationProbe.powerOpenCount, closes: window.__presentationProbe.powerCloseCount }));
+      renderMeasurements.push({ submitter: actor === power.submitter, ...value });
+      if (observeThree) {
+        assert.equal(value.render.threeMode, true, 'the actual website uses three rendering without gallery or debug');
+        assert.ok(value.render.air.contextAvailable && value.render.ground.contextAvailable, 'both observed actual effect contexts remain available');
+        assert.ok(value.render.air.points > 0 && value.render.air.pointChangedAlphaPixels > 0, 'native POINTS actually change nontransparent air pixels during the accepted ability');
+        assert.ok(value.render.ground.draws > 0 && value.render.ground.changedAlphaPixels > 0, 'native ground commands actually change nontransparent ground pixels during the accepted ability');
+        assert.equal(value.render.air.readbackErrors + value.render.ground.readbackErrors, 0);
+        pass(actor === power.submitter ? 'the real submitting client renders nonempty 3D ability POINTS and ground after its matching ack' : 'the real observing client renders nonempty 3D ability POINTS and ground after the same authoritative action');
+      }
+    }
+    if (observeThree) {
+      for (const value of renderMeasurements) { assert.equal(value.opens, 1); assert.equal(value.closes, 1); }
+      pass('both real client descriptions open and close exactly once while the accepted 3D ability completes without ack replay or cancellation');
+    } else {
+      for (const value of renderMeasurements) {
+        assert.equal(value.render.threeMode, false);
+        assert.equal(value.render.air.draws + value.render.ground.draws + value.render.air.points + value.render.ground.points, 0, 'default software 2D is a real negative control: table material and empty effect canvases cannot satisfy native effect draws');
+      }
+      pass('default software mode remains a real 2D negative control with zero actual air or ground GL commands');
+    }
     await finish(power.pair, power.room);
 
     const round = await scenario('round');
@@ -316,19 +351,19 @@ try {
   assert.deepEqual(errors, []); assert.deepEqual(external, []); pass('actual animated website scenarios complete with no script errors and no external requests');
 } catch (error) {
   const publicDiagnostics = [];
-  for (const actor of actors) try { publicDiagnostics.push(await actor.page.evaluate(() => {
+  for (const actor of actors) { let diagnosticTimer; try { publicDiagnostics.push(await Promise.race([actor.page.evaluate(() => {
     const status = document.querySelector('.site-room-identity [role="status"]')?.textContent?.trim();
     const allowedStatus = ['已连接', 'Connected', '重连中', 'Reconnecting', '连接失败', 'Connection failed', '座位已在其他窗口连接', 'Seat connected in another window', '连接已失效，请返回首页重连', 'Session expired; return home to reconnect'];
     const banner = document.querySelector('.tda-banner--purchase'), rectangle = banner?.getBoundingClientRect();
     const style = banner && getComputedStyle(banner);
-    return { busy: document.querySelector('.tda-shell')?.getAttribute('data-busy'), phase: document.querySelector('.tda-shell')?.getAttribute('data-phase'), pendingAction: document.querySelector('.tda-shell')?.getAttribute('data-pending-action') === 'true', status: status == null ? null : allowedStatus.includes(status) ? status : 'other', powerCount: document.querySelectorAll('.tda-spotlight').length, ghostCount: document.querySelectorAll('.tda-ghost').length, coinCount: document.querySelectorAll('.tda-fx-coin').length, handCardCount: document.querySelectorAll('.tda-card--hand[data-card]').length, flightCardCount: document.querySelectorAll('.tda-card--flight').length, purchaseBannerCount: document.querySelectorAll('.tda-banner--purchase').length, purchaseBannerImageCount: banner?.querySelectorAll('img').length ?? 0, purchaseBannerHasDigits: !!banner && /\d/.test(banner.textContent), purchaseBannerVisible: !!banner && !!rectangle && rectangle.width > 0 && rectangle.height > 0 && style.display !== 'none' && style.visibility !== 'hidden', purchaseBannerRectangle: rectangle ? { x: rectangle.x, y: rectangle.y, width: rectangle.width, height: rectangle.height } : null, socketDiagnostics: window.__presentationSocketDiagnostics || null, probe: window.__presentationProbe ? { events: window.__presentationProbe.events, fxDraws: window.__presentationProbe.fxDraws } : null };
-  })); } catch {}
+    return { busy: document.querySelector('.tda-shell')?.getAttribute('data-busy'), phase: document.querySelector('.tda-shell')?.getAttribute('data-phase'), pendingAction: document.querySelector('.tda-shell')?.getAttribute('data-pending-action') === 'true', status: status == null ? null : allowedStatus.includes(status) ? status : 'other', powerCount: document.querySelectorAll('.tda-spotlight').length, ghostCount: document.querySelectorAll('.tda-ghost').length, coinCount: document.querySelectorAll('.tda-fx-coin').length, handCardCount: document.querySelectorAll('.tda-card--hand[data-card]').length, flightCardCount: document.querySelectorAll('.tda-card--flight').length, purchaseBannerCount: document.querySelectorAll('.tda-banner--purchase').length, purchaseBannerImageCount: banner?.querySelectorAll('img').length ?? 0, purchaseBannerHasDigits: !!banner && /\d/.test(banner.textContent), purchaseBannerVisible: !!banner && !!rectangle && rectangle.width > 0 && rectangle.height > 0 && style.display !== 'none' && style.visibility !== 'hidden', purchaseBannerRectangle: rectangle ? { x: rectangle.x, y: rectangle.y, width: rectangle.width, height: rectangle.height } : null, socketDiagnostics: window.__presentationSocketDiagnostics || null, probe: window.__presentationProbe ? { events: window.__presentationProbe.events, fxDraws: window.__presentationProbe.fxDraws, powerOpenCount: window.__presentationProbe.powerOpenCount, powerCloseCount: window.__presentationProbe.powerCloseCount, render: window.__presentationRenderProbe?.capture() ?? null } : null };
+  }), new Promise(resolve => { diagnosticTimer = setTimeout(() => resolve({ diagnosticUnavailable: true }), 3000); })])); } catch {} finally { clearTimeout(diagnosticTimer); } }
   failure = { stage, kind: safeErrorKind(error), publicDiagnostics, loadDiagnostics: actors.map(actor => ({ loadStep: actor.loadStep, waitingFor: actor.waitingFor, closes: actor.closes, authSent: actor.authSent, authSentMs: actor.authSentMs, viewCount: actor.viewCount, viewPresence: actor.viewPresence, authoritativeFrameCount: actor.actionFrames.length })), message: 'Real website presentation assertion failed; no private projection or selector is written to evidence.' };
 }
 finally {
   await browser.close(); await service.close(); await new Promise(done => server.close(done));
-  const stats = { checks: checks.length, completed: !failure, mode: baseline ? 'historical-presenter-regression-proof' : 'current-production-source', reducedMotion: 'no-preference', scope: 'Real loopback website and authoritative receipts. Synthetic legal engine fixtures seeded only before authentication.' };
-  writeFileSync(join(out, 'result.json'), JSON.stringify({ checks, stats, measurements, errors, external, transportDiagnostics, droppedTransportDiagnostics, ...(failure ? { failure } : {}) }, null, 2));
+  const stats = { checks: checks.length, completed: !failure, mode: baseline ? 'historical-presenter-regression-proof' : 'current-production-source', reducedMotion: 'no-preference', forcedThree: forceFx3d, gpuLaunchSoftware: gpu === 'software', nativePixelSamplingIsPerformanceEvidence: false, originalScenarioChecksExpected: baseline ? 2 : 13, additionalRenderChecksExpected: baseline ? 0 : observeThree ? 3 : 1, scope: 'Real loopback website and authoritative receipts. Synthetic legal engine fixtures seeded only before authentication.' };
+  writeFileSync(join(out, 'result.json'), JSON.stringify({ checks, stats, measurements, renderMeasurements, errors, external, transportDiagnostics, droppedTransportDiagnostics, ...(failure ? { failure } : {}) }, null, 2));
   console.log(JSON.stringify(stats)); console.log(out);
 }
 if (failure) throw Error(failure.stage + ': ' + failure.message);
