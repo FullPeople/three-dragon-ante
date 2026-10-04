@@ -95,6 +95,7 @@ export function TableScene({ state, controller, onFx, onFx3d, onOrientation, onL
 
   // 拖动：手牌节点按下后超过 6px 才算拖动，否则保留点击语义。
   const dragRef = useRef<{ cardId: string; startX: number; startY: number; active: boolean; pointerId: number } | null>(null);
+  const pendingMove = useRef<{ x: number; y: number } | null>(null), moveRaf = useRef(0);
   function onCardPointerDown(event: React.PointerEvent<HTMLDivElement>, cardId: string) {
     if (event.button !== 0 || !controller.legalCardIds().includes(cardId) || controller.locked()) return;
     dragRef.current = { cardId, startX: event.clientX, startY: event.clientY, active: false, pointerId: event.pointerId };
@@ -103,15 +104,15 @@ export function TableScene({ state, controller, onFx, onFx3d, onOrientation, onL
       const d = dragRef.current; if (!d || e.pointerId !== d.pointerId) return;
       if (!d.active && Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < 6) return;
       if (!d.active) { d.active = true; try { target.setPointerCapture(e.pointerId); } catch {} controller.inspect(null); }
-      const over = zoneAt(e.clientX, e.clientY, own?.selfSeatId ?? null);
-      const legal = !!over && over === controller.legalZone();
-      controllerDrag(cardId, e.clientX, e.clientY, legal, over);
+      // 每帧最多一次状态更新：指针事件可达 120+ Hz，每次都整树重渲染会拖垮弱机
+      pendingMove.current = { x: e.clientX, y: e.clientY };
+      if (!moveRaf.current) moveRaf.current = requestAnimationFrame(() => { moveRaf.current = 0; const p = pendingMove.current; if (!p || !dragRef.current) return; const over = zoneAt(p.x, p.y, own?.selfSeatId ?? null); const legal = !!over && over === controller.legalZone(); controllerDrag(cardId, p.x, p.y, legal, over); });
     };
     const up = (e: PointerEvent) => {
       const d = dragRef.current; if (!d || e.pointerId !== d.pointerId) return;
       window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); window.removeEventListener("pointercancel", up);
       try { target.releasePointerCapture(e.pointerId); } catch {}
-      dragRef.current = null;
+      dragRef.current = null; pendingMove.current = null; if (moveRaf.current) { cancelAnimationFrame(moveRaf.current); moveRaf.current = 0; }
       if (!d.active) return;
       const over = e.type === "pointerup" ? zoneAt(e.clientX, e.clientY, own?.selfSeatId ?? null) : null;
       controllerDrag(null, 0, 0, false, null);

@@ -10,7 +10,7 @@ type Screen = "home" | "play" | "howto";
 export function SiteApp() {
   const [lang, setLang] = useState<Language>(() => getLocalLang());
   const [screen, setScreen] = useState<Screen>("home");
-  const [opponents, setOpponents] = useState(2);
+  const [opponents, setOpponents] = useState(() => { const n = Number(new URLSearchParams(location.search).get("opponents")); return n >= 1 && n <= 5 && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) ? n : 2; });
   const changeLang = (value: Language) => { setLocalLang(value); setLang(value); };
   useEffect(() => { document.documentElement.lang = lang === "zh" ? "zh-CN" : "en"; document.title = t("siteTitle", lang); }, [lang]);
   if (screen === "play") return <MatchScreen lang={lang} opponents={opponents} onClose={() => setScreen("home")} onLanguage={setLang} />;

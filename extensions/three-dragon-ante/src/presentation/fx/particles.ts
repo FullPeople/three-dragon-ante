@@ -9,7 +9,8 @@ export interface AmbientSpec { kind: FxKind; rate: number; area: Rect | null; dr
 
 type Sprite = "smoke_01" | "smoke_03" | "smoke_06" | "dirt_01" | "dirt_02" | "flame_01" | "flame_03" | "fire_01" | "spark_01" | "spark_03" | "spark_06" | "star_01" | "star_05" | "star_07" | "magic_01" | "magic_02" | "magic_04" | "magic_05" | "light_01" | "light_02" | "circle_01" | "circle_03" | "circle_05" | "twirl_01" | "twirl_03" | "slash_01" | "slash_03" | "scorch_01" | "symbol_01" | "symbol_02" | "flare_01" | "trace_01" | "trace_06" | "window_01" | "muzzle_01";
 const sprite = (name: Sprite) => new URL(`../assets/fx/${name}.webp`, import.meta.url).href;
-const GOLD_COIN = new URL("../../game/art/currency/dragon-gold.webp", import.meta.url).href;
+/** 烘焙了厚度与投影的龙金贴图（见 CoinStack.tsx），飞行精灵不再用 CSS filter */
+const GOLD_COIN = new URL("../assets/coin-gold.webp", import.meta.url).href;
 
 /** 家族色：主色、亮色、贴图组合 */
 const FAMILY: Record<FxKind, { main: string; bright: string; burst: Sprite[]; glow: Sprite; trail: Sprite }> = {
@@ -83,9 +84,10 @@ export function mountFx(canvas: HTMLCanvasElement, host: HTMLElement): FxLayer {
   let raf = 0, last = 0, destroyed = false, shakeUntil = 0;
   const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
   preloadFx();
-  function resize() { const rect = host.getBoundingClientRect(); const dpr = Math.min(2, devicePixelRatio || 1); canvas.width = Math.max(1, Math.floor(rect.width * dpr)); canvas.height = Math.max(1, Math.floor(rect.height * dpr)); canvas.style.width = `${rect.width}px`; canvas.style.height = `${rect.height}px`; ctx?.setTransform(dpr, 0, 0, dpr, 0, 0); }
+  function resize() { const rect = host.getBoundingClientRect(); const dpr = Math.min(1.5, devicePixelRatio || 1); canvas.width = Math.max(1, Math.floor(rect.width * dpr)); canvas.height = Math.max(1, Math.floor(rect.height * dpr)); canvas.style.width = `${rect.width}px`; canvas.style.height = `${rect.height}px`; ctx?.setTransform(dpr, 0, 0, dpr, 0, 0); }
   const observer = new ResizeObserver(resize); observer.observe(host); resize();
-  const dom = document.createElement("div"); dom.className = "tda-fx-dom"; dom.setAttribute("aria-hidden", "true"); host.appendChild(dom);
+  const dom = document.createElement("div"); dom.className = "tda-fx-dom"; dom.setAttribute("aria-hidden", "true"); dom.style.display = "none"; host.appendChild(dom);
+  canvas.style.display = "none";
   function local(point: Point): Point { const rect = host.getBoundingClientRect(); return { x: point.x - rect.left, y: point.y - rect.top }; }
   function localRect(rect: Rect): Rect { const r = host.getBoundingClientRect(); return { x: rect.x - r.left, y: rect.y - r.top, w: rect.w, h: rect.h }; }
   const ease = (k: number) => k * k * (3 - 2 * k);
@@ -130,9 +132,10 @@ export function mountFx(canvas: HTMLCanvasElement, host: HTMLElement): FxLayer {
       draw(ctx, "circle_03", r.color, r.x, r.y, 40 + k * 220, 0, (1 - k) * 0.9, true, SQUASH);
     }
     if (now < shakeUntil) { const s = (shakeUntil - now) / 600; host.style.transform = `translate(${(Math.random() - .5) * 10 * s}px, ${(Math.random() - .5) * 8 * s}px)`; } else if (host.style.transform) host.style.transform = "";
-    if (particles.length || ripples.length || effects.length || ambients.size || now < shakeUntil) raf = requestAnimationFrame(tick); else { last = 0; ctx.clearRect(0, 0, canvas.width, canvas.height); }
+    if (particles.length || ripples.length || effects.length || ambients.size || now < shakeUntil) raf = requestAnimationFrame(tick); else { last = 0; ctx.clearRect(0, 0, canvas.width, canvas.height); canvas.style.display = "none"; }
   }
-  function request() { if (!raf && !destroyed) raf = requestAnimationFrame(tick); }
+  // 空闲时整张画布不参与合成（display:none）；有东西要画再显示
+  function request() { if (!raf && !destroyed) { canvas.style.display = ""; raf = requestAnimationFrame(tick); } }
   /** 贴图爆发：从 at 向四周喷出家族贴图粒子 */
   function spawn(at: Point, kind: FxKind, count: number, speed: number, opts: Partial<Particle> = {}) {
     const fam = FAMILY[kind];
@@ -155,12 +158,12 @@ export function mountFx(canvas: HTMLCanvasElement, host: HTMLElement): FxLayer {
       if (reduced()) return sleep(duration);
       const dist = Math.hypot(b.x - a.x, b.y - a.y), lift = 70 + dist * 0.18;
       for (let i = 0; i < n; i++) {
-        const img = document.createElement("img"); img.src = GOLD_COIN; img.className = "tda-coin-fly"; img.alt = ""; dom.appendChild(img);
+        const img = document.createElement("img"); img.src = GOLD_COIN; img.className = "tda-coin-fly"; img.alt = ""; dom.style.display = ""; dom.appendChild(img);
         const spread = (i - (n - 1) / 2) * 6, frames: Keyframe[] = [];
         for (let s = 0; s <= 14; s++) { const t = s / 14, e = ease(t); const x = a.x + (b.x - a.x) * e + spread, y = a.y + (b.y - a.y) * e - Math.sin(t * Math.PI) * lift; const sc = 1 + Math.sin(t * Math.PI) * 0.45; frames.push({ transform: `translate(${x}px, ${y}px) scale(${sc}) rotate(${(t * 140 - 70) * (i % 2 ? 1 : -1)}deg)`, offset: t * 0.86 }); }
         frames.push({ transform: `translate(${b.x + spread}px, ${b.y - 8}px) scale(1.12)`, offset: 0.93 }, { transform: `translate(${b.x + spread}px, ${b.y}px) scale(1)`, offset: 1 });
         const anim = img.animate(frames, { duration, delay: i * gap, easing: "linear", fill: "forwards" });
-        anim.finished.then(() => { spawn({ x: b.x + spread, y: b.y }, "gold", 4, 60, { size: 16, life: 0.4 }); img.remove(); }, () => img.remove());
+        anim.finished.then(() => { spawn({ x: b.x + spread, y: b.y }, "gold", 4, 60, { size: 16, life: 0.4 }); img.remove(); if (!dom.childElementCount) dom.style.display = "none"; }, () => { img.remove(); if (!dom.childElementCount) dom.style.display = "none"; });
       }
       request();
       return sleep(duration + (n - 1) * gap + 40);

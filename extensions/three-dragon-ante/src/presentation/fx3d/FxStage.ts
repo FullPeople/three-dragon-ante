@@ -102,8 +102,8 @@ export function mountFxStage(host: HTMLElement, airCanvas: HTMLCanvasElement, gr
   }
   // three 内部可能调用 updateProjectionMatrix（例如 setViewOffset）；锁定为我们的视锥
   airCam.updateProjectionMatrix = () => { const f = airCamera(metrics); airCam.projectionMatrix.makePerspective(f.left, f.right, f.top, f.bottom, f.near, f.far); airCam.projectionMatrixInverse.copy(airCam.projectionMatrix).invert(); };
-  const observer = new ResizeObserver(() => { layout(); wake(); });
-  observer.observe(host); layout();
+  const observer = new ResizeObserver(() => { layout(); if (effects.length) wake(); });
+  observer.observe(host); layout(); setVisible(false);
 
   function frame(now: number) {
     raf = 0; if (destroyed) return;
@@ -112,9 +112,11 @@ export function mountFxStage(host: HTMLElement, airCanvas: HTMLCanvasElement, gr
     airRenderer.render(airScene, airCam);
     if (groundRenderer) groundRenderer.render(groundScene, groundCam);
     dirty = false;
-    if (effects.length) raf = requestAnimationFrame(frame); else last = 0;
+    if (effects.length) raf = requestAnimationFrame(frame); else { last = 0; setVisible(false); }
   }
-  function wake() { if (!raf && !destroyed) raf = requestAnimationFrame(frame); }
+  // 没有活动效果时两张画布都不参与合成
+  function setVisible(on: boolean) { airCanvas.style.display = on ? "" : "none"; if (groundCanvas) groundCanvas.style.display = on ? "" : "none"; }
+  function wake() { if (!raf && !destroyed) { setVisible(true); raf = requestAnimationFrame(frame); } }
 
   const stage: FxStage = {
     air: { scene: airScene, camera: airCam, group, renderer: airRenderer },

@@ -27,6 +27,7 @@
 - **第三轮纠错（2026-10-03 深夜）**：十一条已实施（runbook `RUNBOOKS/2026-10-03_presentation-round3.md`）：金币 DOM 精灵飞行 + 厚堆、奖池锚点；能力等待选择的 `powerHold`；座位朝向通用旋转 + 布局重叠检查进自测（2–6 人 × 横竖屏零重叠）；天空盒针孔重投影；炉石式三段放牌；幽灵牌转移系统（抽 / 偷 / 取前注 / 弃）；Kenney 贴图粒子渲染器替换全部几何图元；拍桌连拍 + 各座位独立。遗留：真实手掌照片素材待批、独立审计待做。
 - **第四轮纠错（同夜）**：六条已实施（runbook round3 §5）：行动栏定高（排版跳动根因）；赤铜龙替换链"说明 → 替换落桌 → 新牌说明"（`applyReplacements` + `show.fromDeck`，自测 14）；竖屏对手一律左右侧边；金币飞行修复（`centerOf` 接受 0×0 锚点）+ 原作沙漏形龙金；删掉所有区域圆角矩形脉冲改为针对牌 / 手牌 / 金币堆；本地对战接入全能模式与编辑器。手掌素材：rawpixel / purepng 有人机验证，待用户挑图。
 - **第三轮审计整改（同夜）**：Opus 审计 `9d071ec..5e4edda` 不通过（H1 回执后重飞、ASSETS 登记、M1 幽灵牌计数、M2 布局检查器盲点、M3 朝向、L1–L13）；全部整改见 runbook round3 §6：`transfers()` 同步 + 桌面层按 key 排序、事件优先的 `cardMoves`、检查器全量入检 + 布局修正（本家点数铭牌到牌阵右端、≥5 张收紧、竖屏本家整行）、偿债池常驻。冒烟 20/20、自测 15/15、布局 0、400 局模拟归零。复审（Opus）R-H1 关闭、**终裁通过**（runbook round3 §6.5）；新低项（three 拆包、package.json 行尾、冒烟全并列）随 fx3d 一起处理。用户 2026-10-03 授权"修复完之后推送"，但 push 403（凭据账号 `pzy197684` 无写权限），待用户处理凭据后重推。
+- **帧率修复（2026-10-04）**：根因是金币滤镜合成层（见 §A 合成层坑）；修后 6 人局软件渲染 5 → 56 fps，runbook `2026-10-04_perf-compositing.md`。
 - **three.js 特效层 fx3d（2026-10-03 深夜起）**：用户同意引入 three@0.186.1 做专用特效层（技术移植自 MIT 的 Elemental Sandbox，本地克隆在临时目录）。地基已完成：`fx3d/stage.ts` 相机数学与 CSS 2.5D 透视链对齐误差 0.01 px；`fx3d/FxStage.ts` 空中 + 地面两张画布、按需渲染、档位；`npm run test:fx3d` 对齐测试。设计评审工作流产出后按 runbook `RUNBOOKS/2026-10-03_fx3d-kickoff.md` 推进。
 - **阶段 / 里程碑**：阶段 0–7 全部完成（评估、留痕、骨架、2.5D 场景、HUD、时序、材质与音效、枭熊页切换、删旧与测试重建、独立审计两轮 + 整改）；审计终裁"修好 N1 且多次稳定后判通过"，已满足。**push 待用户确认**。详见 `RUNBOOKS/2026-10-03_presentation-rebuild-kickoff.md` §7–§16。
 - **运行态**：本机 `D:\my_code\three-dragon-ante`，分支 `rebuild/presentation`，基线 `eb74f62`（main）。未 push。线上入口未动。`index.html` = 独立网站；`table.html` = 枭熊牌桌页（已挂新表现层）；`src/modules/threeDragonAnte` 旧稳定频道仍是旧 UI。
@@ -40,6 +41,7 @@
 - **行尾坑（2026-10-03）**：仓库 .gitattributes 是 `* -text`（按字节入库，原有文件多为 CRLF）；用 Python 以 LF 写文件会把 CRLF 改成 LF、让 diff 膨胀；数回车要按字节（tr -cd 回车再 wc -c），Git Bash 的 grep -c 数回车得到的是行数。
 - **手牌层坑（2026-10-03）**：立起的手牌放在桌面的 preserve-3d 上下文里必被桌面切片、且按真实深度排序会让左半扇面遮挡反向；正解是把扇面画在 `.tda-viewport` 下独立的屏幕对齐立板（`transform-style: flat`，z-index = order），换层时节点重挂（手→桌 dropIn，桌→手 arriving）。槽位一旦带 `transform` 就与桌面画布同深度，命中测试会随机落到画布，需 `translateZ(2px)`。
 - **GLSL 坑（2026-10-03）**：`half` 是 GLSL ES 保留字，用作参数名会让着色器静默编译失败并回退 CSS；冒烟测试断言 `surface==="webgl"` 会抓到。
+- **合成层坑（2026-10-04）**：每枚金币一个带 `drop-shadow` 滤镜的 `<img>` 层，6 人局 ≈ 220 个滤镜层，软件渲染下 5 fps、弱机明显卡；人越多越卡。规矩：桌面上**不用 CSS filter**（阴影烘进贴图或用 box-shadow），同类重复元素合成到一张画布，透明画布空闲时 `display:none`，指针事件按帧合并。探针 `.local-evidence/perf-probe.mjs`（runbook `2026-10-04_perf-compositing.md`）。
 - **入场动画坑（2026-10-03）**：CardNode 的入场位姿用内联 CSS 变量覆盖，动画结束时必须把目标位姿写回；删属性会让所有卡牌掉到平面原点（React 不重写未变化的 style）。
 - **在办**：见 `TODO.md`。
 
