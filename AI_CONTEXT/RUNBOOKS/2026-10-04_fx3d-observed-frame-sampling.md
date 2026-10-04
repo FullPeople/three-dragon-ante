@@ -27,3 +27,11 @@ root 和三 children 共用 `observedTicks.size < 24` 的存活条件；root 初
 `node --check tools/fx3d-alignment-check.mjs`、`git diff --check` 均 exit 0。RAM TypeScript AST 证明及原/新源码副本位于 `.local-evidence/fx-release/alignment-observed-frame-preservation-ast.json` 与同目录 `alignment-observed-frame-{original,candidate}.mjs`；证明包含完整表达式，明确标记 timers/sample/comparison 已改变，原 28 assert、7 wait、6 pass 均逐表达式/顺序相同。首次辅助 AST 的 workload selector 误选含 workload 的外层 try，报不相同；收窄到直接执行 ambient 的原 workload try 后，完整 workload 逐字相同，未因此修改工具。
 
 原仓库源码 SHA256：`6E4C43CFD5E8149DF982172027D7E828307D5B8A85F98656F1EFFEBF7E45E64E`。当前工具 SHA256：`DFDBE303F9E067F4C653B3E2CCA145B507C6737EAAAB0A4611D9C273DF8F0C85`。独立只读代理 `release_review_current` 已复核实际 diff、独立 RAM AST 28 assert/7 wait/6 pass 保留和资源清理结构；未运行浏览器。新机制至少 24 个真实非空时间戳、历史 max>1、新源 max1/high/收尾、实际 deadline/资源关闭仍待根代理一次真实 case 和 exact Linux CI 验证；保存的旧 baseline max4 不冒充新机制的浏览器反例结果。
+
+## Root 后续实际验证与精确 CI（保留失败）
+
+e290ea0本机串行build exit0（tsc0），build:server exit0，test:fx3d 9/9 exit0。实际render-chain baseline25 observed ticks/max4、candidate25/max1/frames25/renders25/effectsAfter0，高tier原门槛保持；workload33/33/max1/zeroeffects。五源文件前后SHA一致，工作树clean。证据.local-evidence/fx-release/local-observed-sampling-e290ea0。首wrapper仅因Windows日志名含冒号失误在已完成build后退出，改合法文件名后只执行未运行命令，不称产品失败。
+
+普通push origin integrate/fx3d-refresh-c3960047 e290ea0成功，精确CI37205567270首次failure，网站隐藏权限前6check通过，真实WS cut后原host-only DOM清场<500ms时限失败；本次FX以及后续均skipped，不能继承本机9当Linux9或整CI通过。实际artifact run-pHrsRz transport close→新upgrade约7324ms，未取得实际DOM清场发生时间，暂不判断产品撤权失败还是观察阻塞。log与原result保存于.local-evidence/fx-release/ci-e290ea0-*；不重跑碰运气，不放宽断言。原gh缓存写C盘空间不足/缓存zip不完整，改直接gh api job logs并仅下载本次artifact到U，不删其他目录。
+
+用户确认线上801可用并新增四项反馈，改在另隔离分支release/website-feedback2-20261004推进，不把本次失败冻结源部署。采样修复已cherry-pick到新候选；0.9.3新增观战/全能等须新全回归和发布审核。
