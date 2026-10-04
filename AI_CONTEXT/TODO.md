@@ -1,5 +1,6 @@
 # 待办清单 — 三龙牌
 
+- [ ] 053首次精确CI37216297279 FX仍7/9，25帧2161.1ms high→medium/workload18，真实空场调用短而RAF慢、根因未证；保持本组合失败/门槛继续独立归因。四反馈优先发布改由线上801基线新隔离release/website-feedback-hotfix-20261005独立全验/审计/GPL/部署，正本新分支RUNBOOKS/2026-10-05_website-feedback-hotfix.md，不能用其4相机门禁称本9已过。
 - [x] 971首次精确CI前31步/原多人22通过，原controls19和input12亦通过；971冻结包1948/GPL450独立核验通过但未上线。线上801/0.9.1保持。
 - [ ] FX原门禁仍阻塞：971真实25帧2922ms降medium、workload16，后6检查skipped；工具仅补真实帧/绘制数字，本机首次9/9，须独立复核和新精确Linux取证/根因修复，禁止冻降档或改原门槛凑绿。见RUNBOOKS/2026-10-05_website-feedback2-fx-timing.md。
 - [ ] 发布前fresh只读稳定基线：suite-dev/card/其他服务相对旧before变化且来源未知，不能覆盖或沿用旧baseline。全门禁后再新包/终审/双网站+必要server/after/公网；旧四包均held。

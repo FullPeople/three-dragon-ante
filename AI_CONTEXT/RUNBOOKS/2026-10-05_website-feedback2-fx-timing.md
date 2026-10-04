@@ -24,6 +24,12 @@ wrapper以Reflect.apply透传原this/参数/返回/异常；在原finally恢复 
 
 ## 遗留（同步TODO）
 
+053eada776ddcbf65da89eba3011118651995dbf首次精确CI37216297279/job111477385559：原前31步再次通过，FX7/9仍medium≠high，后6步skipped。一次下载日志/artifact ci-053-*；真实run-qtpvCJ记录initialhigh→medium、25帧2161.1ms/max1/effects0，空场air/ground最大调用1.7/2.4ms、gap216.6ms；workload18帧，从medium降low，最大调用363.4/229.3ms。空场draw calls均0，调用短不代表GPU/合成已排除；长帧具体原因仍未知，原门槛完整保留，没有重跑此CI或部署。
+
+为了落实用户“优先部署已修bug”，新隔离release/website-feedback-hotfix-20261005从线上801仅移植四反馈与必要权限pending已审delta，原FX及原23CI命令保持+6新专项，另做新分支全验收/审计/发布。路径U:/CodexWork/2026-10-05/three-dragon-feedback-hotfix-801，正本该分支RUNBOOKS/2026-10-05_website-feedback-hotfix.md。该范围原相机4不代替本组合9，不据其成功称附件FX已验收。组合候选0.9.3与四个包仍held。
+
+第二次只读inspect preflight-053eada.json实际exit0：与971静态四目标/card/配置/server完全一致；obr-workbench-relay-dev PID/起始时间改变且active，来源未知。比较一度读取未完成的本地重定向JSON失败，待SSH正常完成才读完整JSON；后续把services字符串误当dict导致AttributeError，按实际systemctl固定字符串比较纠正。两辅助错误无远端写操作或产品影响，不能将失败读取当成功保全。发布仍需fresh稳定snapshot。
+
 gpt-6.1-sol/high独立只读复核本增量通过，无必须整改项；独立机械核对28/7/6/4原表达式同序保持，真实RAF/24tick目标/三nestedadd/workload保持，正常及异常清理可恢复原方法。实际工具SHA a29a86446b4818a767979929dd8f26286f82a53fb3ed7cab2e4dcbe61dedb01c。callbackDelay包括同native timestamp到此调用之间其他主线程工作；observer未交付尾部及64条上限可漏longtask，因此“没有记录”不能排除阻塞。审计只代表工具准备，不代表Linux失败已修或最终可发布。
 
 - 新诊断源码首次精确Linux CI，定位原2922ms与workload16的原因，保持原断言与时限。

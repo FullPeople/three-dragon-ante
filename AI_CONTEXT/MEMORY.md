@@ -1,5 +1,7 @@
 # AI_CONTEXT/MEMORY.md — 三龙牌 长期记忆（可移植正本）
 
+> 最新053首次CI37216297279前31再次通过，FX仍7/9失败（initialhigh→medium，25帧2161.1ms，workload18且降low）；有界trace未证明GPU/合成原因，原断言不改、未部署。为优先发布四bug，新隔离release/website-feedback-hotfix-20261005以线上801仅移植四反馈+必要pending，原FX与原23CI保持+6专项，独立验收/审计/发布；本组合与四包held，不能用新热修复原相机4替本9。正本本runbook与新分支2026-10-05_website-feedback-hotfix.md。
+
 > 2026-10-05 当前：971首次精确CI37213956287前31步通过（四反馈专项及原多人22），FX7/9后真实降档medium≠high，workload16亦未达原>20，后6步skipped。971冻结包独立1948/GPL450核验通过但held，线上801/0.9.1未变。仅工具新增有界真实帧/绘制数字取证，本机首次FX9/9，不降低门槛；新Linux与最终发布待。只读线上发现suite-dev/card/其他服务相对旧before变化，来源未知，须fresh稳定保全基线。正本RUNBOOKS/2026-10-05_website-feedback2-fx-timing.md。
 
 > 最新阶段：本批四项实现与本机专项已通过（input12、watch13/13、deck10、mask19），原unit8/server2与build/tsc0通过；两个审计遮罩P2已补真实合法choice/ActionBar验证。待精确完整CI/发布终审/GPL包/双网站+必要server部署和公网验收，线上仍801/0.9.1；见website-feedback2 runbook。
