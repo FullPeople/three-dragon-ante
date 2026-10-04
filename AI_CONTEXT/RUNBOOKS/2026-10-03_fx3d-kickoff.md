@@ -51,6 +51,24 @@
 
 证据：`.local-evidence/shots/fx3d-gallery-1.png`（法阵 + 紫色光柱、金色爆发 + 光柱、绿色扩散环、红色粒子、蓝色飘带头）、`fx3d-gallery-2.png`（0.5 s 后法阵驻留）。测试：冒烟 20/20、`test:fx3d` 7/7、`npm test` 8/8（自测 16 项）。
 
+## 2.3 P2 家族签名脚本（2026-10-04）
+
+设计定稿：`RUNBOOKS/2026-10-04_fx3d-design.md`（合成稿）。本期落地其中的脚本模型第一版与 §5 的家族签名：
+
+| 文件 | 内容 |
+|---|---|
+| `fx3d/kit.ts` | 工具箱：mark / ring / claw / pillar / burst / beam / emitter / strike（飘带到站爆发）/ volley（多目标错开齐射），按档位缩放粒子数 |
+| `fx3d/scripts/types.ts` | `ScriptCtx`（只含公共信息：cue、公共事件、平面坐标锚点、家族色、点数调幅、目标 / 其他座位）与 `FamilyScript.cast` |
+| `fx3d/scripts/families.ts` | 41 个家族各一段编排（焰 / 潮 / 林 / 铜绿 / 秘 / 冠 / 骨 七组）：法阵形态（星角 / 肋 / 钩 / 刻度 / 菱 / 尖锐）+ 光柱 + 扩散环 + 爪痕 + 飘带 + 爆发；标准龙按点数调幅（半径 ×(0.85+0.3k)、粒子 ×(0.8+0.4k)、肋 4+4k） |
+| `GroundMark` | 新增形态 uniform（uPoints / uRibs / uHooks / uTicks / uRhombus / uSharp），n 角星用极坐标三角波 |
+| `FxKind` | 增加 `verdigris`（铜 / 青铜 / 黄铜）与 `necro`（龙巫妖）；tokens / 说明层 / 场地 CSS 同步；2D 层也有对应贴图色 |
+| `composeFx.script()` | 把 `PowerFxContext` 的视口像素锚点换成平面坐标，查家族脚本（缺省 `defaultScript`），异常只记日志 |
+| `powers.ts` | 一行钩子：`fx.script` 存在且返回 true → 跳过 2D 编排（presenter 零改动） |
+
+证据：`.local-evidence/fx3d-scripts-gallery.mjs`（`?fx3dGallery=scripts`，页面内用 DOM 锚点造上下文，依次跑 red / blue / green / copper / gold / prophet / bahamut / dracolich，脚本时长 0.9–1.7 s，零错误）→ `shots/fx3d-script-*.png`。测试：冒烟 20/20、`test:fx3d` 7/7、`npm test` 8/8、`test:server-browser` 4/4。
+
+未做（下一期）：等待选择的 W 变体（等自己 / 等对手、按选择类型）、场地 G / E 按种类的驻留态、拼点 / 特殊牌阵的三种法阵变体、沙盒的 Shell / Collar / Wisps / Volume 图元、画质开关 UI 与自适应降档。
+
 ## 3. 下一步（设计评审工作流 `fx3d-understand-design` 的产出落地后填写）
 
 - §4 设计定稿（画布 / 渲染策略 / 图元工具箱 / 脚本相位机 / 家族签名表 / 分期）

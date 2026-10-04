@@ -41,7 +41,8 @@ export function TableScene({ state, controller, onFx, onFx3d, onOrientation, onL
   const host = useRef<HTMLDivElement>(null), canvas = useRef<HTMLCanvasElement>(null), airCanvas = useRef<HTMLCanvasElement>(null), groundCanvas = useRef<HTMLCanvasElement>(null);
   const fxRef = useRef<FxLayer | null>(null), fx3dRef = useRef<FxStage | null>(null);
   const fx3dDebug = typeof location !== "undefined" && new URLSearchParams(location.search).get("fx3dDebug") === "1";
-  const fx3dGallery = typeof location !== "undefined" && new URLSearchParams(location.search).get("fx3dGallery") === "1";
+  const galleryMode = typeof location !== "undefined" ? new URLSearchParams(location.search).get("fx3dGallery") : null;
+  const fx3dGallery = galleryMode === "1", fx3dScripts = galleryMode === "scripts";
   const [fit, setFit] = useState(() => fitPlane(1440, 820));
   useLayoutEffect(() => {
     const el = host.current; if (!el) return;
@@ -54,9 +55,9 @@ export function TableScene({ state, controller, onFx, onFx3d, onOrientation, onL
     const c = canvas.current, h = host.current, a = airCanvas.current; if (!c || !h || !a) return;
     const fx2d = mountFx(c, h);
     const stage = mountFxStage(h, a, groundCanvas.current); fx3dRef.current = stage; onFx3d?.(stage);
-    if (stage && (fx3dDebug || fx3dGallery)) (window as unknown as { __tdaFx3d?: FxStage }).__tdaFx3d = stage;
+    if (stage && (fx3dDebug || fx3dGallery || fx3dScripts)) (window as unknown as { __tdaFx3d?: FxStage }).__tdaFx3d = stage;
     const fx = composeFx(fx2d, stage); fxRef.current = fx; onFx(fx);
-    if (stage && (fx3dDebug || fx3dGallery)) (window as unknown as { __tdaFx?: FxLayer }).__tdaFx = fx;
+    if (stage && (fx3dDebug || fx3dGallery || fx3dScripts)) (window as unknown as { __tdaFx?: FxLayer }).__tdaFx = fx;
     return () => { fx.destroy(); stage?.destroy(); fxRef.current = null; fx3dRef.current = null; onFx(null); onFx3d?.(null); };
   }, []);
 

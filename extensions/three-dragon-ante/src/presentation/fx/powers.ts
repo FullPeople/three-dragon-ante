@@ -18,11 +18,12 @@ export interface PowerFxContext {
 }
 
 const FAMILY_FX: Record<string, FxKind> = {
-  black: "ember", red: "ember", thief: "ember", "red-destroyer": "ember", dracolich: "ember", "black-raider": "ember", tiamat: "ember",
+  black: "ember", red: "ember", thief: "ember", "red-destroyer": "ember", dracolich: "necro", "black-raider": "ember", tiamat: "ember",
   blue: "tide", silver: "tide", white: "tide", "blue-overlord": "tide", "silver-seer": "tide", "white-hunter": "tide", dragonrider: "tide",
-  green: "grove", copper: "grove", bronze: "grove", druid: "grove", "copper-trickster": "grove", "green-schemer": "grove", "bronze-warlord": "grove", kobold: "grove",
+  green: "grove", druid: "grove", "green-schemer": "grove", kobold: "arcane",
+  copper: "verdigris", bronze: "verdigris", brass: "verdigris", "copper-trickster": "verdigris", "bronze-warlord": "verdigris", "brass-sultan": "verdigris",
   prophet: "arcane", sorcerer: "arcane", illusionist: "arcane", archmage: "arcane", "chromatic-wyrmling": "arcane", "time-dragon": "arcane", wyrmpriest: "arcane", fool: "arcane",
-  brass: "crown", "brass-sultan": "crown", gold: "crown", "gold-monarch": "crown", bahamut: "crown", queen: "crown", princess: "crown", priest: "crown", "merchant-prince": "crown", "metallic-wyrmling": "crown", dragonslayer: "crown",
+  gold: "crown", "gold-monarch": "crown", bahamut: "crown", queen: "crown", princess: "crown", priest: "crown", "merchant-prince": "crown", "metallic-wyrmling": "crown", dragonslayer: "crown",
 };
 export const familyFx = (family: string | undefined): FxKind => (family && FAMILY_FX[family]) || "crown";
 export const isLegendary = (cardId: string) => { try { return card(cardId).category === "legendary"; } catch { return false; } };
@@ -37,7 +38,9 @@ export async function powerScript(cue: PowerCue, events: readonly PublicEvent[],
   const legendary = isLegendary(cue.cardId);
   const seg = (code: string) => events.filter(e => e.code === code);
   if (!source) return;
-  ctx.sound(`power-${kind}`, cue.key);
+  // three 舞台在：家族脚本（独一份）接管；没有舞台或脚本缺席才走下面的 2D 编排
+  if (fx.script) { ctx.sound(`power-${kind}`, cue.key); if (await fx.script(cue, events, ctx)) return; }
+  else ctx.sound(`power-${kind}`, cue.key);
   if (legendary) { void fx.sigil(source, kind, 150, 1600); ctx.sound("sigil", cue.key + ":sigil"); await wait(360); }
   switch (cue.family) {
     // 偷奖池：手从源牌伸向奖池抓取

@@ -125,7 +125,7 @@
 .tda-field.is-leaving { animation: tda-field-out 800ms both; }
 .tda-field-ring { position: absolute; inset: 0; border-radius: 50%; border: 2px dashed var(--fx); opacity: .85; animation: tda-field-spin 14s linear infinite; }
 .tda-field-ring--inner { inset: 14%; border-style: solid; border-width: 1px; animation-direction: reverse; animation-duration: 20s; opacity: .55; }
-.tda-field.is-ember { --fx: var(--ember); } .tda-field.is-tide { --fx: var(--tide); } .tda-field.is-grove { --fx: var(--grove); } .tda-field.is-arcane { --fx: var(--arcane); } .tda-field.is-crown { --fx: var(--crown); }
+.tda-field.is-ember { --fx: var(--ember); } .tda-field.is-tide { --fx: var(--tide); } .tda-field.is-grove { --fx: var(--grove); } .tda-field.is-arcane { --fx: var(--arcane); } .tda-field.is-crown { --fx: var(--crown); } .tda-field.is-verdigris { --fx: var(--verdigris); } .tda-field.is-necro { --fx: var(--necro); }
 .tda-field-label { position: absolute; left: 50%; bottom: -14px; transform: translate(-50%, 100%) translateZ(26px); white-space: nowrap; padding: 2px 10px; border: 1px solid var(--fx); border-radius: 2px; background: rgba(20, 11, 6, .88); color: var(--fx); font-size: 12px; letter-spacing: .06em; }
 @keyframes tda-field-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes tda-field-out { from { opacity: 1; } to { opacity: 0; } }

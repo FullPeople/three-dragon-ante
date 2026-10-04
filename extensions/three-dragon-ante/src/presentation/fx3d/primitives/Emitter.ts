@@ -44,7 +44,7 @@ void main(){
 
 export interface EmitterOptions { kind: FxKind; rate: number; life: number; drift: { x: number; y: number; z: number }; size: number; alpha?: number; sprites?: SpriteName[] }
 const FAMILY_SPRITES: Record<FxKind, SpriteName[]> = {
-  ember: ["spark_03", "flame_01"], tide: ["magic_02", "spark_01"], grove: ["star_01", "magic_04"], arcane: ["magic_01", "star_07"], crown: ["star_05", "spark_06"], gold: ["spark_06"], dust: ["smoke_01", "dirt_01"],
+  ember: ["spark_03", "flame_01"], tide: ["magic_02", "spark_01"], grove: ["star_01", "magic_04"], arcane: ["magic_01", "star_07"], crown: ["star_05", "spark_06"], gold: ["spark_06"], dust: ["smoke_01", "dirt_01"], verdigris: ["spark_06", "twirl_03"], necro: ["magic_05", "smoke_06"],
 };
 
 export class Emitter implements Effect {

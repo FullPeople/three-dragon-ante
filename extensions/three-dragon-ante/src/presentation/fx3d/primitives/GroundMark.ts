@@ -14,6 +14,7 @@ void main(){ vUv = uv; vec4 w = modelMatrix * vec4(position, 1.0); vWorld = w.xy
 const FRAG = /* glsl */`
 precision highp float;
 uniform vec3 uColor, uBright; uniform float uT, uTime, uSeed, uMode, uOut;
+uniform float uPoints, uRibs, uHooks, uTicks, uRhombus, uSharp;
 varying vec2 vUv; varying vec2 vWorld;
 ${GLSL_COMMON}${GLSL_TABLE}
 void main(){
@@ -41,13 +42,23 @@ void main(){
     float wake = smoothstep(rr, rr - 0.35, r) * 0.22 * (1.0 - uT);
     col = uBright * ring * shimmer + uColor * wake;
   } else {
-    // 外环 + 内环 + 12 刻度 + 8 符文（由 seed 决定每格的两笔）
+    // 外环 + 内环 + 刻度(uTicks) + n 角星(uPoints) + 肋(uRibs) + 钩(uHooks) + 菱(uRhombus) + 8 符文（seed 变体）
     float outer = strokeAA(r - 0.92, 0.028);
     float inner = strokeAA(r - 0.60, 0.016);
-    float a2 = ang + uTime * 0.12; float sector = 6.2831853 / 12.0;
-    float ta = mod(a2 + sector * 0.5, sector) - sector * 0.5;
-    vec2 tp = vec2(r * cos(ta), r * sin(ta));
-    float ticks = fillAA(sdSegment(tp, vec2(0.66, 0.0), vec2(0.86, 0.0)) - 0.012) * step(0.0, r);
+    float ticks = 0.0;
+    if (uTicks > 0.5) { float a2 = ang + uTime * 0.12; float sector = 6.2831853 / uTicks; float ta = mod(a2 + sector * 0.5, sector) - sector * 0.5; vec2 tp = vec2(r * cos(ta), r * sin(ta)); ticks = fillAA(sdSegment(tp, vec2(0.66, 0.0), vec2(0.86, 0.0)) - 0.012); }
+    // n 角星：极坐标三角波在外半径 0.56 与内半径之间摆动；sharp 决定内凹深度
+    float star = 0.0, hooks = 0.0;
+    if (uPoints > 2.5) {
+      float sa = ang - uTime * 0.05; float ps = 6.2831853 / uPoints; float tri = abs(mod(sa + ps * 0.5, ps) - ps * 0.5) / (ps * 0.5);
+      float inner_r = mix(0.46, 0.30, uSharp); float rs = mix(inner_r, 0.56, 1.0 - smoothstep(0.0, 1.0, tri));
+      star = strokeAA(r - rs, 0.013);
+      if (uHooks > 0.5) { float k = floor((sa + 3.14159265) / ps); float ta2 = k * ps - 3.14159265 + ps * 0.5; vec2 tip = vec2(0.56 * cos(ta2 + uTime * 0.05), 0.56 * sin(ta2 + uTime * 0.05)); hooks = strokeAA(length(p - tip) - 0.06, 0.009) * step(0.56, length(p + (p - tip) * 0.0001) * 1.0 + 0.0) ; hooks = strokeAA(length(p - tip) - 0.06, 0.009) * step(0.0, dot(p - tip, tip)); }
+    }
+    float ribsL = 0.0;
+    if (uRibs > 0.5) { float rsec = 6.2831853 / uRibs; float ra2 = mod(ang + uTime * 0.03 + rsec * 0.5, rsec) - rsec * 0.5; vec2 rp2 = vec2(r * cos(ra2), r * sin(ra2)); ribsL = fillAA(sdSegment(rp2, vec2(0.18, 0.0), vec2(0.42, 0.0)) - 0.008); }
+    float rhomb = 0.0;
+    if (uRhombus > 0.5) { rhomb = strokeAA(abs(p.x) + abs(p.y) - 0.40, 0.011); }
     float a3 = ang - uTime * 0.08; float rs = 6.2831853 / 8.0; float k = floor((a3 + 3.14159265) / rs);
     float ra = mod(a3 + rs * 0.5, rs) - rs * 0.5;
     vec2 rp = vec2(r * cos(ra), r * sin(ra)) - vec2(0.76, 0.0);
@@ -55,22 +66,26 @@ void main(){
     vec2 g0 = vec2(-0.05, (h1 - 0.5) * 0.08), g1 = vec2(0.05, (h2 - 0.5) * 0.08), g2 = vec2((h1 - 0.5) * 0.06, 0.05), g3 = vec2((h2 - 0.5) * 0.06, -0.05);
     float rune = fillAA(min(sdSegment(rp, g0, g1), sdSegment(rp, g2, g3)) - 0.009);
     float glow = smoothstep(1.0, 0.0, r) * 0.16 + smoothstep(0.08, 0.0, abs(r - 0.92)) * 0.25;
-    col = uBright * (outer + inner + ticks + rune) * shimmer + uColor * glow;
+    col = uBright * (outer + inner + ticks + rune + star + hooks + ribsL + rhomb) * shimmer + uColor * glow;
   }
   col *= env * tableMask(vWorld);
   gl_FragColor = glowOut(col);
 }
 `;
 
-export interface GroundMarkOptions { kind: FxKind; radius: number; duration: number; mode?: 0 | 1 | 2; seed?: number; z?: number }
+/** 法阵形态：星角数（<3 不画）、肋数、钩、刻度数、内菱、尖锐（内凹深） */
+export interface GlyphForm { points: number; ribs: number; hooks: boolean; ticks: number; rhombus: boolean; sharp: boolean }
+export const DEFAULT_FORM: GlyphForm = { points: 0, ribs: 0, hooks: false, ticks: 12, rhombus: false, sharp: true };
+export interface GroundMarkOptions { kind: FxKind; radius: number; duration: number; mode?: 0 | 1 | 2; seed?: number; z?: number; form?: Partial<GlyphForm> }
 export class GroundMark implements Effect {
   readonly mesh: Mesh<PlaneGeometry, ShaderMaterial>;
   private readonly start: number; private released = -1; private readonly duration: number;
   constructor(stage: FxStage, x: number, y: number, o: GroundMarkOptions) {
     this.duration = o.duration; this.start = performance.now();
-    const p = palette(o.kind);
+    const p = palette(o.kind), f: GlyphForm = { ...DEFAULT_FORM, ...o.form };
     const material = new ShaderMaterial({ vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthWrite: false, depthTest: false, premultipliedAlpha: true, toneMapped: false,
-      uniforms: { uColor: { value: p.main }, uBright: { value: p.bright }, uT: { value: 0 }, uTime: { value: 0 }, uSeed: { value: o.seed ?? Math.random() * 100 }, uMode: { value: o.mode ?? 0 }, uOut: { value: 0 }, ...stage.tableUniforms() } });
+      uniforms: { uColor: { value: p.main }, uBright: { value: p.bright }, uT: { value: 0 }, uTime: { value: 0 }, uSeed: { value: o.seed ?? Math.random() * 100 }, uMode: { value: o.mode ?? 0 }, uOut: { value: 0 },
+        uPoints: { value: f.points }, uRibs: { value: f.ribs }, uHooks: { value: f.hooks ? 1 : 0 }, uTicks: { value: f.ticks }, uRhombus: { value: f.rhombus ? 1 : 0 }, uSharp: { value: f.sharp ? 1 : 0 }, ...stage.tableUniforms() } });
     this.mesh = new Mesh(new PlaneGeometry(o.radius * 2, o.radius * 2), material);
     this.mesh.position.copy(stage.local(x, y, o.z ?? 0.6)); this.mesh.renderOrder = 10;
     if (!stage.ground) throw new Error("ground canvas missing");

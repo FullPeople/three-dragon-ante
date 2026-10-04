@@ -81,7 +81,7 @@
 @keyframes tda-banner-sweep { 0% { transform: translateX(-30vw); opacity: 0; } 15% { transform: translateX(0); opacity: 1; } 80% { transform: translateX(0); opacity: 1; } 100% { transform: translateX(30vw); opacity: 0; } }
 
 .tda-spotlight { position: absolute; inset: 0; z-index: 80; display: grid; grid-template-columns: minmax(160px, 32%) minmax(0, 1fr); align-items: center; gap: clamp(16px, 4vw, 56px); padding: clamp(16px, 5vw, 56px); cursor: pointer; background: rgba(8, 5, 3, .8); animation: tda-fade-in 300ms both; }
-.tda-spotlight.is-ember { --fx: var(--ember); } .tda-spotlight.is-tide { --fx: var(--tide); } .tda-spotlight.is-grove { --fx: var(--grove); } .tda-spotlight.is-arcane { --fx: var(--arcane); } .tda-spotlight.is-crown { --fx: var(--crown); }
+.tda-spotlight.is-ember { --fx: var(--ember); } .tda-spotlight.is-tide { --fx: var(--tide); } .tda-spotlight.is-grove { --fx: var(--grove); } .tda-spotlight.is-arcane { --fx: var(--arcane); } .tda-spotlight.is-crown { --fx: var(--crown); } .tda-spotlight.is-verdigris { --fx: var(--verdigris); } .tda-spotlight.is-necro { --fx: var(--necro); }
 .tda-spotlight-card { position: relative; justify-self: center; width: min(100%, 290px); animation: tda-spot-rise 500ms var(--ease-out) both; }
 .tda-spotlight-card img { display: block; width: 100%; aspect-ratio: 1250 / 2208; object-fit: cover; border-radius: 10px; box-shadow: 0 30px 50px rgba(0, 0, 0, .8), 0 0 0 3px var(--fx); }
 .tda-spotlight-copy { padding: 20px 24px; max-height: 80%; overflow: auto; animation: tda-slide-in 400ms var(--ease-out) both; }

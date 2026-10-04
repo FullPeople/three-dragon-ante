@@ -8,6 +8,12 @@ import { Pillar } from "./primitives/Pillar";
 import { Burst } from "./primitives/Burst";
 import { Beam } from "./primitives/Beam";
 import { Emitter } from "./primitives/Emitter";
+import { Kit, wait as kwait } from "./kit";
+import { palette } from "./palette";
+import { FAMILY_SCRIPTS, defaultScript } from "./scripts/families";
+import type { ScriptCtx } from "./scripts/types";
+import { familyFx, isLegendary } from "../fx/powers";
+import { card } from "../../game/rules/cards";
 
 const wait = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
 
@@ -16,8 +22,25 @@ export function composeFx(fx2d: FxLayer, stage: FxStage | null): FxLayer {
   const plane = (p: Point) => stage.toPlane(p);
   const low = stage.tier === "low", k = low ? 0.5 : stage.tier === "medium" ? 0.75 : 1;
   const ambients = new Map<string, Emitter>();
+  const kit = new Kit(stage, stage.tier);
   return {
     ...fx2d,
+    // 家族脚本：把 PowerFxContext 的视口像素锚点换成平面坐标，交给家族专属编排
+    async script(cue, events, ctx) {
+      const src = ctx.cardPoint(cue.cardId); if (!src) return false;
+      const kind = familyFx(cue.family), legendary = isLegendary(cue.cardId);
+      let strength = 0.6; try { const v = card(cue.cardId); if (v.category === "standard") strength = Math.max(0, Math.min(1, (v.strength - 1) / 12)); } catch { /* 未知牌 */ }
+      const pt = (p: Point | null) => p ? plane(p) : null;
+      const c: ScriptCtx = {
+        stage, kit, cue, events, kind, palette: palette(kind), tier: stage.tier, source: plane(src), strength, legendary,
+        targets: cue.targetSeatIds ?? [], others: ctx.seatIds.filter(id => id !== cue.seatId), self: cue.seatId,
+        cardPoint: id => pt(ctx.cardPoint(id)), handPoint: id => pt(ctx.handPoint(id)), coinsPoint: id => pt(ctx.coinsPoint(id)), seatPoint: id => pt(ctx.seatPoint(id)), pile: id => pt(ctx.pile(id)),
+        seg: code => events.filter(e => e.code === code), sound: ctx.sound, wait: kwait,
+      };
+      const s = FAMILY_SCRIPTS[cue.family ?? ""] ?? defaultScript;
+      try { await s.cast(c); } catch (err) { console.error("fx3d family script failed", cue.family, err); }
+      return true;
+    },
     // 落地尘土：贴地的实体烟尘横向铺开 + 小扩散环
     dust(point, size = 1) {
       const p = plane(point);

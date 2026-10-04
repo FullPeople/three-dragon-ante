@@ -49,6 +49,7 @@ export interface BurstOptions { kind: FxKind; count: number; speed: number; up?:
 const FAMILY_SPRITES: Record<FxKind, SpriteName[]> = {
   ember: ["flame_01", "spark_03", "fire_01"], tide: ["magic_02", "star_05", "spark_01"], grove: ["star_01", "twirl_01", "magic_04"], arcane: ["magic_01", "magic_05", "star_07"],
   crown: ["star_05", "flare_01", "spark_06"], gold: ["spark_06", "star_01"], dust: ["dirt_01", "dirt_02", "smoke_01"],
+  verdigris: ["spark_06", "twirl_03", "star_01"], necro: ["magic_05", "smoke_06", "star_07"],
 };
 
 export class Burst implements Effect {

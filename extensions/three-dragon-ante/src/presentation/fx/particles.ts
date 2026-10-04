@@ -2,7 +2,11 @@
  * 不再画几何圆点：烟 / 尘 / 火焰 / 火星 / 星光 / 魔法符 / 光柱 / 光环 / 划痕 / 焦痕 / 闪光。
  * 贴图按家族色着色（离屏画布 source-in），加法混合；桌面上的环与法阵用 0.78 的透视压扁 + 竖直光柱读出立体感。
  * 没有空闲循环：队列空了就停。只有"场地环境"粒子（ambient）在存在期间保持低速循环，移除后停止。 */
-export type FxKind = "ember" | "tide" | "grove" | "arcane" | "crown" | "gold" | "dust";
+import type { PublicEvent } from "../../game/rules/types";
+import type { PowerCue } from "../model/cues";
+import type { PowerFxContext } from "./powers";
+
+export type FxKind = "ember" | "tide" | "grove" | "arcane" | "crown" | "gold" | "dust" | "verdigris" | "necro";
 export interface Point { x: number; y: number }
 export interface Rect { x: number; y: number; w: number; h: number }
 export interface AmbientSpec { kind: FxKind; rate: number; area: Rect | null; drift: Point; size: number; life: number; alpha?: number }
@@ -21,6 +25,9 @@ const FAMILY: Record<FxKind, { main: string; bright: string; burst: Sprite[]; gl
   crown: { main: "#ffcf5a", bright: "#fff4d0", burst: ["star_05", "flare_01", "spark_06", "star_01"], glow: "light_01", trail: "trace_01" },
   gold: { main: "#ffd36b", bright: "#fff0c0", burst: ["spark_06", "star_01"], glow: "light_01", trail: "trace_01" },
   dust: { main: "#9c8468", bright: "#d6c4a8", burst: ["dirt_01", "dirt_02", "smoke_01"], glow: "smoke_01", trail: "smoke_03" },
+  // 铜绿：铜 / 青铜 / 黄铜的金属本色 + 锈；骨：龙巫妖的磷火与骨白
+  verdigris: { main: "#b87333", bright: "#f0dca8", burst: ["spark_06", "twirl_03", "star_01"], glow: "light_01", trail: "trace_01" },
+  necro: { main: "#b7d98a", bright: "#d9cfb8", burst: ["magic_05", "smoke_06", "star_07"], glow: "light_02", trail: "trace_06" },
 };
 /** 桌面透视：平面上的圆在屏幕上是这个比例的椭圆（比第一版的 0.56 立体得多） */
 export const SQUASH = 0.78;
@@ -56,6 +63,8 @@ export interface FxLayer {
   slap(point: Point, again?: boolean): Promise<void>;
   /** 持续环境粒子；传 null 移除 */
   ambient(id: string, spec: AmbientSpec | null): void;
+  /** three 舞台存在时由适配器提供：按家族跑独一份的脚本；返回 true 表示已处理，false 退回 2D 脚本 */
+  script?(cue: PowerCue, events: readonly PublicEvent[], ctx: PowerFxContext): Promise<boolean>;
   destroy(): void;
 }
 
