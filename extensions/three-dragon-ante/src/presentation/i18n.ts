@@ -15,6 +15,7 @@ const WORDS = {
   language: ["语言", "Language"],
   sound: ["音效", "Sound"],
   soundOn: ["音效 开", "Sound on"],
+  fxAuto: ["特效 自动", "FX auto"], fxHigh: ["特效 高", "FX high"], fxMedium: ["特效 中", "FX medium"], fxLow: ["特效 低", "FX low"], fxOff: ["特效 关", "FX off"],
   soundOff: ["音效 关", "Sound off"],
   help: ["帮助", "Help"],
   back: ["返回", "Back"],

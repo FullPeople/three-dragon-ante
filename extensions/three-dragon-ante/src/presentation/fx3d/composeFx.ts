@@ -7,6 +7,8 @@ import { GroundMark } from "./primitives/GroundMark";
 import { Pillar } from "./primitives/Pillar";
 import { Burst } from "./primitives/Burst";
 import { Beam } from "./primitives/Beam";
+import { Shell } from "./primitives/Shell";
+import { Collar } from "./primitives/Collar";
 import { Emitter } from "./primitives/Emitter";
 import type { GlyphForm } from "./primitives/GroundMark";
 import { Kit, wait as kwait } from "./kit";
@@ -21,11 +23,12 @@ const wait = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms
 export function composeFx(fx2d: FxLayer, stage: FxStage | null): FxLayer {
   if (!stage || !stage.ground) return fx2d;
   const plane = (p: Point) => stage.toPlane(p);
-  const low = stage.tier === "low", k = low ? 0.5 : stage.tier === "medium" ? 0.75 : 1;
+  const kOf = () => stage.tier === "low" ? 0.5 : stage.tier === "medium" ? 0.75 : 1;
+  const lowNow = () => stage.tier === "low";
   // 驻留态（等待选择 / 场地）：发射器 + 可选的驻留法阵 + 可选的系绳飘带循环
-  interface Hold { emitter: Emitter | null; marks: GroundMark[]; tether: ReturnType<typeof setInterval> | null }
+  interface Hold { emitter: Emitter | null; marks: GroundMark[]; collar: Collar | null; tether: ReturnType<typeof setInterval> | null }
   const ambients = new Map<string, Hold>();
-  const releaseHold = (h: Hold) => { h.emitter?.release(); for (const m of h.marks) m.release(); if (h.tether) clearInterval(h.tether); };
+  const releaseHold = (h: Hold) => { h.emitter?.release(); for (const m of h.marks) m.release(); h.collar?.release(); if (h.tether) clearInterval(h.tether); };
   const domPoint = (selector: string): { x: number; y: number } | null => { const r = document.querySelector(selector)?.getBoundingClientRect(); return r ? plane({ x: r.left + r.width / 2, y: r.top + r.height / 2 }) : null; };
   // 等待选择的形态：按选择码分 索要 / 去向 / 顺序 / 挑牌
   const holdForm = (code: string): Partial<GlyphForm> => {
@@ -40,7 +43,7 @@ export function composeFx(fx2d: FxLayer, stage: FxStage | null): FxLayer {
     if (radius >= 140) return { points: 7, ribs: 14, ticks: 28, hooks: true };
     return undefined;
   };
-  const kit = new Kit(stage, stage.tier);
+  const kit = new Kit(stage);
   return {
     ...fx2d,
     // 家族脚本：把 PowerFxContext 的视口像素锚点换成平面坐标，交给家族专属编排
@@ -62,7 +65,7 @@ export function composeFx(fx2d: FxLayer, stage: FxStage | null): FxLayer {
     // 落地尘土：贴地的实体烟尘横向铺开 + 小扩散环
     dust(point, size = 1) {
       const p = plane(point);
-      new Burst(stage, p.x, p.y, 4, { kind: "dust", count: Math.round(26 * size * k), speed: 170 * size, up: 0.22, gravity: 260, drag: 3.2, size: 48 * size, life: 0.7, solid: true, sprites: ["dirt_01", "smoke_01", "dirt_02"] });
+      new Burst(stage, p.x, p.y, 4, { kind: "dust", count: Math.round(26 * size * kOf()), speed: 170 * size, up: 0.22, gravity: 260, drag: 3.2, size: 48 * size, life: 0.7, solid: true, sprites: ["dirt_01", "smoke_01", "dirt_02"] });
       new GroundMark(stage, p.x, p.y, { kind: "dust", radius: 70 * size, duration: 420, mode: 1 });
     },
     // 抓取：目标处爪痕 + 反向飘带把东西拉回源头，源头处爆发
@@ -70,7 +73,7 @@ export function composeFx(fx2d: FxLayer, stage: FxStage | null): FxLayer {
       const a = plane(from), b = plane(to);
       new GroundMark(stage, b.x, b.y, { kind: "ember", radius: 80, duration: duration * 0.7, mode: 2 });
       setTimeout(() => { new Beam(stage, b, a, { kind, duration: duration * 0.6, lift: 70, width: 20 }); }, duration * 0.3);
-      setTimeout(() => new Burst(stage, a.x, a.y, 30, { kind, count: Math.round(28 * k), speed: 220, up: 0.8, size: 34, life: 0.8 }), duration * 0.72);
+      setTimeout(() => new Burst(stage, a.x, a.y, 30, { kind, count: Math.round(28 * kOf()), speed: 220, up: 0.8, size: 34, life: 0.8 }), duration * 0.72);
       return wait(duration);
     },
     // 交换：两道飘带交叉对飞（一高一低），各自到站爆发
@@ -78,14 +81,14 @@ export function composeFx(fx2d: FxLayer, stage: FxStage | null): FxLayer {
       const pa = plane(a), pb = plane(b);
       new Beam(stage, pa, pb, { kind: kindA, duration, lift: 150, width: 18 });
       new Beam(stage, pb, pa, { kind: kindB, duration, lift: 60, width: 18 });
-      setTimeout(() => { new Burst(stage, pb.x, pb.y, 30, { kind: kindA, count: Math.round(20 * k), speed: 200, up: 0.8, size: 30, life: 0.7 }); new Burst(stage, pa.x, pa.y, 30, { kind: kindB, count: Math.round(20 * k), speed: 200, up: 0.8, size: 30, life: 0.7 }); }, duration * 0.68);
+      setTimeout(() => { new Burst(stage, pb.x, pb.y, 30, { kind: kindA, count: Math.round(20 * kOf()), speed: 200, up: 0.8, size: 30, life: 0.7 }); new Burst(stage, pa.x, pa.y, 30, { kind: kindB, count: Math.round(20 * kOf()), speed: 200, up: 0.8, size: 30, life: 0.7 }); }, duration * 0.68);
       return wait(duration);
     },
     // 爪痕：三道划痕 + 余烬
     claw(point, kind = "ember", duration = 700) {
       const p = plane(point);
       new GroundMark(stage, p.x, p.y, { kind, radius: 95, duration, mode: 2 });
-      setTimeout(() => new Burst(stage, p.x, p.y, 8, { kind, count: Math.round(18 * k), speed: 140, up: 0.9, size: 26, life: 0.7 }), duration * 0.25);
+      setTimeout(() => new Burst(stage, p.x, p.y, 8, { kind, count: Math.round(18 * kOf()), speed: 140, up: 0.9, size: 26, life: 0.7 }), duration * 0.25);
       return wait(duration);
     },
     // 持续环境粒子（等待选择 / 场地）：GPU 循环发射器；传 null 淡出
@@ -97,13 +100,15 @@ export function composeFx(fx2d: FxLayer, stage: FxStage | null): FxLayer {
       if (r) { const p1 = plane({ x: r.x, y: r.y }), p2 = plane({ x: r.x + r.w, y: r.y + r.h }); area = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2, w: Math.abs(p2.x - p1.x), h: Math.abs(p2.y - p1.y) }; }
       else { const m = stage.metrics(); area = { x: m.planeW / 2, y: m.planeH / 2, w: m.planeW * 0.8, h: m.planeH * 0.8 }; }
       const drift = { x: spec.drift.x / s, y: 0, z: -spec.drift.y / s };
-      const hold: Hold = { emitter: null, marks: [], tether: null };
+      const k = kOf();
+      const hold: Hold = { emitter: null, marks: [], collar: null, tether: null };
       const markR = Math.max(90, Math.min(220, Math.max(area.w, area.h) * 0.55));
       if (spec.hold) {
         // 等待选择：等自己 → 本家手牌下暖色驻留法阵 + 更密的上升粒子；等对手 → 对手手牌下法阵 + 源牌到等待者的系绳飘带
         const self = spec.hold.who === "self";
         hold.marks.push(new GroundMark(stage, area.x, area.y, { kind: spec.kind, radius: markR, duration: 0, form: holdForm(spec.hold.code) }));
         hold.emitter = new Emitter(stage, area, { kind: spec.kind, rate: spec.rate * k * (self ? 3 : 1.6), life: spec.life, drift, size: 14 * spec.size, alpha: spec.alpha ?? 0.75 });
+        if (self) hold.collar = new Collar(stage, area.x, area.y, { kind: spec.kind, radius: markR * 0.9, height: 90, duration: 0, ticks: /GIVE|PAY|GOLD|DEMAND/.test(spec.hold.code) ? 24 : 0, pulse: 1.2 });
         if (!self && spec.hold.from) {
           const from = plane(spec.hold.from), to = { x: area.x, y: area.y };
           const fire = () => new Beam(stage, { ...from, z: 30 }, { ...to, z: 30 }, { kind: spec.kind, duration: 1300, lift: 60, width: 9, tail: 0.6 });
@@ -127,22 +132,25 @@ export function composeFx(fx2d: FxLayer, stage: FxStage | null): FxLayer {
       const p = plane(point);
       new GroundMark(stage, p.x, p.y, { kind, radius, duration, form: sigilForm(kind, radius) });
       new Pillar(stage, p.x, p.y, { kind, height: radius * 2.2, width: radius * 1.1, duration: duration * 0.9 });
-      new Burst(stage, p.x, p.y, 10, { kind, count: Math.round(36 * k), speed: 150, up: 0.95, gravity: 420, size: 34, life: 1.2 });
+      // 传说到场：再立一圈站立光环（低机位也看得见的"立体环"）
+      if (radius >= 140 && radius < 165) new Collar(stage, p.x, p.y, { kind, radius: radius * 0.85, height: 110, duration: duration * 0.95, ticks: 28, pulse: 1.4 });
+      new Burst(stage, p.x, p.y, 10, { kind, count: Math.round(36 * kOf()), speed: 150, up: 0.95, gravity: 420, size: 34, life: 1.2 });
       return wait(duration);
     },
     ring(point, kind, radius = 160, duration = 700) { const p = plane(point); new GroundMark(stage, p.x, p.y, { kind, radius, duration, mode: 1 }); return wait(duration); },
     beam(from, to, kind, duration = 600) {
       const a = plane(from), b = plane(to);
-      new Beam(stage, a, b, { kind, duration, width: 14 * (low ? 0.8 : 1) });
-      setTimeout(() => new Burst(stage, b.x, b.y, 30, { kind, count: Math.round(22 * k), speed: 200, up: 0.7, size: 32, life: 0.7 }), duration * 0.68);
+      new Beam(stage, a, b, { kind, duration, width: 22 * (lowNow() ? 0.8 : 1) });
+      setTimeout(() => new Burst(stage, b.x, b.y, 30, { kind, count: Math.round(22 * kOf()), speed: 200, up: 0.7, size: 32, life: 0.7 }), duration * 0.68);
       return wait(duration);
     },
-    burst(point, kind, strength = 1) { const p = plane(point); new Burst(stage, p.x, p.y, 20, { kind, count: Math.round(26 * strength * k), speed: 230 * strength, up: 0.8, size: 38, life: 0.9 }); },
+    burst(point, kind, strength = 1) { const p = plane(point); new Burst(stage, p.x, p.y, 20, { kind, count: Math.round(26 * strength * kOf()), speed: 230 * strength, up: 0.8, size: 38, life: 0.9 }); if (strength >= 0.9) new Shell(stage, p.x, p.y, 16, { kind, r1: 70 * strength, duration: 420, squash: 0.55 }); },
     flare(point, kind, duration = 800) {
       const p = plane(point);
       new GroundMark(stage, p.x, p.y, { kind, radius: 100, duration: duration * 0.9, mode: 1 });
+      new Shell(stage, p.x, p.y, 20, { kind, r1: 130, duration: duration * 0.7, squash: 0.6 });
       new Pillar(stage, p.x, p.y, { kind, height: 300, width: 150, duration });
-      new Burst(stage, p.x, p.y, 20, { kind, count: Math.round(64 * k), speed: 290, up: 0.9, size: 40, life: 1.0 });
+      new Burst(stage, p.x, p.y, 20, { kind, count: Math.round(64 * kOf()), speed: 290, up: 0.9, size: 40, life: 1.0 });
       return wait(duration);
     },
     destroy() { for (const h of ambients.values()) releaseHold(h); ambients.clear(); fx2d.destroy(); },

@@ -81,6 +81,17 @@
 
 证据：`shots/fx3d-gallery-2/3.png`（德鲁伊藤纹、对手手牌索要环 + 系绳）。测试：冒烟 20/20、`test:fx3d` 7/7、`npm test` 8/8、`test:server-browser` 4/4。
 
+## 2.5 P4 冲击壳 / 站立光环、画质开关、自适应降档（2026-10-04）
+
+| 项 | 做法 |
+|---|---|
+| `primitives/Shell.ts` | 冲击壳：Icosahedron 沿法线噪声位移、膨胀 + 溶解 + fresnel；细分按档位 3/2/1；`flare` 核心、`burst(strength≥0.9)` 贴地圆顶、传说牌脚本 |
+| `primitives/Collar.ts` | 站立光环：开口圆柱、底实顶淡、竖纹上流、转动刻度、呼吸；可驻留。用于传说到场（半径 140–165 的 sigil）、等自己选（本家手牌外圈，索要类带 24 刻度）、巴哈姆特 / 龙巫妖 / 时光龙脚本 |
+| 画质开关 | 顶栏按钮 `#fx-quality` 循环 自动 → 高 → 中 → 低 → 关（`localStorage["tda.fx"]`，自动 = 删除键）；广播 `tda-fx-pref`，`TableScene` 用 `fxEpoch` 重建 2D 层 + 舞台，**canvas 元素随 key 换新**（`forceContextLoss` 后旧元素拿不到新上下文，这是第一次实测踩到的坑） |
+| 自适应降档 | `FxStage` 帧循环：rAF 间隔 EMA 连续 1.5 s > 28 ms 降一档（high → medium → low，只降不升），同时降 DPR 并广播 `tda-fx-tier`，`TableApp` 同步 `data-fx`；`Kit.k` / 适配器系数改为动态读 `stage.tier` |
+
+证据：真实 GPU 浏览器里按钮循环后 `data-fx` 依次 three-high / three-high / three-medium / three-low / canvas2d / three-high；`shots/fx3d-script-bahamut.png`（法阵 + 光柱 + 光环 + 壳）、`fx3d-gallery-1.png`（奖池上的传说到场光环）。测试：冒烟 20/20、`test:fx3d` 7/7、`npm test` 8/8。
+
 ## 3. 下一步（设计评审工作流 `fx3d-understand-design` 的产出落地后填写）
 
 - §4 设计定稿（画布 / 渲染策略 / 图元工具箱 / 脚本相位机 / 家族签名表 / 分期）

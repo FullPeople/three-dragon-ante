@@ -41,6 +41,9 @@ export function TableScene({ state, controller, onFx, onFx3d, onOrientation, onL
   const host = useRef<HTMLDivElement>(null), canvas = useRef<HTMLCanvasElement>(null), airCanvas = useRef<HTMLCanvasElement>(null), groundCanvas = useRef<HTMLCanvasElement>(null);
   const fxRef = useRef<FxLayer | null>(null), fx3dRef = useRef<FxStage | null>(null);
   const fx3dDebug = typeof location !== "undefined" && new URLSearchParams(location.search).get("fx3dDebug") === "1";
+  // 画质开关：每次切换都重建 2D 层 + 舞台
+  const [fxEpoch, setFxEpoch] = useState(0);
+  useEffect(() => { const onPref = () => setFxEpoch(e => e + 1); window.addEventListener("tda-fx-pref", onPref); return () => window.removeEventListener("tda-fx-pref", onPref); }, []);
   const galleryMode = typeof location !== "undefined" ? new URLSearchParams(location.search).get("fx3dGallery") : null;
   const fx3dGallery = galleryMode === "1", fx3dScripts = galleryMode === "scripts";
   const [fit, setFit] = useState(() => fitPlane(1440, 820));
@@ -59,7 +62,7 @@ export function TableScene({ state, controller, onFx, onFx3d, onOrientation, onL
     const fx = composeFx(fx2d, stage); fxRef.current = fx; onFx(fx);
     if (stage && (fx3dDebug || fx3dGallery || fx3dScripts)) (window as unknown as { __tdaFx?: FxLayer }).__tdaFx = fx;
     return () => { fx.destroy(); stage?.destroy(); fxRef.current = null; fx3dRef.current = null; onFx(null); onFx3d?.(null); };
-  }, []);
+  }, [fxEpoch]);
 
   const view = state.display, game = view?.game ?? null, own = privateGame(view);
   const orientation = fit.orientation, spec = fit.spec, center = CENTER[orientation];
@@ -83,6 +86,7 @@ export function TableScene({ state, controller, onFx, onFx3d, onOrientation, onL
       fx.burst(at(seats[0].flight), "ember", 1);
       void fx.flare(at(center.hole), "crown", 1000);
       void fx.ring(at(seats[0].ante), "grove", 150, 900);
+      void fx.sigil(at(center.stakes), "crown", 150, 1600);
       fx.dust(at({ x: seats[0].flight.x + 180, y: seats[0].flight.y }), 1);
       const other = seats[1] ?? seats[0];
       void fx.claw(at(other.flight), "ember", 900);
@@ -171,7 +175,7 @@ export function TableScene({ state, controller, onFx, onFx3d, onOrientation, onL
       <div className="tda-viewport">
         <div className="tda-plane">
           <TableSurface width={spec.w} height={spec.h} scale={fit.scale} shape={shape} />
-          <canvas ref={groundCanvas} className="tda-fx3d-ground" aria-hidden="true" />
+          <canvas key={`ground-${fxEpoch}`} ref={groundCanvas} className="tda-fx3d-ground" aria-hidden="true" />
           {game ? <>
             <FieldLayer game={game} seats={seats} fx={fxRef.current} lang={state.lang} host={host.current} />
             <div className="tda-pile tda-pile--deck" style={{ left: center.deck.x - CARD.w / 2 - 8, top: center.deck.y - CARD.h / 2 - 8 }} data-pile="deck"><span className="tda-slot-label">{t("deck", state.lang)} · {game.deckCount}</span></div>
@@ -194,8 +198,9 @@ export function TableScene({ state, controller, onFx, onFx3d, onOrientation, onL
         </div> : null}
       </div>
     </div>
-    <canvas ref={canvas} className="tda-fx" aria-hidden="true" />
-    <canvas ref={airCanvas} className="tda-fx3d-air" aria-hidden="true" />
+    {/* 画质切换时换新的 canvas 元素：forceContextLoss 之后旧元素拿不到新上下文 */}
+    <canvas key={`fx-${fxEpoch}`} ref={canvas} className="tda-fx" aria-hidden="true" />
+    <canvas key={`air-${fxEpoch}`} ref={airCanvas} className="tda-fx3d-air" aria-hidden="true" />
     {pointer ? <PointerArrow from={pointer.from} to={pointer.to} legal={pointer.legal} /> : null}
   </div>;
 }

@@ -6,13 +6,21 @@ import { Pillar } from "./primitives/Pillar";
 import { Burst, type BurstOptions } from "./primitives/Burst";
 import { Beam } from "./primitives/Beam";
 import { Emitter, type EmitterOptions } from "./primitives/Emitter";
+import { Shell } from "./primitives/Shell";
+import { Collar } from "./primitives/Collar";
 
 export interface P { x: number; y: number }
 export const wait = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
 
 export class Kit {
-  readonly k: number;
-  constructor(readonly stage: FxStage, readonly tier: "high" | "medium" | "low") { this.k = tier === "low" ? 0.5 : tier === "medium" ? 0.75 : 1; }
+  constructor(readonly stage: FxStage) {}
+  /** 粒子数系数：随自适应降档动态变化 */
+  get k() { const t = this.stage.tier; return t === "low" ? 0.5 : t === "medium" ? 0.75 : 1; }
+  get tier() { return this.stage.tier; }
+  /** 冲击壳（爆发核心）；squash < 1 压成贴地圆顶 */
+  shell(p: P, z: number, o: { kind: FxKind; r1: number; r0?: number; duration: number; squash?: number }) { return new Shell(this.stage, p.x, p.y, z, o); }
+  /** 站立光环（可驻留：duration 0 → release()） */
+  collar(p: P, o: { kind: FxKind; radius: number; height: number; duration: number; ticks?: number; pulse?: number }) { return new Collar(this.stage, p.x, p.y, o); }
   /** 法阵（mode 0，可驻留）；form 决定星角 / 肋 / 钩 / 刻度 / 菱 */
   mark(p: P, o: { kind: FxKind; radius: number; duration: number; form?: Partial<GlyphForm>; seed?: number }) { return new GroundMark(this.stage, p.x, p.y, { kind: o.kind, radius: o.radius, duration: o.duration, mode: 0, form: o.form, seed: o.seed }); }
   ring(p: P, o: { kind: FxKind; radius: number; duration: number }) { return new GroundMark(this.stage, p.x, p.y, { kind: o.kind, radius: o.radius, duration: o.duration, mode: 1 }); }

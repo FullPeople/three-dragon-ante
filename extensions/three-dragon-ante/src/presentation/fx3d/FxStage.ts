@@ -41,10 +41,10 @@ export interface FxStage {
 }
 
 /** 用户三态开关（帮助面板）：localStorage["tda.fx"] = auto | off | low | high；URL ?fx3d=0 关、?fx3d=1 强制开（含软件 GL，测试用） */
-export function fxPreference(): "auto" | "off" | "low" | "high" {
+export function fxPreference(): "auto" | "off" | "low" | "medium" | "high" {
   const url = typeof location !== "undefined" ? new URLSearchParams(location.search).get("fx3d") : null;
   if (url === "0") return "off"; if (url === "1") return "auto";
-  try { const v = localStorage.getItem("tda.fx"); if (v === "off" || v === "low" || v === "high") return v; } catch { /* 隐私模式 */ }
+  try { const v = localStorage.getItem("tda.fx"); if (v === "off" || v === "low" || v === "medium" || v === "high") return v; } catch { /* 隐私模式 */ }
   return "auto";
 }
 const forced = () => typeof location !== "undefined" && new URLSearchParams(location.search).get("fx3d") === "1";
@@ -81,9 +81,9 @@ export function mountFxStage(host: HTMLElement, airCanvas: HTMLCanvasElement, gr
   if (!made) return null;
   const airRenderer: WebGLRenderer = made;
   if (!forced() && softwareGL(airRenderer)) { airRenderer.dispose(); airRenderer.forceContextLoss(); return null; }
-  const tier: Tier = pref === "low" ? "low" : pref === "high" ? "high" : detectTier(airRenderer, r0.width || 1440);
+  let tier: Tier = pref === "low" ? "low" : pref === "medium" ? "medium" : pref === "high" ? "high" : detectTier(airRenderer, r0.width || 1440);
   if (tier !== "high") { /* 低档：关掉抗锯齿，重建一次更省 */ }
-  const dpr = Math.min(DPR_CAP[tier], devicePixelRatio || 1);
+  let dpr = Math.min(DPR_CAP[tier], devicePixelRatio || 1);
   airRenderer.setPixelRatio(dpr);
   const groundRenderer = groundCanvas ? makeRenderer(groundCanvas, false) : null;
   groundRenderer?.setPixelRatio(dpr);
@@ -134,9 +134,19 @@ export function mountFxStage(host: HTMLElement, airCanvas: HTMLCanvasElement, gr
   const onRestored = () => { lost = false; layout(); if (effects.length) wake(); };
   for (const c of [airCanvas, groundCanvas]) if (c) { c.addEventListener("webglcontextlost", onLost); c.addEventListener("webglcontextrestored", onRestored); }
 
+  // 自适应降档：效果活跃期间 rAF 间隔的 EMA 连续 1.5 s > 28 ms 就降一档（只降不升），同时降 DPR
+  let ema = 16.7, slowSince = 0;
+  function downgrade() {
+    if (tier === "low") return;
+    tier = tier === "high" ? "medium" : "low";
+    dpr = Math.min(DPR_CAP[tier], devicePixelRatio || 1); airRenderer.setPixelRatio(dpr); groundRenderer?.setPixelRatio(dpr); layout();
+    (stage as { mode: string }).mode = `three-${tier}`;
+    window.dispatchEvent(new CustomEvent("tda-fx-tier", { detail: tier }));
+  }
   function frame(now: number) {
     raf = 0; if (destroyed) return;
     const dt = Math.min(0.05, last ? (now - last) / 1000 : 0.016); last = now;
+    if (last) { ema = ema * 0.9 + Math.min(100, dt * 1000) * 0.1; if (ema > 28) { if (!slowSince) slowSince = now; else if (now - slowSince > 1500) { downgrade(); slowSince = 0; ema = 16.7; } } else slowSince = 0; }
     for (let i = effects.length - 1; i >= 0; i--) { let alive = false; try { alive = effects[i].update(dt, now); } catch (err) { alive = false; console.error("fx3d effect failed", effects[i]?.constructor?.name, err); } if (!alive) { const e = effects.splice(i, 1)[0]; try { e.dispose?.(); } catch (err) { console.error("fx3d dispose failed", err); } } }
     airRenderer.render(airScene, airCam);
     if (groundRenderer) groundRenderer.render(groundScene, groundCam);
@@ -151,7 +161,7 @@ export function mountFxStage(host: HTMLElement, airCanvas: HTMLCanvasElement, gr
     mode: `three-${tier}`,
     air: { scene: airScene, camera: airCam, group, renderer: airRenderer },
     ground: groundRenderer ? { scene: groundScene, camera: groundCam, renderer: groundRenderer } : null,
-    tier,
+    get tier() { return tier; },
     metrics: () => metrics,
     toPlane(point) { const r = hostRect(); return screenToPlane(metrics, point.x - r.left, point.y - r.top); },
     local(x, y, z = 0) { return new Vector3(x - spec.w / 2, spec.h / 2 - y, z); },

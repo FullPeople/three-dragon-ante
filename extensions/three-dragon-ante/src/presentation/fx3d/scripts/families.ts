@@ -134,6 +134,7 @@ const druid: FamilyScript = { async cast(c) {
 const copper: FamilyScript = { async cast(c) {
   c.kit.mark(c.source, { kind: "verdigris", radius: R(c, 95), duration: 1200, form: form(c, { points: 7, ticks: 14, sharp: false }) });
   c.kit.ring(c.source, { kind: "verdigris", radius: R(c, 120), duration: 600 });
+  c.kit.shell(c.source, 14, { kind: "verdigris", r1: R(c, 90), duration: 500, squash: 0.5 });
   await c.wait(200);
   c.kit.burst(c.source, 16, { kind: "verdigris", count: N(c, 30), speed: 170, up: 0.9, size: 26, life: 0.8, sprites: ["spark_06", "twirl_03", "star_01"] });
   await c.wait(700);
@@ -229,6 +230,7 @@ const timeDragon: FamilyScript = { async cast(c) {
   const discard = c.pile("discard"), hand = c.handPoint(c.self);
   c.kit.mark(c.source, { kind: "arcane", radius: 160, duration: 2100, form: { points: 12, ribs: 12, ticks: 60, sharp: false } });
   c.kit.pillar(c.source, { kind: "arcane", height: 300, width: 150, duration: 1400 });
+  c.kit.collar(c.source, { kind: "arcane", radius: 140, height: 110, duration: 2000, ticks: 60, pulse: 2 });
   await c.wait(400);
   if (discard && hand) { c.kit.beam(discard, hand, { kind: "arcane", duration: 700, lift: 150, width: 20 }); await c.wait(700); }
   await c.wait(500);
@@ -282,6 +284,8 @@ const merchantPrince: FamilyScript = { async cast(c) {
 const bahamut: FamilyScript = { async cast(c) {
   c.kit.mark(c.source, { kind: "crown", radius: 190, duration: 2300, form: { points: 7, sharp: true, ribs: 14, ticks: 28, rhombus: true } });
   c.kit.pillar(c.source, { kind: "crown", height: 380, width: 190, duration: 1500 });
+  c.kit.collar(c.source, { kind: "crown", radius: 150, height: 120, duration: 1800, ticks: 28, pulse: 1.5 });
+  c.kit.shell(c.source, 30, { kind: "crown", r1: 220, duration: 900, squash: 0.6 });
   c.kit.burst(c.source, 30, { kind: "crown", count: 70, speed: 300, up: 0.95, size: 44, life: 1.1 });
   await c.wait(500);
   await c.kit.volley(c.source, c.targets.map(id => c.coinsPoint(id)), { kind: "crown", duration: 620, stagger: 100, lift: 140, width: 20, impact: 1, impactZ: 20 });
@@ -290,6 +294,7 @@ const bahamut: FamilyScript = { async cast(c) {
 const tiamat: FamilyScript = { async cast(c) {
   c.kit.mark(c.source, { kind: "ember", radius: 200, duration: 2300, form: { points: 5, sharp: true, ribs: 15, ticks: 5, hooks: true } });
   c.kit.pillar(c.source, { kind: "ember", height: 400, width: 200, duration: 1600 });
+  c.kit.shell(c.source, 30, { kind: "ember", r1: 240, duration: 1000, squash: 0.55 });
   const kinds = ["ember", "tide", "grove", "arcane", "crown"] as const;
   kinds.forEach((kind, i) => setTimeout(() => { const a = i / 5 * Math.PI * 2; c.kit.burst({ x: c.source.x + Math.cos(a) * 90, y: c.source.y + Math.sin(a) * 60 }, 30, { kind, count: 26, speed: 220, up: 0.9, size: 36, life: 1.0 }); }, 200 + i * 130));
   await c.wait(1700);
@@ -297,6 +302,7 @@ const tiamat: FamilyScript = { async cast(c) {
 const dracolich: FamilyScript = { async cast(c) {
   c.kit.mark(c.source, { kind: "necro", radius: 180, duration: 2300, form: { points: 4, hooks: true, ribs: 0, ticks: 16, rhombus: true } });
   c.kit.pillar(c.source, { kind: "necro", height: 340, width: 170, duration: 1500 });
+  c.kit.collar(c.source, { kind: "necro", radius: 140, height: 100, duration: 1900, ticks: 16, pulse: 0.8 });
   c.kit.burst(c.source, 10, { kind: "necro", count: 40, speed: 100, up: 1.0, size: 34, life: 1.6, sprites: ["smoke_06", "magic_05", "star_07"] });
   const others = c.others.map(id => c.handPoint(id));
   others.forEach((p, i) => { if (p) setTimeout(() => c.kit.claw(p, { kind: "necro", radius: 80, duration: 900 }), 500 + i * 120); });

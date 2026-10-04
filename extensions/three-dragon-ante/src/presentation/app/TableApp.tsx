@@ -14,7 +14,7 @@ import { Lobby } from "../hud/Lobby";
 import { waitingLine, type PresentationFlags } from "../model/flow";
 import { t } from "../i18n";
 import type { FxLayer } from "../fx/particles";
-import type { FxStage } from "../fx3d/FxStage";
+import { fxPreference, type FxStage } from "../fx3d/FxStage";
 import type { Orientation } from "../model/layout";
 
 export interface TableAppProps { store: Store; controller: Controller; onFx(fx: FxLayer | null): void; onFx3d?(stage: FxStage | null): void; onOrientation(orientation: Orientation): void; showTopBar: boolean; onLand?(key: string, zone: string): void }
@@ -26,6 +26,11 @@ export function TableApp({ store, controller, onFx, onFx3d, onOrientation, showT
   const syncFxMode = () => setFxMode(fx3dRef.current ? fx3dRef.current.mode : fxRef.current ? "canvas2d" : "none");
   const handleFx = (value: FxLayer | null) => { fxRef.current = value; syncFxMode(); onFx(value); };
   const handleFx3d = (value: FxStage | null) => { fx3dRef.current = value; syncFxMode(); onFx3d?.(value); };
+  // 画质开关：写 localStorage["tda.fx"]，广播让场景重建舞台；自适应降档事件同步 data-fx
+  const [fxPref, setFxPref] = useState(() => fxPreference());
+  useEffect(() => { const onTier = () => syncFxMode(); window.addEventListener("tda-fx-tier", onTier); return () => window.removeEventListener("tda-fx-tier", onTier); }, []);
+  const cycleFx = () => { const order = ["auto", "high", "medium", "low", "off"] as const; const next = order[(order.indexOf(fxPref as typeof order[number]) + 1) % order.length]; try { if (next === "auto") localStorage.removeItem("tda.fx"); else localStorage.setItem("tda.fx", next); } catch { /* 隐私模式 */ } setFxPref(next); window.dispatchEvent(new CustomEvent("tda-fx-pref", { detail: next })); };
+  const fxLabel = fxPref === "high" ? "fxHigh" : fxPref === "medium" ? "fxMedium" : fxPref === "low" ? "fxLow" : fxPref === "off" ? "fxOff" : "fxAuto";
   const state = useStore(store);
   const view = state.view, display = state.display, game = display?.game ?? null, own = privateGame(display);
   const flowGame = (state.flow ?? display)?.game ?? null;
@@ -43,6 +48,7 @@ export function TableApp({ store, controller, onFx, onFx3d, onOrientation, showT
       <div className="tda-topbar-tools">
         <button type="button" className="tda-btn tda-btn--quiet" onClick={() => store.set(s => ({ helpOpen: !s.helpOpen }))} aria-pressed={state.helpOpen}>{t("help", lang)}</button>
         <button type="button" className="tda-btn tda-btn--quiet" onClick={() => controller.toggleSound()} aria-pressed={state.soundOn}>{t(state.soundOn ? "soundOn" : "soundOff", lang)}</button>
+        <button type="button" className="tda-btn tda-btn--quiet" id="fx-quality" onClick={cycleFx} title={fxMode}>{t(fxLabel, lang)}</button>
         <button type="button" className="tda-btn tda-btn--quiet" onClick={() => controller.setLanguage(lang === "zh" ? "en" : "zh")}>{lang === "zh" ? "English" : "中文"}</button>
         {inGame && (state.hostKind === "local" || view?.isHost || view?.role === "GM") ? <button type="button" id="omniscient-toggle" className={`tda-btn tda-btn--quiet${omniscient ? " is-on" : ""}`} aria-pressed={omniscient} onClick={() => controller.send({ type: "omniscient", enabled: !omniscient })}>{t(omniscient ? "omniscientOn" : "omniscientOff", lang)}</button> : null}
         {state.hostKind === "local" || view?.isHost ? <button type="button" className="tda-btn tda-btn--quiet" onClick={() => controller.send({ type: "newGame" })} disabled={!inGame || (state.hostKind === "obr" && view?.table?.stage === "lobby")}>{t("newGame", lang)}</button> : null}
