@@ -77,6 +77,12 @@ Kenney 音效包 zip SHA-256：`f36250766ac5bc378c13708ddf12a23a8e54a3251f8d482c
 
 完整哈希见 `.local-evidence/downloads/ledger.json`（gitignore）。
 
+## 衍生贴图（仓库内资源烘焙，非第三方）
+
+| 路径 | 来源 | 许可 | 用途 | 处理 | 字节 | SHA-256 |
+|---|---|---|---|---|---|---|
+| `coin-gold.webp` | 仓库 `src/game/art/currency/dragon-gold.webp`（原作卡图资源，©2021 Wizards，沿用原公开源码声明；源文件未改） | 同源文件 | coin stacks / coin flight sprite | PIL 烘焙：两层深色边缘（厚度）+ 高斯软投影，161×182，webp q92 | 11416 | `132c02207c778a55…` |
+
 ## 字体（OFL，npm 安装，随包自托管）
 
 | 包 | 版本 | 用途 | 许可 |

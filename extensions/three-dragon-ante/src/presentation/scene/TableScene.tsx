@@ -14,9 +14,7 @@ import { GhostLayer } from "./GhostLayer";
 import { t } from "../i18n";
 import { mountFx, type FxLayer } from "../fx/particles";
 import { card } from "../../game/rules/cards";
-import { mountFxStage, type FxStage } from "../fx3d/FxStage";
-import { composeFx } from "../fx3d/composeFx";
-import { debugMarkers } from "../fx3d/debug";
+import type { FxStage } from "../fx3d/FxStage";
 
 export interface TableSceneProps { state: UIState; controller: Controller; onFx(fx: FxLayer | null): void; onFx3d?(stage: FxStage | null): void; onOrientation(orientation: Orientation): void; onLand?(key: string, zone: string): void }
 
@@ -56,13 +54,17 @@ export function TableScene({ state, controller, onFx, onFx3d, onOrientation, onL
   useEffect(() => { onOrientation(fit.orientation); }, [fit.orientation]);
   // 2D 贴图层 + three.js 舞台（空中 + 地面两张画布）合成一个 FxLayer：舞台不可用（WebGL / 减少动态 / 用户关掉 / 软件 GL）时就是纯 2D 层
   useEffect(() => {
-    const c = canvas.current, h = host.current, a = airCanvas.current; if (!c || !h || !a) return;
-    const fx2d = mountFx(c, h);
-    const stage = mountFxStage(h, a, groundCanvas.current); fx3dRef.current = stage; onFx3d?.(stage);
-    if (stage && (fx3dDebug || fx3dGallery || fx3dScripts)) (window as unknown as { __tdaFx3d?: FxStage }).__tdaFx3d = stage;
-    const fx = composeFx(fx2d, stage); fxRef.current = fx; onFx(fx);
-    if (stage && (fx3dDebug || fx3dGallery || fx3dScripts)) (window as unknown as { __tdaFx?: FxLayer }).__tdaFx = fx;
-    return () => { fx.destroy(); stage?.destroy(); fxRef.current = null; fx3dRef.current = null; onFx(null); onFx3d?.(null); };
+    const c = canvas.current, h = host.current, a = airCanvas.current, g = groundCanvas.current; if (!c || !h || !a) return;
+    const fx2d = mountFx(c, h); let fx: FxLayer = fx2d; fxRef.current = fx2d; onFx(fx2d);
+    // three.js 与 fx3d 懒加载：首屏不预载 three 包；舞台建成后把合成层换上去
+    let stage: FxStage | null = null, cancelled = false;
+    void import("../fx3d/index").then(m => {
+      if (cancelled) return;
+      stage = m.mountFxStage(h, a, g); fx3dRef.current = stage; onFx3d?.(stage);
+      fx = m.composeFx(fx2d, stage); fxRef.current = fx; onFx(fx);
+      if (stage && (fx3dDebug || fx3dGallery || fx3dScripts)) { (window as unknown as { __tdaFx3d?: FxStage }).__tdaFx3d = stage; (window as unknown as { __tdaFx?: FxLayer }).__tdaFx = fx; }
+    }).catch(err => console.error("fx3d failed to load", err));
+    return () => { cancelled = true; fx.destroy(); stage?.destroy(); fxRef.current = null; fx3dRef.current = null; onFx(null); onFx3d?.(null); };
   }, [fxEpoch]);
 
   const view = state.display, game = view?.game ?? null, own = privateGame(view);
@@ -73,15 +75,20 @@ export function TableScene({ state, controller, onFx, onFx3d, onOrientation, onL
   const known = useRef(new Map<string, KnownEntry>());
   useEffect(() => { const keys = new Set(placements.map(p => p.key)); for (const key of [...known.current.keys()]) if (!keys.has(key)) known.current.delete(key); for (const p of placements) known.current.set(p.key, { pose: p.pose, layer: isHeldByPending(p, state.pending, own?.selfSeatId ?? null) ? "table" : p.layer }); });
   useEffect(() => {
-    const stage = fx3dRef.current; if (!stage || !fx3dDebug || !game) return;
+    if (!fx3dDebug || !game) return;
     const pts = [center.deck, center.discard, center.stakes, center.hole, ...seats.flatMap(s => [s.ante, s.coins, s.flight])];
-    return debugMarkers(stage, pts);
+    // 舞台是懒加载的：轮询到它出现再放标记
+    let off: (() => void) | null = null, stopped = false;
+    const tryMark = () => { if (stopped) return; const stage = fx3dRef.current; if (!stage) { setTimeout(tryMark, 100); return; } void import("../fx3d/debug").then(m => { if (!stopped) off = m.debugMarkers(stage, pts); }); };
+    tryMark();
+    return () => { stopped = true; off?.(); };
   }, [fx3dDebug, game?.id, seats.length, orientation]);
   // 画廊（截图验收用）：开局 0.8 s 后在固定锚点各放一个图元
   useEffect(() => {
-    const stage = fx3dRef.current, fx = fxRef.current; if (!stage || !fx || !fx3dGallery || !game || !seats.length) return;
-    const at = (p: { x: number; y: number }) => stage.project(p.x, p.y, 0);
+    if (!fx3dGallery || !game || !seats.length) return;
     const timer = setTimeout(() => {
+      const stage = fx3dRef.current, fx = fxRef.current; if (!stage || !fx) return;
+      const at = (p: { x: number; y: number }) => stage.project(p.x, p.y, 0);
       void fx.sigil(at(center.deck), "arcane", 130, 1800);
       void fx.beam(at(center.discard), at(center.stakes), "tide", 800);
       fx.burst(at(seats[0].flight), "ember", 1);
@@ -185,11 +192,11 @@ export function TableScene({ state, controller, onFx, onFx3d, onOrientation, onL
             <div className="tda-pile tda-pile--discard" style={{ left: center.discard.x - CARD.w / 2 - 8, top: center.discard.y - CARD.h / 2 - 8 }} data-pile="discard" onClick={() => { const top = game.discard[game.discard.length - 1]; if (top) controller.inspect(top.id, true); }}><span className="tda-slot-label">{t("discard", state.lang)} · {game.discard.length}</span></div>
             <div className="tda-stakes" style={{ left: center.stakes.x, top: center.stakes.y }}>
               <div className="tda-plate tda-stakes-plate"><span>{t("stakes", state.lang)}</span><span className="tda-num tda-stakes-amount">{stakesShown}</span></div>
-              <div className="tda-coins-anchor tda-coins-anchor--pile" data-pile="stakes"><CoinStack amount={stakesShown} big /></div>
+              <div className="tda-coins-anchor tda-coins-anchor--pile" data-pile="stakes"><CoinStack amount={stakesShown} big tilt={spec.tilt} /></div>
             </div>
             {/* 偿债池为 0 也保留（淡显）：第一笔偿债的金币需要一个落点，总额也要时刻可见 */}
-            <div className={`tda-hole${holeShown > 0 ? "" : " is-empty"}`} style={{ left: center.hole.x, top: center.hole.y }}><div className="tda-plate tda-hole-plate"><span>{t("hole", state.lang)}</span><span className="tda-num">{holeShown}</span></div><div className="tda-coins-anchor tda-coins-anchor--pile" data-pile="hole"><CoinStack amount={holeShown} /></div></div>
-            {seats.map(placement => { const seat = game.seats.find(s => s.id === placement.id)!; return <SeatBlock key={placement.id} seat={seat} placement={placement} game={game} selfSeatId={own?.selfSeatId ?? null} lang={state.lang}
+            <div className={`tda-hole${holeShown > 0 ? "" : " is-empty"}`} style={{ left: center.hole.x, top: center.hole.y }}><div className="tda-plate tda-hole-plate"><span>{t("hole", state.lang)}</span><span className="tda-num">{holeShown}</span></div><div className="tda-coins-anchor tda-coins-anchor--pile" data-pile="hole"><CoinStack amount={holeShown} tilt={spec.tilt} /></div></div>
+            {seats.map(placement => { const seat = game.seats.find(s => s.id === placement.id)!; return <SeatBlock key={placement.id} seat={seat} placement={placement} game={game} tilt={spec.tilt} selfSeatId={own?.selfSeatId ?? null} lang={state.lang}
               legalZone={legalZone} dragOver={drag?.cardId ? drag.overZone : null} targetSeatId={targetSeatId} waiting={waitingIds.has(placement.id)} gold={hold?.seats[seat.id] ?? seat.gold} tally={seatTally.get(seat.id)} onZoneClick={zone => controller.placeSelected(zone)} />; })}
             <CardLayer state={state} controller={controller} orientation={orientation} layer="table" placements={placements} seats={seats} known={known} onCardPointerDown={onCardPointerDown} onCardLand={onCardLand} />
             <GhostLayer ghosts={state.show.ghosts} />

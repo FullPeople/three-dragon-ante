@@ -22,6 +22,7 @@ const wait = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms
 
 export function composeFx(fx2d: FxLayer, stage: FxStage | null): FxLayer {
   if (!stage || !stage.ground) return fx2d;
+  const ok = () => stage.available();
   const plane = (p: Point) => stage.toPlane(p);
   const kOf = () => stage.tier === "low" ? 0.5 : stage.tier === "medium" ? 0.75 : 1;
   const lowNow = () => stage.tier === "low";
@@ -48,6 +49,7 @@ export function composeFx(fx2d: FxLayer, stage: FxStage | null): FxLayer {
     ...fx2d,
     // 家族脚本：把 PowerFxContext 的视口像素锚点换成平面坐标，交给家族专属编排
     async script(cue, events, ctx) {
+      if (!ok()) return false;
       const src = ctx.cardPoint(cue.cardId); if (!src) return false;
       const kind = familyFx(cue.family), legendary = isLegendary(cue.cardId);
       let strength = 0.6; try { const v = card(cue.cardId); if (v.category === "standard") strength = Math.max(0, Math.min(1, (v.strength - 1) / 12)); } catch { /* 未知牌 */ }
@@ -64,12 +66,14 @@ export function composeFx(fx2d: FxLayer, stage: FxStage | null): FxLayer {
     },
     // 落地尘土：贴地的实体烟尘横向铺开 + 小扩散环
     dust(point, size = 1) {
+      if (!ok()) return fx2d.dust(point, size);
       const p = plane(point);
       new Burst(stage, p.x, p.y, 4, { kind: "dust", count: Math.round(26 * size * kOf()), speed: 170 * size, up: 0.22, gravity: 260, drag: 3.2, size: 48 * size, life: 0.7, solid: true, sprites: ["dirt_01", "smoke_01", "dirt_02"] });
       new GroundMark(stage, p.x, p.y, { kind: "dust", radius: 70 * size, duration: 420, mode: 1 });
     },
     // 抓取：目标处爪痕 + 反向飘带把东西拉回源头，源头处爆发
     grab(from, to, kind, duration = 1000) {
+      if (!ok()) return fx2d.grab(from, to, kind, duration);
       const a = plane(from), b = plane(to);
       new GroundMark(stage, b.x, b.y, { kind: "ember", radius: 80, duration: duration * 0.7, mode: 2 });
       setTimeout(() => { new Beam(stage, b, a, { kind, duration: duration * 0.6, lift: 70, width: 20 }); }, duration * 0.3);
@@ -78,6 +82,7 @@ export function composeFx(fx2d: FxLayer, stage: FxStage | null): FxLayer {
     },
     // 交换：两道飘带交叉对飞（一高一低），各自到站爆发
     swap(a, b, kindA, kindB, duration = 900) {
+      if (!ok()) return fx2d.swap(a, b, kindA, kindB, duration);
       const pa = plane(a), pb = plane(b);
       new Beam(stage, pa, pb, { kind: kindA, duration, lift: 150, width: 18 });
       new Beam(stage, pb, pa, { kind: kindB, duration, lift: 60, width: 18 });
@@ -86,6 +91,7 @@ export function composeFx(fx2d: FxLayer, stage: FxStage | null): FxLayer {
     },
     // 爪痕：三道划痕 + 余烬
     claw(point, kind = "ember", duration = 700) {
+      if (!ok()) return fx2d.claw(point, kind, duration);
       const p = plane(point);
       new GroundMark(stage, p.x, p.y, { kind, radius: 95, duration, mode: 2 });
       setTimeout(() => new Burst(stage, p.x, p.y, 8, { kind, count: Math.round(18 * kOf()), speed: 140, up: 0.9, size: 26, life: 0.7 }), duration * 0.25);
@@ -94,7 +100,8 @@ export function composeFx(fx2d: FxLayer, stage: FxStage | null): FxLayer {
     // 持续环境粒子（等待选择 / 场地）：GPU 循环发射器；传 null 淡出
     ambient(id, spec) {
       const old = ambients.get(id); if (old) { releaseHold(old); ambients.delete(id); }
-      if (!spec) return;
+      if (!ok()) { fx2d.ambient(id, spec); return; }
+      if (!spec) { fx2d.ambient(id, null); return; }
       const s = stage.metrics().scale;
       const r = spec.area; let area: { x: number; y: number; w: number; h: number };
       if (r) { const p1 = plane({ x: r.x, y: r.y }), p2 = plane({ x: r.x + r.w, y: r.y + r.h }); area = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2, w: Math.abs(p2.x - p1.x), h: Math.abs(p2.y - p1.y) }; }
@@ -129,6 +136,7 @@ export function composeFx(fx2d: FxLayer, stage: FxStage | null): FxLayer {
       ambients.set(id, hold);
     },
     sigil(point, kind, radius = 120, duration = 1400) {
+      if (!ok()) return fx2d.sigil(point, kind, radius, duration);
       const p = plane(point);
       new GroundMark(stage, p.x, p.y, { kind, radius, duration, form: sigilForm(kind, radius) });
       new Pillar(stage, p.x, p.y, { kind, height: radius * 2.2, width: radius * 1.1, duration: duration * 0.9 });
@@ -137,15 +145,17 @@ export function composeFx(fx2d: FxLayer, stage: FxStage | null): FxLayer {
       new Burst(stage, p.x, p.y, 10, { kind, count: Math.round(36 * kOf()), speed: 150, up: 0.95, gravity: 420, size: 34, life: 1.2 });
       return wait(duration);
     },
-    ring(point, kind, radius = 160, duration = 700) { const p = plane(point); new GroundMark(stage, p.x, p.y, { kind, radius, duration, mode: 1 }); return wait(duration); },
+    ring(point, kind, radius = 160, duration = 700) { if (!ok()) return fx2d.ring(point, kind, radius, duration); const p = plane(point); new GroundMark(stage, p.x, p.y, { kind, radius, duration, mode: 1 }); return wait(duration); },
     beam(from, to, kind, duration = 600) {
+      if (!ok()) return fx2d.beam(from, to, kind, duration);
       const a = plane(from), b = plane(to);
       new Beam(stage, a, b, { kind, duration, width: 22 * (lowNow() ? 0.8 : 1) });
       setTimeout(() => new Burst(stage, b.x, b.y, 30, { kind, count: Math.round(22 * kOf()), speed: 200, up: 0.7, size: 32, life: 0.7 }), duration * 0.68);
       return wait(duration);
     },
-    burst(point, kind, strength = 1) { const p = plane(point); new Burst(stage, p.x, p.y, 20, { kind, count: Math.round(26 * strength * kOf()), speed: 230 * strength, up: 0.8, size: 38, life: 0.9 }); if (strength >= 0.9) new Shell(stage, p.x, p.y, 16, { kind, r1: 70 * strength, duration: 420, squash: 0.55 }); },
+    burst(point, kind, strength = 1) { if (!ok()) return fx2d.burst(point, kind, strength); const p = plane(point); new Burst(stage, p.x, p.y, 20, { kind, count: Math.round(26 * strength * kOf()), speed: 230 * strength, up: 0.8, size: 38, life: 0.9 }); if (strength >= 0.9) new Shell(stage, p.x, p.y, 16, { kind, r1: 70 * strength, duration: 420, squash: 0.55 }); },
     flare(point, kind, duration = 800) {
+      if (!ok()) return fx2d.flare(point, kind, duration);
       const p = plane(point);
       new GroundMark(stage, p.x, p.y, { kind, radius: 100, duration: duration * 0.9, mode: 1 });
       new Shell(stage, p.x, p.y, 20, { kind, r1: 130, duration: duration * 0.7, squash: 0.6 });

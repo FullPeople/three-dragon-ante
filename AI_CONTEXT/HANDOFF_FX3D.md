@@ -55,7 +55,7 @@ node .local-evidence/perf-probe.mjs default all-off   # 帧率探针（OPP=5 环
 
 - 已完成：P0 地基与门控；P1 图元（GroundMark 法阵 / 扩散环 / 爪痕 + 形态参数、Pillar 光柱、Burst GPU 粒子、Beam 飘带 + 头部火星、Emitter 循环发射器）；适配器把 sigil / ring / beam / burst / flare / dust / grab / swap / claw / ambient 路由到 three；P2 41 个家族签名脚本（`scripts/families.ts`），标准龙按点数调幅；P3 等待选择 / 场地 / 牌阵与传说到场形态；P4 Shell 冲击壳、Collar 站立光环、顶栏画质开关（自动 / 高 / 中 / 低 / 关）、自适应降档；P5 尘土分档、署名登记（ASSETS.md + THIRD_PARTY）、VISUAL_SPEC 口径。
 - 帧率：金币滤镜层风暴已修（6 人局软件渲染 5 → 56 fps）；fx3d 画布空闲隐藏。
-- 独立审计（Opus，范围 8d23298..4d0d414）在原机器上已发起；若结果没有记进 runbook kickoff §4，说明原机器中断了，新机器要**自己再做一次**（§5 第 8 条）。
+- 独立审计（Opus，范围 8d23298..4d0d414）：不通过（2 高 4 中 8 低），已全部整改（runbook kickoff §4），复查已发起；若 §4 没有"复查通过"的记录，新机器要**自己再审一次**（§5 第 8 条）。
 
 ### 5. 待做清单（按序；每项一个 commit + 截图 + runbook 小节）
 

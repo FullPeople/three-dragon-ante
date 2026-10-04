@@ -37,7 +37,9 @@ export class Kit {
   /** 多目标齐射：错开 stagger 毫秒 */
   async volley(from: P, targets: (P | null)[], o: { kind: FxKind; duration: number; stagger?: number; lift?: number; width?: number; impact?: number; impactZ?: number }) {
     const ps = targets.filter((t): t is P => !!t);
-    ps.forEach((t, i) => setTimeout(() => this.strike(from, t, o), i * (o.stagger ?? 110)));
-    await wait(o.duration + ps.length * (o.stagger ?? 110));
+    // 目标多时压缩错开间隔：总错开 ≤ 420 ms（6 人局最坏情况脚本仍 ≤ 2 s）
+    const stagger = Math.min(o.stagger ?? 110, Math.max(40, 420 / Math.max(1, ps.length)));
+    ps.forEach((t, i) => setTimeout(() => this.strike(from, t, o), i * stagger));
+    await wait(o.duration + ps.length * stagger);
   }
 }

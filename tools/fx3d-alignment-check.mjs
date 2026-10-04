@@ -3,7 +3,7 @@
 // 顺带断言：页面零脚本错误、零外部请求、两张特效画布都挂上。
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve, extname } from 'node:path';
 import { chromium, browserLaunchOptions } from './browser-runtime.mjs';
 const root = resolve(import.meta.dirname, '..');
@@ -32,7 +32,8 @@ try {
     await page.goto(origin + base + 'index.html?fx3dDebug=1&fx3d=1');
     await page.getByRole('button', { name: '开始', exact: true }).click();
     await page.locator('.tda-plane').waitFor({ timeout: 30000 });
-    await page.waitForTimeout(600);
+    await page.waitForFunction(() => !!window.__tdaFx3d, null, { timeout: 15000 });
+    await page.waitForTimeout(400);
     const res = await page.evaluate(() => {
       const stage = window.__tdaFx3d; if (!stage) return null;
       const plane = document.querySelector('.tda-plane');
@@ -54,9 +55,55 @@ try {
     pass(`${name} no script errors and no external requests with the effects stage mounted`);
     await context.close();
   }
+
+  // 默认模式（不带 ?fx3d=1）：软件 GL 不建舞台，两张画布保持隐藏、根标 canvas2d（审计 H2：不能留下丢失上下文的白方块）
+  {
+    const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: 'zh-CN' });
+    const page = await context.newPage();
+    await page.goto(origin + base + 'index.html');
+    await page.getByRole('button', { name: '开始', exact: true }).click();
+    await page.locator('.tda-plane').waitFor({ timeout: 30000 });
+    await page.waitForTimeout(1500);
+    const d = await page.evaluate(() => ({ fx: document.querySelector('.tda-shell')?.getAttribute('data-fx'), air: getComputedStyle(document.querySelector('.tda-fx3d-air')).display, ground: getComputedStyle(document.querySelector('.tda-fx3d-ground')).display }));
+    assert.equal(d.fx, 'canvas2d', 'software GL without ?fx3d=1 falls back to canvas2d');
+    assert.ok(d.air === 'none' && d.ground === 'none', 'fx3d canvases stay hidden when no stage is mounted');
+    pass('software GL without the force flag keeps both fx3d canvases hidden and reports canvas2d');
+    await context.close();
+  }
+  // 高档单条渲染链：驻留（系绳）+ 飘带同时活动时，渲染次数不得超过 rAF 帧数（审计 H1）
+  {
+    const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: 'zh-CN' });
+    await context.addInitScript(() => { try { localStorage.setItem('tda.fx', 'high'); } catch {} });
+    const page = await context.newPage();
+    const errors = []; page.on('pageerror', e => errors.push(String(e)));
+    await page.goto(origin + base + 'index.html?fx3d=1&fx3dGallery=scripts&opponents=2');
+    await page.getByRole('button', { name: '开始', exact: true }).click();
+    await page.locator('.tda-plane').waitFor({ timeout: 30000 });
+    await page.waitForFunction(() => !!window.__tdaFx && !!window.__tdaFx3d, null, { timeout: 15000 });
+    const stats = await page.evaluate(async () => {
+      const el = sel => { const r = document.querySelector(sel)?.getBoundingClientRect(); return r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null; };
+      const fx = window.__tdaFx, stage = window.__tdaFx3d;
+      const plate = el('[data-seat-plate]:not([data-seat-plate="you"])'), deck = el('[data-pile="deck"]');
+      fx.ambient('t:hold', { kind: 'ember', rate: 3, area: { x: plate.x - 90, y: plate.y - 50, w: 180, h: 100 }, drift: { x: 0, y: -22 }, size: 2.4, life: 2, alpha: 0.75, hold: { who: 'other', code: 'GIVE_DRAGON_OR_GOLD', from: deck } });
+      const s0 = stage.frameStats();
+      for (let i = 0; i < 4; i++) { void fx.beam(deck, plate, 'tide', 600); await new Promise(r => setTimeout(r, 350)); }
+      await new Promise(r => setTimeout(r, 600));
+      const s1 = stage.frameStats();
+      fx.ambient('t:hold', null);
+      await new Promise(r => setTimeout(r, 2600));   // 最后一条系绳飘带（1.3 s）+ 其火星（0.7 s）+ 淡出要走完
+      return { tier: stage.tier, frames: s1.frames - s0.frames, renders: s1.renders - s0.renders, effectsAfter: stage.frameStats().effects };
+    });
+    assert.equal(stats.tier, 'high', 'forced flag honours the stored high preference');
+    assert.ok(stats.frames > 20, `enough frames sampled (${stats.frames})`);
+    assert.ok(stats.renders <= stats.frames + 1, `one render per animation frame at most (renders ${stats.renders}, frames ${stats.frames})`);
+    assert.equal(stats.effectsAfter, 0, 'effects are released after the hold ends');
+    assert.equal(errors.length, 0, errors.join(' | '));
+    pass(`high tier keeps a single render chain under hold + beams (${stats.renders} renders / ${stats.frames} frames)`);
+    await context.close();
+  }
 } finally { await browser.close(); server.close(); }
 // 分包闸：three 只随牌桌 mount 加载，枭熊的后台页与启动器页不得引用 three chunk
-for (const html of ['launcher.html', 'background.html']) { const text = readFileSync(resolve(dist, html), 'utf8'); assert.ok(!/assets\/three-[\w-]+\.js/.test(text), `${html} must not reference the three chunk`); }
-assert.ok(/assets\/three-[\w-]+\.js/.test(readFileSync(resolve(dist, 'index.html'), 'utf8')), 'index.html preloads the three chunk');
-pass('bundle gate: three.js chunk is loaded only with the table, not by launcher/background');
+for (const html of ['launcher.html', 'background.html', 'index.html', 'table.html']) { const text = readFileSync(resolve(dist, html), 'utf8'); assert.ok(!/assets\/three-[\w-]+\.js/.test(text), `${html} must not statically reference the three chunk (lazy-loaded)`); }
+assert.ok(readdirSync(resolve(dist, 'assets')).some(f => /^three-[\w-]+\.js$/.test(f)), 'the three chunk exists in dist/assets');
+pass('bundle gate: three.js is a lazy chunk, referenced by no HTML entry');
 console.log(`${passed} checks passed`);

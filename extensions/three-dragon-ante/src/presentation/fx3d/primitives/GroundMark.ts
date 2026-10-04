@@ -53,7 +53,7 @@ void main(){
       float sa = ang - uTime * 0.05; float ps = 6.2831853 / uPoints; float tri = abs(mod(sa + ps * 0.5, ps) - ps * 0.5) / (ps * 0.5);
       float inner_r = mix(0.46, 0.30, uSharp); float rs = mix(inner_r, 0.56, 1.0 - smoothstep(0.0, 1.0, tri));
       star = strokeAA(r - rs, 0.013);
-      if (uHooks > 0.5) { float k = floor((sa + 3.14159265) / ps); float ta2 = k * ps - 3.14159265 + ps * 0.5; vec2 tip = vec2(0.56 * cos(ta2 + uTime * 0.05), 0.56 * sin(ta2 + uTime * 0.05)); hooks = strokeAA(length(p - tip) - 0.06, 0.009) * step(0.56, length(p + (p - tip) * 0.0001) * 1.0 + 0.0) ; hooks = strokeAA(length(p - tip) - 0.06, 0.009) * step(0.0, dot(p - tip, tip)); }
+      if (uHooks > 0.5) { float k = floor((sa + 3.14159265) / ps); float ta2 = k * ps - 3.14159265 + ps * 0.5; vec2 tip = vec2(0.56 * cos(ta2 + uTime * 0.05), 0.56 * sin(ta2 + uTime * 0.05)); hooks = strokeAA(length(p - tip) - 0.06, 0.009) * step(0.0, dot(p - tip, tip)); }
     }
     float ribsL = 0.0;
     if (uRibs > 0.5) { float rsec = 6.2831853 / uRibs; float ra2 = mod(ang + uTime * 0.03 + rsec * 0.5, rsec) - rsec * 0.5; vec2 rp2 = vec2(r * cos(ra2), r * sin(ra2)); ribsL = fillAA(sdSegment(rp2, vec2(0.18, 0.0), vec2(0.42, 0.0)) - 0.008); }
@@ -80,7 +80,10 @@ export interface GroundMarkOptions { kind: FxKind; radius: number; duration: num
 export class GroundMark implements Effect {
   readonly mesh: Mesh<PlaneGeometry, ShaderMaterial>;
   private readonly start: number; private released = -1; private readonly duration: number;
+  /** 驻留态（duration 0）只需 30 fps */
+  get idleOk() { return this.duration === 0; }
   constructor(stage: FxStage, x: number, y: number, o: GroundMarkOptions) {
+    const ground = stage.ground; if (!ground) throw new Error("ground canvas missing");
     this.duration = o.duration; this.start = performance.now();
     const p = palette(o.kind), f: GlyphForm = { ...DEFAULT_FORM, ...o.form };
     const material = new ShaderMaterial({ vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthWrite: false, depthTest: false, premultipliedAlpha: true, toneMapped: false,
@@ -88,8 +91,7 @@ export class GroundMark implements Effect {
         uPoints: { value: f.points }, uRibs: { value: f.ribs }, uHooks: { value: f.hooks ? 1 : 0 }, uTicks: { value: f.ticks }, uRhombus: { value: f.rhombus ? 1 : 0 }, uSharp: { value: f.sharp ? 1 : 0 }, uDim: { value: o.duration > 0 ? 1 : 0.6 }, ...stage.tableUniforms() } });
     this.mesh = new Mesh(new PlaneGeometry(o.radius * 2, o.radius * 2), material);
     this.mesh.position.copy(stage.local(x, y, o.z ?? 0.6)); this.mesh.renderOrder = 10;
-    if (!stage.ground) throw new Error("ground canvas missing");
-    stage.ground.scene.add(this.mesh); stage.add(this);
+    ground.scene.add(this.mesh); stage.add(this);
   }
   /** 驻留态（duration = 0）：调用后 500 ms 内淡出 */
   release() { if (this.released < 0) this.released = performance.now(); }

@@ -1,6 +1,6 @@
 /** 特效层共用 GLSL 片段（three r186 ShaderMaterial，默认 GLSL1 语法由 three 转译到 ES3）。
  *  口径：
- *  - 颜色直接用 token 的 sRGB 值，不做线性转换；材质 toneMapped=false、渲染器 NoToneMapping。
+ *  - 颜色直接用 token 的 sRGB 数值（palette.ts 用 setStyle(hex, LinearSRGBColorSpace) 跳过 three 的 sRGB→线性转换），着色器不再做输出转换；材质 toneMapped=false、渲染器 NoToneMapping。
  *  - 所有片元输出**预乘 alpha**（渲染器 premultipliedAlpha=true、材质 premultipliedAlpha=true、NormalBlending）。
  *    发光类用 glowOut：alpha = 最亮通道，等价 screen 合成，不依赖"预乘色 > alpha"的未定义行为。
  *  - 噪声只用 value noise 与最多 3 层 fbm，禁止全屏噪声 pass（像素预算）。

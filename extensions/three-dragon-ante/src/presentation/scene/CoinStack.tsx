@@ -30,7 +30,7 @@ function sprite(): HTMLImageElement {
   return image;
 }
 
-export function CoinStack({ amount, scale = 1, big = false }: { amount: number; scale?: number; big?: boolean }) {
+export function CoinStack({ amount, scale = 1, big = false, tilt }: { amount: number; scale?: number; big?: boolean; tilt?: number }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const coins = coinLayout(amount, big);
   useEffect(() => {
@@ -41,7 +41,7 @@ export function CoinStack({ amount, scale = 1, big = false }: { amount: number; 
       if (c.width !== COIN_BOX.w * dpr) { c.width = COIN_BOX.w * dpr; c.height = COIN_BOX.h * dpr; }
       const ctx = c.getContext("2d"); if (!ctx) return;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, COIN_BOX.w, COIN_BOX.h);
-      const tilt = parseFloat(getComputedStyle(c).getPropertyValue("--tilt")) || 28, rise = Math.tan(tilt * Math.PI / 180);
+      const tiltDeg = tilt ?? (parseFloat(getComputedStyle(c).getPropertyValue("--tilt")) || 28), rise = Math.tan(tiltDeg * Math.PI / 180);
       const k = (big ? 36 : 30) / BODY_W;
       for (const coin of coins) {
         ctx.save();
@@ -53,7 +53,7 @@ export function CoinStack({ amount, scale = 1, big = false }: { amount: number; 
     };
     draw(); waiters.add(draw);
     return () => { waiters.delete(draw); };
-  }, [amount, big]);
+  }, [amount, big, tilt]);
   if (!coins.length) return null;
   return <div className={`tda-coins${big ? " tda-coins--big" : ""}`} style={{ transform: `translateZ(1.5px) scale(${scale})` }} aria-hidden="true" data-coins={coins.length}>
     <canvas ref={ref} className="tda-coins-canvas" style={{ left: -COIN_BOX.ox, top: -COIN_BOX.oy, width: COIN_BOX.w, height: COIN_BOX.h }} />
