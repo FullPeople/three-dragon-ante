@@ -113,7 +113,24 @@ const point = async index => page.evaluate(index => {
   for (const fy of [.25, .4, .6, .75, .85]) for (const fx of [.15, .35, .5, .7, .85]) { const x=r.left+r.width*fx,y=r.top+r.height*fy; if (document.elementFromPoint(x,y)?.closest('[data-card]')===node) return {x,y}; }
   return null;
 }, index);
-const reset = async (kind, count) => { await page.evaluate(([kind,count]) => window.__feedbackInput.reset(kind,count), [kind,count]); await page.waitForTimeout(850); };
+const settlements = [];
+const reset = async (kind, count) => {
+  await page.evaluate(([kind,count]) => window.__feedbackInput.reset(kind,count), [kind,count]);
+  await page.waitForTimeout(850);
+  // Measure the final physical placement only after the real entrance animation has settled.
+  // The first Linux CI sample still presented the deck start pose after this fixed delay.
+  const observedAt = Date.now();
+  await page.waitForFunction(() => {
+    const cards = [...document.querySelectorAll('.tda-card')];
+    return cards.length > 0 && cards.every(node => {
+      if (node.matches('.is-entering,.is-flying-up,.is-hovering,.is-dropping,.is-flying,.is-arriving')) return false;
+      if (node.getAnimations().some(animation => animation instanceof CSSTransition && animation.transitionProperty === 'transform' && animation.playState === 'running')) return false;
+      const style = getComputedStyle(node), matrix = new DOMMatrixReadOnly(style.transform);
+      return [['--x',matrix.m41],['--y',matrix.m42],['--z',matrix.m43]].every(([name,value]) => Math.abs(Number(style.getPropertyValue(name)) - value) < 0.1);
+    });
+  });
+  settlements.push({kind,count,additionalObservedMs:Date.now()-observedAt});
+};
 try {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: 'zh-CN', reducedMotion: 'no-preference' });
   context.on('request', request => { if (!request.url().startsWith(origin + '/')) external.push('unexpected-origin'); });
@@ -190,4 +207,4 @@ try {
   }
   assert.deepEqual(errors,[]); assert.deepEqual(external,[]); assert.deepEqual(resourceFailures,[]); pass('zero script errors, external requests and failed local resources');
 } catch(error) { failure={phase,name:error.name,message:error.message}; console.error(error); process.exitCode=1; }
-finally { const sourceAfter=Object.fromEntries(sourcePaths.map(path=>[path,sha(readFileSync(join(root,path)))]));writeFileSync(join(out,'result.json'),JSON.stringify({baseline,diagnose,checks,measurements,errors,external,resourceFailures,failure,sourceIdentity:{...sourceIdentity,sourceAfter}},null,2)); console.log('EVIDENCE '+out); await browser.close(); await new Promise(done=>server.close(done)); }
+finally { const sourceAfter=Object.fromEntries(sourcePaths.map(path=>[path,sha(readFileSync(join(root,path)))]));writeFileSync(join(out,'result.json'),JSON.stringify({baseline,diagnose,checks,measurements,settlements,errors,external,resourceFailures,failure,sourceIdentity:{...sourceIdentity,sourceAfter}},null,2)); console.log('EVIDENCE '+out); await browser.close(); await new Promise(done=>server.close(done)); }

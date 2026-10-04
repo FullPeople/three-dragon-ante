@@ -29,3 +29,16 @@ root重建新遮罩：build含tsc exit0、buildserver exit0；controls首次扩�
 原Node完整：npm test 8/8 exit0 49.144s（含controller/handover/legacy/stable/time-dragon原检查），npm run test:server 2/2 exit0 10.5s；证据.local-evidence/feedback2/original-node。此前构建/新专项与原Node均真实通过，但原browser15/server-browser4/FX9/全能原13及完整Linux新冻结仍待首次运行。
 
 换模型gpt-6.1-sol/high独立功能审阅完成，逐一核7控件源SHA+serverbundle/siteindex、6输入源beforeaftercurrent以及旧六A/new12B，两P2实证闭环，未剩必修P1/P2。几何措辞限实际遮挡采样0：部分3席strength矩形交叠且深度铭牌在前，不说全场矩形绝不重叠；coins透明canvas不能仅以hittest断言，结合无交叠和两6席截图。原全能13/精确完整CI/GPL包/公网等发布终审仍待。见独立audit runbook。
+
+
+## e934fbb 首次 Linux CI 与真实入场等待
+
+精确 head e934fbb52923b26849f536fdd373a2fd1df749bb 已正常推送，但首次完整 CI 37208665316 / job111455144981 实际失败：新增 input 专项仅合法夹具1项后，在第一个desktop2席共同前注遮挡断言停止；其后全部原回归跳过，不称完整通过。观战Node13/13、牌堆Node10/10、观战browser13/13、全能控件19/19以及前置构建/原权限与宽限 Node 专项实际通过。完整原日志与一次下载的artifact保留在 ignored .local-evidence/feedback2/ci-e934-*。
+
+原始 run-6mMI09 显示 neutral目标CSS变量511或589/490/z3或4，但两张neutral及多张flight/hand的computed transform均仍是deck起点720/520/30，固定850ms时尚未完成入场。测量对象必须为最终排位：保留原850ms，额外等待真实CardNode阶段结束、真实CSS transform transition结束并核DOMMatrix平移与目标变量吻合，默认超时不改；所有原遮挡/实际click/12快拖/ACK/cancel/10choice断言保持。新增settlements仅记录额外观察耗时，不修改浏览器动画或生产源码。首次修后本机run-jJvjoH综合12/12 exit0，十布局/20次inspect/12快拖及六source beforeafter匹配；旧排位负对照及独立只读审阅继续，不靠盲目重跑CI。
+
+e934冻结网站包本地独立校验实际exit0：1948 tar记录、450 Git源码blob、1正/11个变异拒绝控制均通过；remoteVerification false，不是线上核验。稳定/开发各973文件，source ZIP SHA05c42011ad8a728d1fcbf40bdcb709a53ad64feeb7cb95c1241b2a0bba1dfc55，tar SHA2ea15156f8b4d2fdceabd0dd21109a0bd863adbdc2a4ea515480a3a65ee2aa9d。因完整CI失败，此包保持冻结不上传/部署，新source须另冻新包。
+
+遗留（同步TODO）：确认真实等待不弱化门禁的旧基线负对照/独立审阅，原全能13诊断首次执行，新精确完整CI及新冻结包发布终审；以上完成后再 fresh baseline、定向两个网站与必要authority、独立after和公网新功能验收。线上仍801/0.9.1，Suite/card/nginx/unit/env/旧稳定未部署。
+
+真实等待修正经原模型之外的gpt-6.1-sol/high只读复核：27条原断言/计数/失败行、原等待参数和快拖时序不变。旧排位baseline-wPMWsF在真实settled后仍严格遮挡失败exit1（预期负对照）：computed等于目标845/955/650/z3/4，flight等覆盖采样25/17/25/18；六源一致。这不是依靠不落地的异常帧保留失败。原website-omniscient首次新source实际13/13 exit0 run-hANAPe，500ms逐字原门禁通过；cleanup observer：cut9375→断线观察9381→editor移除观察9382→Node观察9419（绝对Date.now前缀179112432，约7/44ms，仅回调时刻）。错误/外域0，原e290六项后Linux失败保留且根因未查明，不能用本机13替代新Linux全门禁。

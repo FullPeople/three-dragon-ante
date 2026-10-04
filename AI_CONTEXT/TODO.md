@@ -145,3 +145,7 @@
 - 2026-10-04 新批阶段事实：观战真实service13/13、牌堆顺序真实service10/10首次通过（自造临时SQLite，不是公网或browser）；node/buildserver实际0，serverci首次ENOSPC后隔离U缓存恢复0。新的前端/全部回归/独立审计和部署仍待，旧线上801保持；见website-spectator/website-deck-order-test/website-feedback2 runbook。
 
 - 2026-10-04 本批已实际：输入/实体前注综合12/12（c955171，旧重叠六组A→新12组B及两视口2–6席几何/inspect）、观战browser13/13与Node13/13、牌堆Node10/10、全能新扩展19/19（两独立P2已加真实断言）。完整精确CI/独立终审/冻结包/定向部署和公网验收仍待，见website-feedback2及各专项runbook。
+
+- [ ] e934fbb 首次完整 CI37208665316 在新增 input 的最终排位测量失败（其后原门禁跳过）；原artifact显示固定850ms后computed transform仍是deck入场起点。只测试工具加真实阶段/transition/目标坐标到位等待，首本机综合12/12，旧负对照/独立审阅/原13及新精确CI待闭环；e934独立包1正11负通过但禁止部署，见website-feedback2末节。
+
+- [x] 本批真实入场等待修正已独立只读审阅，旧settled排位负对照仍遮挡失败；原全能首次本机13/13 run-hANAPe且原500ms门禁通过。新冻结精确完整Linux CI/发布终审/上线与公网仍待。
