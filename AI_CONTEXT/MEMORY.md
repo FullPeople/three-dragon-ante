@@ -2,6 +2,8 @@
 
 > 最新阶段：本批四项实现与本机专项已通过（input12、watch13/13、deck10、mask19），原unit8/server2与build/tsc0通过；两个审计遮罩P2已补真实合法choice/ActionBar验证。待精确完整CI/发布终审/GPL包/双网站+必要server部署和公网验收，线上仍801/0.9.1；见website-feedback2 runbook。
 
+> 23时续轮：4473030首次CI37211445407在新增controls 1/19组合步骤30秒超时，原多人诊断与全部FX skipped；仅工具补细分步骤和有界白名单失败诊断，产品根因未证。冻结0588两网站本机默认GPU完整真实对局/原生绘制/恢复/继任/66秒空房14/14已通过，但不是公网/Linux/FPS；两个包仍held，线上801保持。正本website-feedback2末节。
+
 > 2026-10-04 当前新反馈：用户确认801/0.9.1线上可用，四项后续在隔离release/website-feedback2-20261004按GOAL §13实施。候选0.9.3源码执行中，未通过新全回归或部署；基线快拖六组未误拖，术士挡位已实际确认。观战/全能新边界及遗留见RUNBOOKS/2026-10-04_website-feedback2.md和TODO。
 
 > 本项目「长期决策 + 当前状态」的**跨 AI 正本**。工具私有 Memory 只存指针指这里、不复制正文。

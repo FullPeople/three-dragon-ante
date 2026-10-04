@@ -61,3 +61,19 @@ e934冻结网站包本地独立校验实际exit0：1948 tar记录、450 Git源�
 GL数值元数据增量首次本机 --reconnect-only nZCYIL实际13/13 exit0，错误/资源/外域0，语法/diffcheck0；原124条assert/wait/pass/timeout行按0588机械核逐行完全一致。此为工具安全运行预验，不能替代原完整22或精确Linux根因证据，接下来仅正常推送新增诊断的head跑原全部Linux门禁。
 
 换模型只读复核本轮诊断与公网工具准备通过：较宽筛选127条原门禁/计时行逐字未变，authority source无改。socket.write调用后corked/总bytes本身不证明flush或收到，追加真实write callback数值记录（回调也只证明stream写完成，不是客户端收到）；CDP本机13正常、GL确有数值样本但没有Linux23.8s根因证明。公网工具用冻结两前端与repo当前loopback service，不冒称包内entry现场运行或公网。
+
+### 4473030 首次 Linux CI 与失败诊断（23 时续轮）
+
+精确源码4473030c205b4909497beacd9e5126a5c228c50c正常push后，首次CI37211445407/job111463290381失败。依赖、build/typecheck/server、观战Node/牌堆Node/host-grace/auth/pending及观战browser通过；第15步新增全能controls只有1/19，在desktop-1280-default-backs等待约30秒后OtherError。第16–38步全部skipped，包含原多人握手诊断、所有FX门禁；不能称握手根因已经取证。本轮只一次下载artifact，留存ignored ci-4473-job.log与ci-4473-artifacts，result.json显示脚本/外域0、临时SQLite清理完成。这里的组合标签不能证明具体哪一个等待超时，不能据此修改产品或归因GPU/隐私。
+
+只在controls测试工具补细分步骤，以及在context关闭前采集有界白名单失败信息：数字源码行列、TimeoutError名称、DOM数量/布尔与48条focus/pointer/允许键事件。不保存异常message、DOM文字、私牌ID、连接URL、会话、projection、command或SQL。失败时每个actor采样最多2秒；原成功路径断言、19 checks与原等待期限保持，不加成功路径重试或放宽标准。首次本机运行、门禁机械比对和换模型只读审阅结果随后记录；线上仍801/0.9.1，e934/0588包仍held。
+
+增量实际验证：node --check与diffcheck exit0；新工具首次本机run-ECJdqJ完整19/19 exit0，脚本/外域0、fixtureDatabaseRemoved true，不能替Linux失败定位。根AST抽取原150条assert/equal/wait/pass/delay/setTimeout/waitFor/Function调用逐字同序（仅排除新失败采样函数），proof在ignored controls-diagnostic-gates.json；工具SHA4842405439c845c96890f30cce7c08a362c009c8d8eb3be6d0e05d8886372ce4。gpt-6.1-sol换模型独立只读复核86个assert、9个pass、36个await等待逐字同序，原19与全部视口/期限/cleanup/exit保持、未发现私数据输出或门禁弱化。观察器成功路径有小量固定DOM查询开销，不能声称零扰动；失败采样host/peer串行各2秒，总上界约4秒。后续只正常push这个有新诊断的冻结head进行首次完整CI，不重跑447原样CI、不改产品或放宽原门禁。
+
+### 冻结网站真实默认GPU完整对局预验
+
+ignored fx-website-acceptance.mjs基于原公网12项工具保留全部原验收、期限与66秒空房宽限，新增实际默认GPU双舞台及原生绘制两个正向检查。首次run-PwWhzM在8项后新增draw计数失败：observer错误使用drawArrays第二参数first作为count，保留失败；核对已安装lib.dom签名后只更正observer的count下标（drawArrays第三参数/drawElements第二参数），没有更改产品或降低正向条件。
+
+更正observer后实际run-CX0XIT完整14/14 exit0，使用0588冻结稳定/开发前端与仓库当前loopback authority、实际UI自建合成房间。两人2次前注、6次出牌、3次能力选择、1次可见权威结算；air POINTS4125/4016与ground draws1132/1109，舞台three-high/three-medium；刷新、运输断线恢复、自动房主继任、名字恢复与最后所有浏览器离开66秒后的房间解散通过。脚本、资源失败、外域均0。这是本机完整对局及真实绘制证据，不是公网、Linux全门禁、物理GPU或FPS证明。公网版本未更新。
+
+遗留同步TODO：先定位447新增controls实际超时步骤；0588原多人23.8秒延迟原因仍未知，保留原次数/期限；精确完整CI/后续FX、最终发布终审与新冻结GPL包、fresh before/定向部署/after保全及新老公网验收仍待。

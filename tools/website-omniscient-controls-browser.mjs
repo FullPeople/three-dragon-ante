@@ -20,14 +20,29 @@ mkdirSync(evidenceRoot, { recursive: true });
 const evidence = mkdtempSync(join(evidenceRoot, 'run-'));
 const fixtureDirectory = mkdtempSync(join(tmpdir(), 'tda-omniscient-controls-'));
 const database = join(fixtureDirectory, 'synthetic.sqlite');
-const checks = [], errors = [], external = [], actors = [], cases = [];
+const checks = [], errors = [], external = [], actors = [], cases = [], failureDiagnostics = [];
 const gpuIndex = process.argv.indexOf('--gpu'), gpu = gpuIndex < 0 ? 'default' : process.argv[gpuIndex + 1];
 let service, server, browser, origin, rules, createTableService, failure, step = 'load-current-build';
 const delay = ms => new Promise(done => setTimeout(done, ms));
 const pass = label => { checks.push(label); console.log('PASS ' + label); };
 const equal = (actual, expected, label) => assert.equal(JSON.stringify(actual), JSON.stringify(expected), label);
 const hash = file => createHash('sha256').update(readFileSync(file)).digest('hex');
-const safeKind = error => ['Error', 'AssertionError', 'TypeError', 'RangeError', 'SyntaxError', 'TimeoutError'].includes(error?.constructor?.name) ? error.constructor.name : 'OtherError';
+const safeKind = error => [error?.name, error?.constructor?.name].find(name => ['Error', 'AssertionError', 'TypeError', 'RangeError', 'SyntaxError', 'TimeoutError'].includes(name)) || 'OtherError';
+async function captureFailure(currentActors, error) {
+  // Capture before contexts close. Never save exception messages, DOM text,
+  // selectors containing card IDs, projections, commands or session storage.
+  const location = String(error?.stack || '').match(/website-omniscient-controls-browser\.mjs:(\d+):(\d+)/);
+  const diagnostic = { step, kind: safeKind(error), ...(location ? { sourceLine: Number(location[1]), sourceColumn: Number(location[2]) } : {}), actors: [] };
+  for (const actor of currentActors) {
+    const unavailable = { unavailable: true };
+    const snapshot = await Promise.race([
+      actor.page.evaluate(() => ({ ...globalThis.__tdaControlsDiagnostics.snapshot(), events: globalThis.__tdaControlsDiagnostics.events })).catch(() => unavailable),
+      delay(2000).then(() => unavailable),
+    ]);
+    diagnostic.actors.push(snapshot);
+  }
+  failureDiagnostics.push(diagnostic);
+}
 async function wait(check, label, timeout = 12000) { const end = Date.now() + timeout; while (!await check()) { assert.ok(Date.now() < end, label); await delay(10); } }
 function patch(old, change) { const next = { ...old, ...change.set }; for (const key of change.remove) delete next[key]; return next; }
 function accept(actor, packet) {
@@ -38,6 +53,30 @@ const state = admission => JSON.parse(service.db.prepare('SELECT state FROM room
 async function actor(label, viewport) {
   const context = await browser.newContext({ viewport, locale: 'zh-CN', reducedMotion: 'reduce' });
   const page = await context.newPage(), value = { context, page, view: null, commands: [], privateLeak: false, privateNames: [], generation: 0, viewGeneration: 0 }; actors.push(value);
+  await page.addInitScript(() => {
+    const events = [];
+    const zone = element => {
+      if (!(element instanceof Element)) return 'other';
+      if (element.closest('#table-editor')) return 'editor';
+      if (element.closest('.tda-card--hand')) return 'hand';
+      if (element.closest('.tda-card--ante')) return 'ante';
+      if (element.closest('.tda-choice')) return 'choice';
+      if (element.closest('.tda-shell')) return 'table';
+      return 'other';
+    };
+    const snapshot = () => {
+      const shell = document.querySelector('.tda-shell');
+      const flag = name => shell?.getAttribute(name) === 'true' ? true : shell?.getAttribute(name) === 'false' ? false : null;
+      return { focus: zone(document.activeElement), busy: flag('data-busy'), omniscient: flag('data-omniscient'), inspectorCount: document.querySelectorAll('.tda-inspector').length, ownHandCount: document.querySelectorAll('.tda-card--hand[data-layer=hand][data-card]').length, editorCount: document.querySelectorAll('#table-editor').length, powerCount: document.querySelectorAll('.tda-spotlight').length, formationCount: document.querySelectorAll('.tda-formation-spot').length };
+    };
+    globalThis.__tdaControlsDiagnostics = { events, snapshot };
+    for (const type of ['focusin', 'focusout', 'pointerover', 'pointerout', 'keydown']) document.addEventListener(type, event => {
+      if (!(event.target instanceof Element) || !event.target.closest('.tda-shell')) return;
+      if (type === 'keydown' && !['ArrowLeft', 'ArrowRight', 'Enter', 'Escape', ' '].includes(event.key)) return;
+      events.push({ at: Math.round(performance.now()), type, zone: zone(event.target), ...(type === 'keydown' ? { key: event.key === ' ' ? 'Space' : event.key } : {}), ...snapshot() });
+      if (events.length > 48) events.shift();
+    }, { capture: true, passive: true });
+  });
   context.on('request', request => { if (!request.url().startsWith(origin + '/')) external.push('unexpected-origin'); });
   await context.route('**/*', route => route.request().url().startsWith(origin + '/') ? route.continue() : route.abort());
   page.on('pageerror', () => errors.push('page-error'));
@@ -137,10 +176,18 @@ async function run(viewport) {
 
     step = label + '-default-backs';
     // Prime a normal private inspector, then verify entering inspection clears it.
+    step = label + '-prime-private-inspector-focus';
     await host.page.locator('.tda-card--hand[data-layer=hand][data-card]').first().focus(); await host.page.keyboard.press('ArrowRight');
+    step = label + '-prime-private-inspector-visible';
     await host.page.locator('.tda-inspector').waitFor();
-    const beforeInspection = state(admission); await shortcut(host); await host.page.locator('#table-editor').waitFor();
+    const beforeInspection = state(admission);
+    step = label + '-inspection-shortcut';
+    await shortcut(host);
+    step = label + '-inspection-editor-visible';
+    await host.page.locator('#table-editor').waitFor();
+    step = label + '-inspection-authorized-view';
     await wait(() => host.view?.game?.omniscient && host.view?.canEdit, 'actual hidden shortcut is authorized');
+    step = label + '-default-backs';
     equal(state(admission), beforeInspection, 'hidden shortcut does not play or edit'); await hidden(host, admission);
     await host.page.locator('#table-editor .tda-editor-hand [data-card]').first().hover(); assert.equal(await host.page.locator('.tda-inspector').count(), 0, 'hover on a hidden editor card cannot show private inspection');
     await host.page.locator('.tda-card--hand[data-layer=hand][data-card]').first().focus(); await host.page.keyboard.press('ArrowRight'); await host.page.keyboard.press('Space'); await host.page.keyboard.press('Escape');
@@ -206,7 +253,8 @@ async function run(viewport) {
     await shortcut(host); await host.page.locator('#table-editor').waitFor(); await hidden(host, admission); result.finalGeometry = await geometry(host);
     await ordinaryOwnHand(peer, admission); assert.equal(peer.privateLeak, false); result.completed = true;
     pass(label + ': public discard remains face up and pointer-inspectable; private hidden mode and ordinary peer hand remain intact');
-  } finally { await host.context.close(); await peer.context.close(); }
+  } catch (error) { await captureFailure([host, peer], error); throw error; }
+  finally { await host.context.close(); await peer.context.close(); }
 }
 async function runUncommittedSelection(viewport) {
   const label = (viewport.width === 390 ? 'mobile-390' : 'desktop-1280') + '-uncommitted-selection';
@@ -244,7 +292,8 @@ async function runUncommittedSelection(viewport) {
     await ordinaryOwnHand(peer, admission); assert.equal(peer.privateLeak, false);
     Object.assign(result, { completed: true, selectionPromptHidden: true, directHiddenSpacePromptHidden: true, anteButtonRetained: true, gameUnchanged: true });
     pass(label + ': Show all / real Space selection / Hide and direct hidden Space retain Ante while the ActionBar exposes no private name or strength');
-  } finally { await host.context.close(); await peer.context.close(); }
+  } catch (error) { await captureFailure([host, peer], error); throw error; }
+  finally { await host.context.close(); await peer.context.close(); }
 }
 const choiceVariant = { ruleSetId: 'provided-pack-20260910', deckId: 'selected-specials-v1', specialIds: ['bahamut', 'black-raider', 'blue-overlord', 'brass-sultan', 'bronze-warlord', 'chromatic-wyrmling', 'copper-trickster', 'dracolich', 'kobold', 'sorcerer'] };
 const trimRuleGame = game => ({ ...game, history: (game.history || []).slice(-24), historyComplete: false, accepted: {} });
@@ -369,7 +418,8 @@ async function runLegalChoice(viewport, family) {
     assert.equal(peer.privateLeak, false);
     Object.assign(result, { completed: true, privateCandidateMasked: isPrivate, publicCandidatesRemainFront: !isPrivate, showHidePreservesSelection: true, actualLegalChoiceConfirmed: true, ordinaryPublicPointerInspector: !isPrivate });
     pass(label + ': actual legal fixture masks private candidate fronts/alt/strength and stale inspect, preserves public Sorcerer candidates, and real keyboard or normal pointer confirmation commits once');
-  } finally { await host.context.close(); await peer.context.close(); }
+  } catch (error) { await captureFailure([host, peer], error); throw error; }
+  finally { await host.context.close(); await peer.context.close(); }
 }
 try {
   assert.ok(['default', 'software'].includes(gpu), 'GPU mode is default or software');
@@ -398,7 +448,7 @@ finally {
   try { if (service) await service.close(); if (server) await new Promise(done => server.close(done)); } catch { failure ||= { step: 'service-cleanup', kind: 'Error' }; }
   try { for (const suffix of ['', '-wal', '-shm']) if (existsSync(database + suffix)) unlinkSync(database + suffix); rmdirSync(fixtureDirectory); } catch { failure ||= { step: 'synthetic-fixture-cleanup', kind: 'Error' }; }
 }
-writeFileSync(join(evidence, 'result.json'), JSON.stringify({ completed: !failure, checks, passed: checks.length, expectedChecks: 19, cases, gpu, authoritySha256: existsSync(serviceFile) ? hash(serviceFile) : null, siteIndexSha256: existsSync(join(dist, 'index.html')) ? hash(join(dist, 'index.html')) : null, sourceHashes: Object.fromEntries(['presentation/hud/Editor.tsx', 'presentation/hud/DeckOrderPanel.tsx', 'presentation/hud/ActionBar.tsx', 'presentation/hud/ChoicePanel.tsx', 'presentation/app/TableApp.tsx', 'presentation/scene/CardLayer.tsx', 'presentation/mount.ts'].map(file => [file, hash(join(root, 'extensions/three-dragon-ante/src', file))])), scriptErrors: errors.length, externalRequests: external.length, fixtureDatabaseRemoved: !existsSync(database), failure,
+writeFileSync(join(evidence, 'result.json'), JSON.stringify({ completed: !failure, checks, passed: checks.length, expectedChecks: 19, cases, gpu, authoritySha256: existsSync(serviceFile) ? hash(serviceFile) : null, siteIndexSha256: existsSync(join(dist, 'index.html')) ? hash(join(dist, 'index.html')) : null, sourceHashes: Object.fromEntries(['presentation/hud/Editor.tsx', 'presentation/hud/DeckOrderPanel.tsx', 'presentation/hud/ActionBar.tsx', 'presentation/hud/ChoicePanel.tsx', 'presentation/app/TableApp.tsx', 'presentation/scene/CardLayer.tsx', 'presentation/mount.ts'].map(file => [file, hash(join(root, 'extensions/three-dragon-ante/src', file))])), scriptErrors: errors.length, externalRequests: external.length, fixtureDatabaseRemoved: !existsSync(database), failure, failureDiagnostics,
   scope: 'Real built website controls in desktop and 390px browser viewports, actual loopback HTTP/WS authority and disposable synthetic SQLite. Choice cases are explicit actual-engine-generated legal fixtures, not natural complete games. Omniscient background choices are DOM/focus/keyboard checks, not visible pointer acceptance; public normal Sorcerer is actual pointer acceptance. Safe labels/counts/booleans/code hashes plus default-back screenshots only; no stored session/projection/token/card ID/SQL or revealed-hand screenshots. No production rooms, public deployment or physical-device UAT.' }, null, 2) + '\n');
 console.log(JSON.stringify({ completed: !failure, passed: checks.length, evidence, ...(failure ? { failure } : {}) }));
 if (failure) process.exitCode = 1;
