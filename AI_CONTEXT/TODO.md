@@ -5,6 +5,9 @@
 
 ## 待办
 
+- [x] 7e648660精确CI37200539392首次实际结果与artifact已取：多人22项通过，FX前7checks及新计数保全完成，candidate原900ms仅19ticks未满足>20；baseline32/max4、candidate19/max1/effectsAfter0、workload28/max1。
+- [ ] 原fixed-duration采样不足的真实frame完成同步、独立审计/首次本机与精确完整CI、新包/定向部署/公网验收；不改>20和原结构断言，不宣称性能改善，旧失败全部保留。
+
 - [x] 原多人expired等待连接/lifecycle安全诊断prepare及换模型审核通过，tool3932a286，原81assert/42wait/4timer/19pass与流程保留；无新browser/产品整改。
 - [ ] 该新冻结首次Linux原流程/生命周期采证与完整CI；保留111原17pass后超时和6d2/d580失败，不盲重跑到通过、不改期限/次数/前台前置。
 

@@ -40,3 +40,14 @@ https://github.com/FullPeople/three-dragon-ante/actions/runs/37196321804 对应�
 首次性能有界profilingrun-nDHg9Z自然exit0、所有资源关闭，原benchmark run-RUi1DO五结构检查/十八样本完整；两指定candidate窗口通过固定mark确认renderer-main，无截断或超时。surface texture uploads/drawArrays及coin drawImage起止均18/13/256，增量0；hover Paint多，但记录JS/布局/绘制单次耗时不足以解释400ms级rAF/输入往返。Tracing全局GPU与其他fixture不归给candidate；具体CSS/软件GL/输入因果仍未知，没有直接整改依据，插桩FPS不替此前未插桩样本。完整实际哈希、事件、相位、匿名栈及下一步在performance-profiling runbook。
 
 1117450冻结worktree只完成Node22.17.1及两npm ci --ignore-scripts（均exit0），没有build/打包/上传/apply。本轮已准备的6d2包仅为检查点，其两target973文件/GPL436blob/1阳性11阴性独立核验通过，CI不通过则发布不通过。线上fresh公开metadata仍801/0.9.1，health=true；误猜release-info.json的404另留ignored原观察，正确three-dragon-release.json已独立200确认。所有新失败与未知均双落TODO，不自行暂停目标或标为blocked。
+
+
+## 7e首次实际CI：采样数量已确定
+
+精确head7e6486602f32ac290e907f57349bac9264356ae7的CI37200539392已完成failure，root读取完整JSON、failed log及一次artifact下载exit0。已通过29个总步骤；多人原22项全部通过且error/external/resource失败0，不把此前111过期等待失败包装为本轮根因已治。第27FX原前7checks均通过，两屏airShown/hitIsCard=true；后三类时间比较真实JSON在ci-7e64866-artifacts/fx3d-alignment/run-vsOtGB/render-chain.json。
+
+baseline triggered3/updates120/ticks32/max4，candidate triggered3/updates19/ticks19/frames19/renders19/max1/effectsAfter0，workload frames28/renders28/max1/effectsAfter0。真实原 >20 合取因此失败；后六run步骤skipped，不能以旧042或本地测试替代。当前与d580生产逐字一致，没有新部署。
+
+原sample令fixture只活到performance.now()+900，而随后1250ms等待不增加900后已结束effect的有效样本。当前19次回调/渲染一致，没有重复链证据；具体慢原因未知。>20门槛配固定900ms实际上引入约22.2fps门槛，但此专项声明为嵌套add/wake单链结构而非FPS基准。独立审计认可下步只改fixture采样完成方式：保留原 >20 和所有结构/清理断言，以实际至少24个非null native RAF timestamp收尾，真实四effect销毁及下一原生frame屏障排空旧链，15秒独立失败期限防卡死。不造帧、改计数、降低门槛或sleep更久赌通过；明确采样时间语义已改，不能称原900/1250保持，也不由测试修正宣称用户性能问题已解决。
+
+准备不等于修复通过，下一首次实际工具/完整精确CI/新freeze包审与部署仍待，遗留双落TODO。当前正确热修复0.9.1持续可用，Suite/枭熊入口保留原链接。
