@@ -20,6 +20,8 @@ npm run dev
 
 进行中退出对局或新开一局会先确认，取消保持当前牌局。最后一人断线后立即释放服务内存缓存，保留 60 秒重连宽限；每 5 秒扫描到期空房，删除房间及成员、凭据、历史和回执。新建却始终未连接的房间也会过期，网站房间数量受服务上限控制。还有玩家在线时不解散，旧 Owlbear 存档不适用该新网站策略。
 
+网站全能模式仅限当前房主：在牌桌上依次按 `fuvtt` 再按 Enter。没有可见入口，名字、搜索框和编辑文本中不触发；普通玩家没有此权限。关闭、刷新、断线、超时或房主交接后恢复普通私牌视图，重新开启需要主动输入键序。
+
 构建输出在 `extensions/three-dragon-ante/dist/`；`npm run preview` 预览生产构建（端口 4173）。
 
 ## 目录
@@ -63,6 +65,12 @@ npm run test:server      # 真实本地 WebSocket + SQLite
 npm run test:browser     # 在线首页：随机名/编辑/帮助/语言/窄屏；无本地对战
 npm run test:server-browser   # 保留历史枭熊宿主的四客户端兼容回归，不是新公开入口
 npm run test:fx3d         # 特效层相机与 CSS 牌桌对齐
+npm run test:fx3d-lifecycle # 双画布丢失/恢复、2D回退、画质与拖拽资源清理
+npm run test:site-presentation # 真实网站WS回执与非减少动态演出，四种合法引擎场景
+npm run test:website-omniscient # 隐藏键序、服务端房主授权与断线/超时撤权
+npm run test:nameplate    # 2–6席长名/完整财务和材质、桌面与窄屏
+npm run test:flight-layer # 真实前后版飞牌层叠/几何、减少动态价牌
+npm run test:performance-structure # 六人实际组件与冻结旧组件结构对照，不设FPS阈值
 npm run test:guest-server # 唯一名字、重连、事务、持久化、私牌和旧协议共存
 npm run test:empty-room  # 空房过期/数量限制/全记录清理/重连/重启/回退兼容
 npm run test:site-multiplayer # 网站完整一轮、顶部按钮/确认、刷新/断线/重启、凭据终态
@@ -71,6 +79,8 @@ node tools/site-entry-browser.mjs # 所有插件/iframe入口只有原生网站�
 ```
 
 先完成两份依赖安装与前端 / 服务端构建。Windows 默认用已安装的 Edge；其他系统先执行 `npx playwright install chromium`。证据写入 `.local-evidence/`（gitignore）。枭熊身份边界是夹具，不等同真实账号房间验收。
+
+飞牌和性能的历史组件对照需要完整 Git 历史（CI 使用 `fetch-depth: 0`）；发布的源码 ZIP 可重建当前应用，不包含 `.git`。性能计时另用 `npm run test:performance-compare`，不作为真实弱设备验收。
 
 ## 素材与许可
 

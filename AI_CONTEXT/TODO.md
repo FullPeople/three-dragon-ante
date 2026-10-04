@@ -6,11 +6,13 @@
 ## 待办
 
 - [x] 2026-10-04 附件 `2afca326` 的17条特效/合成层提交隔离整合，当前在线0.9.1反馈实现和所有原测例保留；审计舞台生命周期/桌形/拖拽/金币横竖屏问题整改，见 `RUNBOOKS/2026-10-04_fx3d-integration.md`。
-- [ ] 附件整合候选：完整CI/当前软件GL 6人受控性能复测、真实弱机/实体手机、换模型独立终审、源冻结与线上验收；本机专项不能替代这些。
+- [ ] 附件整合候选：完整CI/当前软件GL 6人受控性能复测、换模型独立终审、源冻结与线上验收；本机专项不能替代这些。
+- [ ] 附件性能修复的真实弱机/实体手机人工体验验收，独立于软件GL合成对照；见fx3d-integration和presentation-feedback runbooks。
+- [ ] 六人软件GL实际悬停/拖拽仍有p95 316.7/283.4ms长帧：后续做CPU/GPU归因与真实弱机复测；四组件对照FPS改善不等于流畅验收，见presentation-feedback runbook与run-I2zaIF。
 
-- [ ] 2026-10-04 0.9.1反馈：本家回执不取消能力/切换/结算，购买提示先翻牌补牌，真实非reduced网络演出专项；见GOAL§11与presentation-feedback runbook。
-- [ ] 0.9.1飞牌独立覆盖/几何、长名数字边界与金属点数材质实际浏览器复核。
-- [ ] 0.9.1隐藏全能仅当前房主，键序不干扰输入/出牌；真实断网/刷新/交接立即撤权与私投影清理复核。
+- [x] 2026-10-04 0.9.1反馈：本家回执不取消能力/切换/结算，购买提示先翻牌补牌，真实非reduced网络四场13项；见4f6fc6a/893e6c4与presentation-feedback runbook。
+- [x] 0.9.1飞牌独立覆盖/几何10项、长名数字边界与金属点数材质实际浏览器21项。
+- [x] 0.9.1隐藏全能仅当前房主，键序不干扰输入/出牌；真实断网/超时/刷新/交接立即撤权，恢复后实际合法前注，13项。
 - [ ] 0.9.1完整回归/CI、冻结候选换模型审计、freshbaseline定向部署与公网验收，双落本轮runbook。
 
 - [x] 第三方素材下载（用户 2026-10-03 同意）：Poly Haven dark_wood / medieval_wood / brown_leather / metal_plate，ambientCG Fabric034 / Paper006，Kenney Casino Audio；已压缩入库并登记 `docs/design/ASSETS.md`。
