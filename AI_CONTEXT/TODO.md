@@ -5,6 +5,10 @@
 
 ## 待办
 
+- [x] 新goal续轮：原FX合取断言安全诊断准备获换模型独立认可，28assert/7page+locator wait/6pass/取点与fixture逐字保持，仅公开数字/布尔/固定类别于原assert前输出；tool9a2c1064，见fx3d-pointer-diagnostic runbook。
+- [ ] 新精确源码首次本机构建/FX诊断及Linux完整CI实际同帧采证；未取得两个操作数前不能称拦截或偶发根因，不改原期限凑数、失败停，0.9.2仍未部署。
+
+
 - [x] 线上0.9.1/801已发布双网站及必要server，公网12/默认GPU隐藏8完整通过；其他插件保留网站链接，不重发。
 - [x] d580真实hold画质6/生产驻留参数14和冻结973×2/GPL434blob包审核完成，仅本地候选；见同日website-release-status runbook。
 - [ ] d580精确CI37196321804原test:fx3d第27步骤失败（airShown && hitIsCard未分开记录）；后六CI检查跳过，停止0.9.2发布。先安全诊断真实原语，不改原断言/期限凑数或用旧CI代替；再完整CI/终审/冻结与部署。
