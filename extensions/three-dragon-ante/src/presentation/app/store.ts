@@ -38,7 +38,7 @@ export interface ShowState {
   /** 幽灵牌刚送到的座位：这一帧新出现的手牌节点直接到位，不再播进场 */
   arrived: string[];
 }
-export interface GhostCard { key: string; cardId?: string; from: Pose; to: Pose; delay: number; duration: number; faceDown: boolean; flip?: boolean }
+export interface GhostCard { key: string; cardId?: string; from: Pose; to: Pose; delay: number; duration: number; faceDown: boolean; flip?: boolean; /** 公开 BUY_PRICE 的事件键，用于先说明、再翻价牌与补牌。 */ purchaseKey?: string }
 export interface UIState {
   lang: Lang;
   hostKind: "website" | "obr";

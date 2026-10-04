@@ -223,15 +223,21 @@ try {
   const dealt = state(room);
   assert.equal(observer.view.game.hand, undefined); assert.equal(observer.view.game.selfSeatId, undefined);
   for (const client of [...playing, observer]) privacy(client, dealt, client.messages);
-  for (const type of ['inspect', 'omniscient']) for (const client of [host, alice]) {
-    assert.equal((await command(client, {type, enabled: true})).code, 'notAllowed');
-  }
+  for (const type of ['inspect', 'omniscient']) assert.equal((await command(alice, {type, enabled: true})).code, 'notAllowed');
   assert.equal((await command(host, {type: 'edit', gameId: dealt.game.id, edit: {type: 'gold', value: 999}})).code, 'notAllowed');
+  for (const type of ['inspect', 'omniscient']) {
+    assert.equal((await command(host, {type, enabled: true})).ok, true);
+    assert.equal(host.view.game.omniscient, true); assert.equal(host.view.canEdit, true);
+    assert.deepEqual(host.view.game.privateHands, Object.fromEntries(dealt.game.seats.map(seat => [seat.id, seat.hand])));
+    privacy(alice, dealt);
+    assert.equal((await command(host, {type, enabled: false})).ok, true);
+    privacy(host, dealt);
+  }
   const newcomer = await post(guestPath(room), {name: 'Late player'});
   assert.equal(newcomer.status, 409); assert.equal(newcomer.data.error, 'gameStarted');
   const kickedRecovery = await post(guestPath(room), {name: 'Player 5', reconnectToken: observer.session.token});
   assert.equal(kickedRecovery.status, 409); assert.equal(kickedRecovery.data.error, 'gameStarted');
-  pass('failed start sends no deal; committed private/public guest projections conceal all other hands/deck and owner inspect/edit remains forbidden');
+  pass('failed start sends no deal; ordinary guest projections conceal other hands/deck; only the current owner can explicitly inspect and closing revokes editing');
 
   const firstAction = {id: 'guest-rollback-action', revision: dealt.game.revision, seatId: host.view.game.selfSeatId, kind: 'ante', cardId: host.view.game.hand[0]};
   const firstCommand = {type: 'action', gameId: dealt.game.id, action: firstAction};

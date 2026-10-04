@@ -6,6 +6,7 @@ import { cardFaceURL } from "../../game/card-images";
 import { CardBackArt } from "./CardBack";
 import type { Pose } from "../model/layout";
 import { reducedMotion } from "../fx/motion";
+import "./flight.css";
 
 const transformOf = (p: Pose) => `translate3d(${p.x}px, ${p.y}px, ${p.z}px) rotateZ(${p.rot}deg) scale(${p.scale})`;
 
@@ -13,7 +14,11 @@ function Ghost({ ghost }: { ghost: GhostCard }) {
   const ref = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     const el = ref.current; if (!el) return;
-    if (reducedMotion()) { el.style.transform = transformOf(ghost.to); return; }
+    if (reducedMotion()) {
+      el.style.transform = transformOf(ghost.to);
+      if (ghost.flip && ghost.cardId) el.classList.toggle("is-face-down");
+      return;
+    }
     const { from, to } = ghost;
     const mid: Pose = { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2, rot: (from.rot + to.rot) / 2, scale: Math.max(from.scale, to.scale) * 1.08, z: Math.max(from.z, to.z) + 120 };
     const lift: Pose = { ...from, z: from.z + 70 };
@@ -38,5 +43,5 @@ function Ghost({ ghost }: { ghost: GhostCard }) {
 
 export function GhostLayer({ ghosts }: { ghosts: GhostCard[] }) {
   if (!ghosts.length) return null;
-  return <div className="tda-ghost-layer">{ghosts.map(ghost => <Ghost key={ghost.key} ghost={ghost} />)}</div>;
+  return <div className="tda-flight-layer" aria-hidden="true"><div className="tda-flight-plane"><div className="tda-ghost-layer">{ghosts.map(ghost => <Ghost key={ghost.key} ghost={ghost} />)}</div></div></div>;
 }

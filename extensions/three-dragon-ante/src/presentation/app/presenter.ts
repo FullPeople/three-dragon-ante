@@ -4,7 +4,7 @@
  * 末牌与结算同帧时，投影里牌阵已清空：用上一帧 + 公开的 ScoreReport 合成"结算帧"，整段演出都在这一帧上做，演完才切到结算后的投影。
  * 这里永远不改规则状态，只决定"什么时候把哪一帧给场景看"。减少动态偏好下动画瞬移，但顺序与等待时长不变。 */
 import type { TableView } from "../../game/protocol";
-import type { PublicEvent, PublicView, ScoreReport, SeatView } from "../../game/rules/types";
+import type { OmniscientView, PublicEvent, PublicView, ScoreReport, SeatView } from "../../game/rules/types";
 import { card } from "../../game/rules/cards";
 import { derivePresentation, freshPublicEvents, type FormationCue, type Presentation, type PublicGoldFlow, type PowerCue, type RevealCue, type RoundCue } from "../model/cues";
 import { wait } from "../fx/motion";
@@ -134,7 +134,8 @@ export function cardMoves(previous: TableView, next: TableView, events: readonly
   let t = 0; const push = (g: Omit<GhostCard, "delay" | "duration" | "key">, ms = 520) => { ghosts.push({ key: `${stamp}:g${ghosts.length}`, delay: t, duration: ms, ...g }); t += 110; };
   const played = events.find(e => e.code === "CARD_PLAYED" && e.seatId);
   const buy = events.find(e => e.code === "BUY_PRICE" && e.seatId);
-  for (const e of events) {
+  const purchaseKeys = new Map(events.flatMap((e, i) => e.code === "BUY_PRICE" && e.seatId ? [[e.seatId, `${stamp}:event:${i}`] as const] : []));
+  for (const [i, e] of events.entries()) {
     if (e.code === "CARD_TRANSFERRED" && e.seatId && e.targetSeatId) {
       // 被偷的是最后一张牌背（它正是下一帧消失的那张）
       const victim = pg.seats.find(s => s.id === e.seatId); if (victim && e.seatId !== selfId) tug = { seatId: e.seatId, index: Math.max(0, Math.min(victim.handCount, 10) - 1) };
@@ -146,7 +147,7 @@ export function cardMoves(previous: TableView, next: TableView, events: readonly
       bump(inflow, e.seatId, n);
     } else if (e.code === "BUY_PRICE" && e.cardIds?.length) {
       // 买牌的"价格牌"：牌库顶翻到弃牌堆（公开 id）
-      for (const id of e.cardIds) push({ cardId: id, from: deck, to: discard, faceDown: true, flip: true }, 480);
+      for (const id of e.cardIds) push({ cardId: id, from: deck, to: discard, faceDown: true, flip: true, purchaseKey: `${stamp}:event:${i}` }, 480);
     }
   }
   // 前注区的牌被拿进手牌（青铜龙 / 同点牌阵奖励）
@@ -165,7 +166,7 @@ export function cardMoves(previous: TableView, next: TableView, events: readonly
     // 打出的那张不是"弃牌"，也不抵消抽牌；被偷走 / 交出的那张已由幽灵牌解释
     const delta = s.handCount - before + (played?.seatId === s.id ? 1 : 0) + (outflow.get(s.id) ?? 0) - (inflow.get(s.id) ?? 0);
     if (delta < 0 && discardDelta > 0) for (let i = 0; i < Math.min(4, -delta, discardDelta); i++) push({ from: handOf(s.id), to: discard, faceDown: s.id !== selfId }, 460);
-    for (let i = 0; i < Math.min(6, delta); i++) push({ from: deck, to: handTo(s.id), faceDown: true }, 520);
+    for (let i = 0; i < Math.min(6, delta); i++) push({ from: deck, to: handTo(s.id), faceDown: true, purchaseKey: purchaseKeys.get(s.id) }, 520);
     drawn += Math.max(0, delta);
   }
   // 手牌数不变却既抽了牌又弃了牌（狗头人"弃 N 抽 N"、买牌后弃到上限）：牌库多出的减少量 = 这家先弃后抽的张数，归到买牌 / 刚做选择的那家
@@ -173,7 +174,7 @@ export function cardMoves(previous: TableView, next: TableView, events: readonly
   const who = buy?.seatId ?? pg.choice?.seatId ?? null;
   if (extra > 0 && who) {
     for (let i = 0; i < Math.min(4, extra); i++) push({ from: handOf(who), to: discard, faceDown: who !== selfId }, 460);
-    for (let i = 0; i < Math.min(4, extra); i++) push({ from: deck, to: handTo(who), faceDown: true }, 520);
+    for (let i = 0; i < Math.min(4, extra); i++) push({ from: deck, to: handTo(who), faceDown: true, purchaseKey: purchaseKeys.get(who) }, 520);
   }
   const arrived = [...arrivedSeats];
   return { ghosts, tug, arrived };
@@ -181,6 +182,30 @@ export function cardMoves(previous: TableView, next: TableView, events: readonly
 
 type GoldHold = { seats: Record<string, number>; stakes: number; hole: number };
 const goldOf = (view: TableView | null): GoldHold | null => { const g = view?.game; return g ? { seats: Object.fromEntries(g.seats.map(s => [s.id, s.gold])), stakes: g.stakes, hole: g.hole } : null; };
+
+/** 同帧还有购买时，先保留购买前的手牌与牌堆。只遮住已收到的新牌，不造牌或推断对手牌面。 */
+export function purchaseHoldFrame(previous: TableView, next: TableView, events: readonly PublicEvent[], orientation: "landscape" | "portrait"): TableView {
+  const pg = previous.game, ng = next.game;
+  const buys = events.filter(event => event.code === "BUY_PRICE");
+  if (!pg || !ng || !buys.length) return next;
+  const moves = cardMoves(previous, next, events, orientation);
+  const counts = new Map(buys.flatMap(event => {
+    if (!event.seatId) return [];
+    const key = `${ng.id}:${ng.revision}:event:${events.indexOf(event)}`;
+    return [[event.seatId, moves.ghosts.filter(ghost => ghost.purchaseKey === key && !ghost.cardId).length] as const];
+  }));
+  const priceIds = new Set(buys.flatMap(event => event.cardIds ?? []));
+  const own = "selfSeatId" in ng && "hand" in ng ? ng as SeatView : null;
+  const previousOwn = "hand" in pg ? pg as SeatView : null;
+  const keptHand = own && counts.has(own.selfSeatId) ? own.hand.filter(value => previousOwn?.hand.some(old => old.id === value.id)) : own?.hand;
+  const omniscient = "omniscient" in ng && ng.omniscient === true ? ng as OmniscientView : null;
+  const previousOmniscient = "omniscient" in pg && pg.omniscient === true ? pg as OmniscientView : null;
+  // 已授权的全能画面同样等补牌飞到后才显示新牌；普通投影绝不新增全能字段。
+  const keptHands = omniscient ? Object.fromEntries(Object.entries(omniscient.privateHands).map(([seatId, hand]) => [seatId, counts.has(seatId) ? hand.filter(value => previousOmniscient?.privateHands[seatId]?.some(old => old.id === value.id)) : hand])) : null;
+  const seats = ng.seats.map(seat => ({ ...seat, handCount: keptHands && counts.has(seat.id) ? keptHands[seat.id]?.length ?? 0 : seat.id === own?.selfSeatId && keptHand ? keptHand.length : Math.max(0, seat.handCount - (counts.get(seat.id) ?? 0)) }));
+  const game = { ...ng, seats, deckCount: pg.deckCount, discard: ng.discard.filter(value => !priceIds.has(value.id)), ...(own && keptHand ? { hand: keptHand, actions: [], handPowerHints: own.handPowerHints.filter(hint => keptHand.some(value => value.id === hint.cardId)) } : {}), ...(keptHands ? { privateHands: keptHands } : {}) } as PublicView | SeatView;
+  return { ...next, game };
+}
 
 export function createPresenter(store: Store, controller: Controller, hooks: PresenterHooks) {
   const queue: QueueItem[] = [];
@@ -209,8 +234,13 @@ export function createPresenter(store: Store, controller: Controller, hooks: Pre
   const beat = (ms = BEAT_MS) => wait(ms);
   const show = (patch: Partial<ReturnType<typeof emptyShow>>) => store.set(s => ({ show: { ...s.show, ...patch } }));
   /** 场景帧（卡牌、金币）。流程轨 / 等待行读的是 flow 帧，只在演出结束后更新。 */
-  const display = (view: TableView) => store.set({ display: view });
-  const commitFlow = (view: TableView) => store.set({ flow: view });
+  // 同 revision 的 ack / 身份更新只换宿主字段，不能把落地帧、结算帧或队列换成完整新投影。
+  const latestEnvelope = (view: TableView): TableView => {
+    const latest = store.get().view;
+    return latest !== view && latest?.game && view.game && latest.game.id === view.game.id && latest.game.revision === view.game.revision ? { ...latest, game: view.game } : view;
+  };
+  const display = (view: TableView) => store.set({ display: latestEnvelope(view) });
+  const commitFlow = (view: TableView) => store.set({ flow: latestEnvelope(view) });
   // 金币数字冻结在上一帧，每段弧线落地后再把这一笔记进去，直到演出结束才解除冻结
   const holdGold = (view: TableView | null) => { if (!store.get().goldHold) store.set({ goldHold: goldOf(view) }); };
   const releaseGold = () => store.set({ goldHold: null });
@@ -233,12 +263,15 @@ export function createPresenter(store: Store, controller: Controller, hooks: Pre
    *  没有幽灵牌时**同步返回**（不让出事件循环）：否则待确认的牌会在中间帧回到手牌再飞一次。
    *  接收方的新节点在下一帧直接到位（arrived），不再播自己的进场动画。 */
   function transfers(previous: TableView, view: TableView, events: readonly PublicEvent[], gen: number): Promise<void> | null {
-    const { ghosts, tug, arrived } = cardMoves(previous, view, events, store.get().orientation);
+    const moves = cardMoves(previous, view, events, store.get().orientation);
+    const ghosts = moves.ghosts.filter(ghost => !ghost.purchaseKey), tug = moves.tug;
+    const purchaseSeats = new Set(events.filter(event => event.code === "BUY_PRICE").map(event => event.seatId));
+    const arrived = moves.arrived.filter(seatId => !purchaseSeats.has(seatId));
     if (!ghosts.length) return null;
     return (async () => {
       const wasBusy = store.get().busy; setBusy(true);
       if (tug) { show({ tug }); hooks.sound("draw", `${view.game?.id}:${view.game?.revision}:tug`); await beat(620); if (gen !== generation) return; show({ tug: null }); }
-      show({ ghosts, arrived }); for (const g of ghosts) hooks.sound("draw", `${view.game?.id}:${view.game?.revision}:${g.key}`);
+      show({ ghosts, arrived: [...new Set([...store.get().show.arrived, ...arrived])] }); for (const g of ghosts) hooks.sound("draw", `${view.game?.id}:${view.game?.revision}:${g.key}`);
       const total = Math.max(...ghosts.map(g => g.delay + g.duration)) + 60;
       await beat(total); if (gen !== generation) return;
       show({ ghosts: [] });
@@ -250,7 +283,7 @@ export function createPresenter(store: Store, controller: Controller, hooks: Pre
 
   async function runReveal(item: QueueItem, gen: number) {
     const reveal = item.pres.reveal!;
-    const frame = revealFrame(item.view, reveal), game = frame.game!;
+    const frame = revealFrame(purchaseHoldFrame(item.previous, item.view, item.events, store.get().orientation), reveal), game = frame.game!;
     const strengths = reveal.cardIds.map(id => safeCard(id)?.strength ?? 0);
     const top = Math.max(...strengths), topIds = reveal.cardIds.filter((id, i) => strengths[i] === top);
     holdGold(item.previous);
@@ -275,7 +308,7 @@ export function createPresenter(store: Store, controller: Controller, hooks: Pre
     }
     if (gen !== generation) return;
     show({ reveal: null, revealPhase: null, revealTopIds: [], tally: null });
-    if (frame !== item.view) display(item.view);
+    if (frame !== item.view) display(purchaseHoldFrame(item.previous, item.view, item.events, store.get().orientation));
   }
 
   function waitDismiss(open: () => void, close: () => void): Promise<void> {
@@ -294,6 +327,28 @@ export function createPresenter(store: Store, controller: Controller, hooks: Pre
     await beat(cue.kind === "turn" ? 1500 : cue.kind === "end" ? 2600 : 1800);
     if (gen !== generation) return;
     show({ banner: null });
+  }
+
+  /** 公开购买逐家演：说明先出现，之后翻价牌、付款、补牌。补牌始终为匿名牌背。 */
+  async function purchase(item: QueueItem, cue: Extract<RoundCue, { kind: "purchase" }>, gen: number) {
+    holdGold(item.previous);
+    const moves = cardMoves(item.previous, item.view, item.events, store.get().orientation);
+    await banner(cue, gen); if (gen !== generation) return;
+    const ghosts = moves.ghosts.filter(ghost => ghost.purchaseKey === cue.key);
+    const prices = ghosts.filter(ghost => !!ghost.cardId), draws = ghosts.filter(ghost => !ghost.cardId);
+    const fly = async (cards: GhostCard[]) => {
+      if (!cards.length) return;
+      // 原转移队列的全局延迟不能让下一家购买等待上一家的重复空档。
+      const rebased = cards.map((ghost, i) => ({ ...ghost, delay: i * 110 }));
+      show({ ghosts: rebased });
+      for (const ghost of rebased) hooks.sound(ghost.flip ? "flip" : "draw", ghost.key);
+      await beat(Math.max(...rebased.map(ghost => ghost.delay + ghost.duration)) + 60);
+      if (gen === generation) show({ ghosts: [] });
+    };
+    await fly(prices); if (gen !== generation) return;
+    await goldArcs(cue.flows, gen); if (gen !== generation) return;
+    if (draws.length) show({ arrived: [...new Set([...store.get().show.arrived, cue.seatId])] });
+    await fly(draws); if (gen !== generation) return;
   }
 
   async function scoreboard(cue: Extract<RoundCue, { kind: "score" }>, gen: number) {
@@ -345,7 +400,8 @@ export function createPresenter(store: Store, controller: Controller, hooks: Pre
         const scoreCue = pres.rounds.find((c): c is Extract<RoundCue, { kind: "score" }> => c.kind === "score");
         // 结算帧：末牌与结算同帧时，整段演出（落牌、能力、特殊牌阵、拼点、计分板）都在合成帧上做
         const settlement = scoreCue ? settlementFrame(previous, view, events, scoreCue.report) : null;
-        const shown = settlement ?? view;
+        const beforePurchases = purchaseHoldFrame(previous, view, events, store.get().orientation);
+        const shown = settlement ?? beforePurchases;
         if (pres.reveal) { await runReveal(item, gen); if (gen !== generation) return; }
         else if (pres.powers.length) {
           // 第一步：只落牌（抽出 → 落下 → 尘土）。第二步：停一拍、聚焦。第三步：说明。第四步：能力特效与金币。
@@ -378,7 +434,7 @@ export function createPresenter(store: Store, controller: Controller, hooks: Pre
             if (gen !== generation) return;
             // 卡牌转移（抽 / 偷 / 取前注）在特效之后、显示新帧之前，一张一张飞
             if (i === pres.powers.length - 1) { const moving = transfers(previous, view, events, gen); if (moving) { await moving; if (gen !== generation) return; } }
-            if (i === pres.powers.length - 1 && landing && !settlement) { display(view); await settleArrivals(gen); if (gen !== generation) return; }
+            if (i === pres.powers.length - 1 && landing && !settlement) { display(beforePurchases); await settleArrivals(gen); if (gen !== generation) return; }
             hooks.sound("power-impact", cue.key);
             await beat(260); if (gen !== generation) return;
             // 能力需要某家选择：特效停在该家区域（持续粒子 + 标记），释放 busy 让面板出现；选择结算后在下一帧播收尾
@@ -416,17 +472,19 @@ export function createPresenter(store: Store, controller: Controller, hooks: Pre
           await beat(); if (gen !== generation) return;
         }
         for (const cue of pres.rounds) {
-          if (cue.kind === "score") {
+          if (cue.kind === "purchase") { await purchase(item, cue, gen); }
+          else if (cue.kind === "score") {
             holdGold(previous); await beat(SETTLE_MS); if (gen !== generation) return;
             await scoreboard(cue, gen); if (gen !== generation) return;
             // 发完奖池才切到结算后的投影，再播结算后的金币（偿债、君王付款、终局取偿债池）
-            if (settlement) display(view);
+            if (settlement) display(beforePurchases);
             await goldArcs(pres.goldAfterScore, gen); if (gen !== generation) return;
           } else await banner(cue, gen);
           if (gen !== generation) return;
         }
         if (!scoreCue && pres.goldAfterScore.length) { await goldArcs(pres.goldAfterScore, gen); if (gen !== generation) return; }
         if (store.get().display !== view) display(view);
+        if (store.get().show.arrived.length) { await settleArrivals(gen); if (gen !== generation) return; }
         releaseGold();
         if (hasShow) { await beat(); if (gen !== generation) return; }
         // 阶段标签、等待行只在整个演出结束后才换到新帧。
@@ -439,15 +497,35 @@ export function createPresenter(store: Store, controller: Controller, hooks: Pre
     /** 相邻、同一局、在线的投影走演出队列；其他一律直接替换画面。 */
     update(next: TableView, previous: TableView | null, live: boolean) {
       const prevGame = previous?.game ?? null, nextGame = next.game;
+      const sameRevision = live && !!prevGame && !!nextGame && prevGame.id === nextGame.id && prevGame.revision === nextGame.revision;
+      const scope = (game: PublicView | SeatView | null) => game && "omniscient" in game && game.omniscient === true ? "omniscient" : game && "selfSeatId" in game ? "seat" : "public";
+      const sameViewer = prevGame && nextGame && previous?.selfPlayerId === next.selfPlayerId && previous.table?.id === next.table?.id && ("selfSeatId" in prevGame ? prevGame.selfSeatId : null) === ("selfSeatId" in nextGame ? nextGame.selfSeatId : null) && scope(prevGame) === scope(nextGame);
+      if (prevGame && (!nextGame || !sameViewer)) {
+        // 私牌访问范围或座位改变时，旧私牌帧与检查器立即失效，不能等当前演出结束。
+        this.clear(next, true);
+        return;
+      }
+      if (sameRevision && sameViewer) {
+        // 提交者会收到 view → ack 两次 update；ack 仍由挂载层精确匹配并清除 pending。
+        // 身份和权限立即更新，但不重播，也不取消尚在演出的公开事件。
+        store.set(s => ({ display: s.display ? { ...next, game: s.display.game } : next, flow: s.flow ? { ...next, game: s.flow.game } : next }));
+        return;
+      }
       const adjacent = live && !!previous && !!prevGame && !!nextGame && prevGame.id === nextGame.id && nextGame.revision === prevGame.revision + 1;
-      if (!adjacent) { this.clear(); display(next); commitFlow(next); return; }
+      if (!adjacent) { this.clear(next); return; }
       const pres = derivePresentation(prevGame, nextGame);
       const events = freshPublicEvents(prevGame, nextGame), key = `${nextGame.id}:${nextGame.revision}`;
       if (events.some(e => e.code === "DECK_RESHUFFLED")) hooks.sound("shuffle", key);
       queue.push({ view: next, previous: previous!, pres, events });
       void pump();
     },
-    clear() { generation++; queue.length = 0; running = false; const hold = store.get().show.powerHold; if (hold) hooks.fx()?.ambient(`hold:${hold.choiceId}`, null); store.set(s => ({ show: emptyShow(), goldHold: null, flow: s.display })); setBusy(false); controller.dismissPower(); },
+    clear(next?: TableView, scopeChanged = false) {
+      generation++; queue.length = 0; running = false;
+      const hold = store.get().show.powerHold;
+      if (hold) hooks.fx()?.ambient(`hold:${hold.choiceId}`, null);
+      store.set(s => ({ show: emptyShow(), goldHold: null, flow: next ?? s.display, ...(next ? { display: next } : {}), ...(scopeChanged ? { inspect: null, selected: [], hovered: null, keyboardCard: null, keyboardHeld: false, drag: null } : {}) }));
+      setBusy(false); controller.dismissPower();
+    },
     destroy() { destroyed = true; this.clear(); },
   };
 }

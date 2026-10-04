@@ -5,6 +5,11 @@
 
 ## 待办
 
+- [ ] 2026-10-04 0.9.1反馈：本家回执不取消能力/切换/结算，购买提示先翻牌补牌，真实非reduced网络演出专项；见GOAL§11与presentation-feedback runbook。
+- [ ] 0.9.1飞牌独立覆盖/几何、长名数字边界与金属点数材质实际浏览器复核。
+- [ ] 0.9.1隐藏全能仅当前房主，键序不干扰输入/出牌；真实断网/刷新/交接立即撤权与私投影清理复核。
+- [ ] 0.9.1完整回归/CI、冻结候选换模型审计、freshbaseline定向部署与公网验收，双落本轮runbook。
+
 - [x] 第三方素材下载（用户 2026-10-03 同意）：Poly Haven dark_wood / medieval_wood / brown_leather / metal_plate，ambientCG Fabric034 / Paper006，Kenney Casino Audio；已压缩入库并登记 `docs/design/ASSETS.md`。
 - [ ] 持续效果（德鲁伊 / 祭司 / 龙巫妖…）的**持续音效**：需要 CC0 环境循环素材（Kenney 现有包没有），来源待用户批准；`FieldLayer` 已留位置。
 - [x] 第二轮纠错后的独立审计（换模型）：第一轮"不通过"已整改，复审"有条件通过"，条件（全并列翻注重复 key、runbook 低-7 更正）已满足（runbook round2 §5–§6）。

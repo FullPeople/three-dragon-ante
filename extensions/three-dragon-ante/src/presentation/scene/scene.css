@@ -22,11 +22,11 @@
 .tda-slot-label { position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%) rotate(calc(-1 * var(--seat-rot, 0deg))); white-space: nowrap; font-family: var(--font-display); font-size: 15px; letter-spacing: .1em; color: rgba(239, 227, 200, .45); pointer-events: none; }
 .tda-slot.is-legal { pointer-events: auto; cursor: pointer; border: 2px solid #ead38f; }
 .tda-slot.is-over { background-color: rgba(234, 211, 143, .14); }
-/* 牌阵总点数：黄铜铭牌常显，压在牌阵槽右侧 */
-.tda-strength-plate { position: absolute; transform: translate(-50%, -50%) translateZ(26px) rotate(var(--rot, 0deg)); padding: 2px 10px; gap: 6px; font-size: 13px; white-space: nowrap; }
+/* 牌阵总点数：冷色蚀刻铁片，区别于姓名/金币的暖色木纹牌。复用已有 CC0 金属照片。 */
+.tda-strength-plate { position: absolute; transform: translate(-50%, -50%) translateZ(26px) rotate(var(--rot, 0deg)); padding: 2px 10px; gap: 6px; font-size: 13px; white-space: nowrap; background-color: #91a6ab; background-image: var(--tex-metal); background-size: 340px; background-blend-mode: screen; color: #101b19; border-color: #34413e; }
 .tda-strength-plate .tda-num { font-size: 22px; line-height: 1; }
 .tda-strength-plate.is-changed .tda-num { color: #5a1f1a; }
-.tda-strength-plate.is-tally { background-color: #ead38f; }
+.tda-strength-plate.is-tally { background-color: #d3dbd7; }
 .tda-formation { position: absolute; left: 10px; top: 6px; padding: 2px 8px; border-radius: 2px; border: 1px solid #ead38f; background: rgba(20, 11, 6, .85); color: #ead38f; font-size: 13px; }
 .tda-formation--strength { border-color: var(--tide); color: var(--tide); } .tda-formation--mortal { border-color: var(--arcane); color: var(--arcane); } .tda-formation--archmage { top: 32px; border-color: var(--arcane); color: var(--arcane); }
 .tda-pile { position: absolute; width: 156px; height: 263px; border: 1px solid rgba(239, 227, 200, .2); border-radius: 10px; }
@@ -40,12 +40,19 @@
 
 /* 座位 */
 .tda-seat { position: absolute; inset: 0; pointer-events: none; transform-style: preserve-3d; }
-.tda-seat-plate { position: absolute; transform: translate(-50%, -50%) translateZ(26px) rotate(var(--rot, 0deg)); font-size: 20px; white-space: nowrap; }
-.tda-seat--self .tda-seat-plate { transform: translate(0, -50%) translateZ(26px); max-width: 160px; box-sizing: border-box; }
-.tda-seat-plate > span:first-child { max-width: 6.5em; overflow: hidden; text-overflow: ellipsis; }
+.tda-seat-plate { position: absolute; transform: translate(-50%, -50%) translateZ(26px) rotate(var(--rot, 0deg)); width: 180px; height: 44px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; gap: 1px; padding: 2px 12px; font-size: 18px; line-height: 1; white-space: nowrap; }
+.tda-seat-plate::before, .tda-seat-plate::after { position: absolute; top: calc(50% - 2.5px); }
+.tda-seat-plate::before { left: 4px; } .tda-seat-plate::after { right: 4px; }
+.tda-seat--self .tda-seat-plate { transform: translate(0, -50%) translateZ(26px); width: 160px; }
+.tda-seat-identity { display: flex; align-items: center; gap: 3px; width: 100%; min-width: 0; height: 18px; }
+.tda-seat-name { flex: 1; min-width: 0; height: 18px; overflow: hidden; pointer-events: auto; }
+.tda-seat-name-text { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tda-seat-self { flex: none; font-size: 11px; color: #5a4328; }
+.tda-seat-funds { display: flex; justify-content: center; align-items: center; gap: 6px; width: 100%; min-width: 0; height: 19px; }
+.tda-seat-funds > span { flex: none; }
 .tda-seat.is-active .tda-seat-plate { background-color: #e8c86a; }
-.tda-seat-hand { font-family: var(--font-body); font-size: 14px; font-weight: 700; padding: 0 6px; border-radius: 2px; background: rgba(27, 20, 15, .18); }
-.tda-seat-leader { color: #5a1f1a; margin-right: 2px; } .tda-seat-gold { font-size: 22px; } .tda-seat-debt { color: #5a1f1a; font-weight: 700; }
+.tda-seat-hand { display: inline-flex; align-items: center; gap: 2px; font-family: var(--font-body); font-size: 12px; font-weight: 700; padding: 0 3px; border-radius: 2px; background: rgba(27, 20, 15, .18); }
+.tda-seat-leader { flex: none; color: #5a1f1a; font-size: 14px; } .tda-seat-gold { font-size: 19px; } .tda-seat-debt { color: #5a1f1a; font-size: 13px; font-weight: 700; }
 .tda-ribbon { position: absolute; transform: translate(-50%, -50%) translateZ(26px) rotate(var(--rot, 0deg)); padding: 3px 14px; border-radius: 2px; font-size: 14px; letter-spacing: .1em; color: var(--parchment); background-color: #7a5a44; background-image: var(--tex-leather); background-size: 300px; background-blend-mode: multiply; border: 1px solid #0d0705; box-shadow: var(--bevel); white-space: nowrap; }
 .tda-seat--self .tda-ribbon { transform: translate(0, -50%) translateZ(26px); }
 .tda-ribbon--acting { background-color: #c9a24d; background-image: var(--tex-oak); background-blend-mode: overlay; color: #15100b; }
@@ -108,7 +115,7 @@
 @keyframes tda-pip-rise { from { opacity: 0; transform: translate(-50%, -60%) translateZ(40px); } to { opacity: 1; } }
 /* 总点数铭牌在轮局拼点时的标记 */
 .tda-strength-plate.is-tally { transform: translate(-50%, -50%) translateZ(26px) rotate(var(--rot, 0deg)) scale(1.25); transition: transform 300ms var(--ease-out); }
-.tda-strength-plate.is-tally.is-win, .tda-strength-plate.is-tally.is-lead { background-color: #ead38f; transform: translate(-50%, -50%) translateZ(26px) rotate(var(--rot, 0deg)) scale(1.45); }
+.tda-strength-plate.is-tally.is-win, .tda-strength-plate.is-tally.is-lead { background-color: #e0e6e1; transform: translate(-50%, -50%) translateZ(26px) rotate(var(--rot, 0deg)) scale(1.45); }
 .tda-strength-plate.is-tally.is-tied .tda-num { text-decoration: line-through; text-decoration-thickness: 3px; color: #5a1f1a; }
 .tda-strength-plate.is-tally.is-out { filter: saturate(.3); opacity: .6; }
 .tda-strength-plate.is-tally.is-none { opacity: .55; }

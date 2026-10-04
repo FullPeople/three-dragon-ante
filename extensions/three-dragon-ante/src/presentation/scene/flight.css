@@ -1,0 +1,6 @@
+/* 飞牌独立覆盖桌面和手牌；复用桌面透视与倾斜，起落坐标不改变。
+ * 内层保留 3D，避免无 transform-style 的容器把牌压平到牌堆下。
+ * 整层不拦截点击；特效画布和 HUD 仍在它上方。 */
+.tda-flight-layer { position: absolute; inset: 0; z-index: 30; pointer-events: none; perspective: 1600px; perspective-origin: 50% 30%; }
+.tda-flight-plane { position: absolute; inset: 0; transform: rotateX(var(--tilt)); transform-style: preserve-3d; transform-origin: 50% 50%; pointer-events: none; }
+.tda-ghost-layer { position: absolute; inset: 0; transform-style: preserve-3d; pointer-events: none; }

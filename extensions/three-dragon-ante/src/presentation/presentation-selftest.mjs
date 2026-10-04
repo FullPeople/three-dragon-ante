@@ -14,12 +14,13 @@ const base = resolve(import.meta.dirname, '..');
 const out = mkdtempSync(join(tmpdir(), 'tda-presentation-'));
 const abs = p => JSON.stringify(resolve(base, p));
 const entry = `
-export { createGame, applyAction, eligibleActions, projectSeat } from ${abs('game/rules/index.ts')};
+export { createGame, applyAction, eligibleActions, projectSeat, projectOmniscient } from ${abs('game/rules/index.ts')};
 export { card } from ${abs('game/rules/cards.ts')};
 export { cardPlacements, pendingPose, isHeldByPending } from ${abs('presentation/model/layout.ts')};
 export { createStore, emptyShow } from ${abs('presentation/app/store.ts')};
 export { createController } from ${abs('presentation/app/controller.ts')};
-export { createPresenter, landingFrame, settlementFrame, revealFrame, applyReplacements, powerSegment, revealTally, scoreTally, SETTLE_MS, BEAT_MS, FOCUS_MS, TALLY_MS, MARK_MS } from ${abs('presentation/app/presenter.ts')};
+export { pendingReceipt } from ${abs('presentation/app/action-receipt.ts')};
+export { createPresenter, landingFrame, settlementFrame, revealFrame, purchaseHoldFrame, cardMoves, applyReplacements, powerSegment, revealTally, scoreTally, SETTLE_MS, BEAT_MS, FOCUS_MS, TALLY_MS, MARK_MS } from ${abs('presentation/app/presenter.ts')};
 export { freshPublicEvents, derivePresentation, formationCues } from ${abs('presentation/model/cues.ts')};
 export { seatPlacements, tableShape } from ${abs('presentation/model/layout.ts')};
 export { layoutOverlaps, outsideTable } from ${abs('presentation/model/layout-check.ts')};`;
@@ -71,6 +72,11 @@ assert.ok(events.some(e => e.code === 'CARD_PLAYED' && e.cardIds?.[0] === ready)
   assert.ok(!m.isHeldByPending({ cardId: ready, seatId: other, zone: 'flight' }, pending, leader), 'another seat\'s card is never held');
   assert.ok(!m.isHeldByPending(inFlight, null, leader), 'nothing is held without a pending action');
   assert.ok(!m.isHeldByPending({ cardId: 'other', seatId: leader, zone: 'flight' }, pending, leader), 'only the pending card is held');
+  const exact = { actionId: 'play-1', tableId: 'selftest', gameId: state.id, revision: before.revision, cardId: ready, zone: 'flight', action: { id: 'play-1', revision: before.revision, seatId: leader, kind: 'play', cardId: ready }, retryable: false };
+  const receipt = { actionId: exact.actionId, tableId: exact.tableId, gameId: exact.gameId, revision: state.revision, ok: true };
+  assert.equal(m.pendingReceipt(nextView, exact).kind, 'ignore', 'a newer projection alone never acknowledges the move');
+  for (const change of [{ actionId: 'unrelated' }, { tableId: 'another' }, { gameId: 'another' }, { revision: before.revision }, { revision: state.revision + 1 }]) assert.equal(m.pendingReceipt({ ...nextView, actionReceipt: { ...receipt, ...change } }, exact).kind, 'ignore', 'every receipt field and its matching projection are required');
+  assert.equal(m.pendingReceipt({ ...nextView, actionReceipt: receipt }, exact).kind, 'accepted');
   pass('pending card keeps its waiting pose in any projected zone until the receipt arrives');
 }
 
@@ -95,11 +101,13 @@ assert.ok(events.some(e => e.code === 'CARD_PLAYED' && e.cardIds?.[0] === ready)
   const initial = { lang: 'zh', hostKind: 'website', mode: 'full', view: null, display: null, flow: null, selected: [], hovered: null, keyboardCard: null, keyboardHeld: false, drag: null, pending: null, sending: false, localMessage: '', inspect: null, show: m.emptyShow(), busy: false, soundOn: false, gestures: {}, slowSeatIds: [], suspended: false, helpOpen: false, goldHold: null, knockAt: 0, orientation: 'landscape' };
   const store = m.createStore(initial);
   const controller = m.createController(store, { send() {} });
-  const t0 = performance.now(), log = [];
+  const t0 = performance.now(), log = [], sounds = [];
   store.subscribe(() => { const s = store.get(); log.push({ t: performance.now() - t0, display: s.display?.game?.revision ?? null, flow: s.flow?.game?.revision ?? null, power: !!s.show.power, busy: s.busy, inFlight: !!s.display?.game?.seats.find(x => x.id === leader)?.flight.some(f => f.cardId === ready) }); });
-  const presenter = m.createPresenter(store, controller, { fx: () => null, root: () => ({ querySelector: () => null }), onBusy() {}, sound() {} });
+  const presenter = m.createPresenter(store, controller, { fx: () => null, root: () => ({ querySelector: () => null }), onBusy() {}, sound(kind, key) { sounds.push({ kind, key }); } });
   store.set({ view: prevView }); presenter.update(prevView, null, false);
   store.set({ view: nextView }); presenter.update(nextView, prevView, true);
+  const ackView = { ...nextView, pending: false, actionReceipt: { actionId: 'play-1', tableId: 'selftest', gameId: state.id, revision: state.revision, ok: true } };
+  store.set({ view: ackView }); presenter.update(ackView, nextView, true);
   const until = async (fn, ms) => { const end = Date.now() + ms; while (!fn()) { if (Date.now() > end) throw new Error('timeout'); await new Promise(r => setTimeout(r, 15)); } };
   await until(() => store.get().show.power, 4000);
   const opened = performance.now() - t0;
@@ -110,6 +118,11 @@ assert.ok(events.some(e => e.code === 'CARD_PLAYED' && e.cardIds?.[0] === ready)
   assert.ok(atOpen.inFlight, 'the played card is in the flight on the landing frame');
   assert.equal(atOpen.flow, prevView.game.revision, 'flow rail has not advanced yet');
   assert.ok(atOpen.busy);
+  const identityView = { ...ackView, isHost: false, role: 'PLAYER', canEdit: false };
+  store.set({ view: identityView }); presenter.update(identityView, ackView, true);
+  assert.ok(store.get().show.power && store.get().busy, 'same-revision identity and ack updates preserve the explanation');
+  assert.equal(store.get().display.isHost, false, 'identity refreshes on the held landing frame');
+  assert.equal(store.get().display.game.revision, prevView.game.revision, 'identity refresh never substitutes the complete next projection');
   controller.dismissPower();
   await until(() => store.get().display?.game?.revision === nextView.game.revision, 1000);
   assert.ok(!store.get().show.power);
@@ -119,6 +132,10 @@ assert.ok(events.some(e => e.code === 'CARD_PLAYED' && e.cardIds?.[0] === ready)
   const tFlow = performance.now() - t0;
   assert.ok(tFlow - tFull >= m.BEAT_MS - 40, `flow frame committed ${Math.round(tFlow - tFull)}ms after the full projection`);
   await until(() => !store.get().busy, 1000);
+  presenter.update(identityView, identityView, true);
+  assert.equal(sounds.filter(sound => sound.kind === 'spotlight').length, 1, 'duplicate projections never replay the power');
+  assert.equal(store.get().display.isHost, false, 'old queue envelopes never restore lost host privileges');
+  assert.equal(store.get().flow.role, 'PLAYER');
   presenter.destroy();
   pass(`presentation order: landing (${Math.round(opened)}ms) -> explanation -> effects -> flow rail (${Math.round(tFlow)}ms)`);
 }
@@ -230,13 +247,21 @@ assert.ok(events.some(e => e.code === 'CARD_PLAYED' && e.cardIds?.[0] === ready)
   const store = m.createStore(initial), controller = m.createController(store, { send() {} });
   const presenter = m.createPresenter(store, controller, { fx: () => null, root: () => ({ querySelector: () => null }), onBusy() {}, sound() {} });
   store.set({ view: pv }); presenter.update(pv, null, false); store.set({ view: nv }); presenter.update(nv, pv, true);
+  const scoreAck = { ...nv, actionReceipt: { actionId: 'settle-ack', tableId: nv.table.id, gameId: nv.game.id, revision: nv.game.revision, ok: true } };
+  store.set({ view: scoreAck }); presenter.update(scoreAck, nv, true);
   const until = async (fn, ms) => { const end = Date.now() + ms; while (!fn()) { if (Date.now() > end) throw new Error('timeout'); const s = store.get(); if (s.show.power || s.show.formation) controller.dismissPower(); await new Promise(r => setTimeout(r, 15)); } };
   await until(() => store.get().show.tally?.kind === 'score', 15000);
   const atTally = store.get();
   assert.ok(atTally.display.game.seats.every(s => s.flight.length === (report.rows.find(r => r.seatId === s.id)?.cards.length ?? 0)), 'cards stay on the table during the showdown');
   assert.equal(atTally.flow?.game?.revision, pv.game.revision, 'flow rail has not advanced during the showdown');
-  await until(() => store.get().display === nv && !store.get().busy, 25000);
-  assert.equal(store.get().flow, nv, 'flow rail advances only after the whole settlement');
+  presenter.update(scoreAck, scoreAck, true);
+  assert.equal(store.get().show.tally.kind, 'score', 'a repeated acknowledgement cannot cancel the showdown');
+  await until(() => !!store.get().show.score, 4000);
+  const board = store.get().show.score;
+  presenter.update(scoreAck, scoreAck, true);
+  assert.equal(store.get().show.score, board, 'a repeated acknowledgement cannot cancel the scoreboard');
+  await until(() => store.get().display?.game?.revision === nv.game.revision && !store.get().busy, 25000);
+  assert.equal(store.get().flow.game.revision, nv.game.revision, 'flow rail advances only after the whole settlement');
   presenter.destroy();
   pass('end-of-gambit frame keeps every scored card on the table through the showdown and scoreboard');
 }
@@ -300,6 +325,132 @@ assert.ok(events.some(e => e.code === 'CARD_PLAYED' && e.cardIds?.[0] === ready)
   assert.ok(r.frame.game.discard.some(c => c.id === copper), 'the copper dragon went to the discard pile');
   assert.equal(m.applyReplacements(landing, events, 2).fromDeck.length, 0, 'nothing is replaced before the first power resolves');
   pass('copper chain: explanation, then replacement lands, then the new card explains');
+}
+
+// --- 15) 真实买牌：说明 → 价格牌 → 付款 → 匿名补牌；同帧多家各自说明且付款只记一次 ---
+{
+  let found = null;
+  for (let seed = 1; seed <= 30 && !found; seed++) {
+    let g = m.createGame({ id: 'purchase', seats, seed, startingHand: 3 });
+    for (let step = 0; step < 150 && !found; step++) {
+      let moved = null;
+      for (const seat of g.seats) {
+        const action = m.eligibleActions(g, seat.id)[0]; if (!action) continue;
+        const base = { id: 'buy-' + g.revision + ':' + seat.id, revision: g.revision, seatId: seat.id };
+        const move = action.kind === 'choose' ? { ...base, kind: 'choose', choiceId: action.choice.id, optionIds: action.choice.options.slice(0, action.choice.min).map(option => option.id) } : { ...base, kind: action.kind, cardId: action.cardIds[0] };
+        const result = m.applyAction(g, move); if (result.ok) { moved = result.state; break; }
+      }
+      if (!moved) break;
+      const fresh = m.freshPublicEvents(m.projectSeat(g, 'you'), m.projectSeat(moved, 'you'));
+      if (fresh.some(event => event.code === 'BUY_PRICE') && !fresh.some(event => event.code === 'POWER_TRIGGERED' || event.code === 'GAMBIT_SCORED' || event.code === 'SPECIAL_FLIGHT' || event.code === 'ANTE_REVEALED')) found = { before: g, after: moved, fresh };
+      g = moved;
+    }
+  }
+  assert.ok(found, 'real engine reached an ordinary purchase frame');
+  const buyer = found.fresh.find(event => event.code === 'BUY_PRICE').seatId;
+  const pv = view(found.before, { game: m.projectSeat(found.before, buyer) }), nv = view(found.after, { game: m.projectSeat(found.after, buyer) });
+  const pres = m.derivePresentation(pv.game, nv.game), purchases = pres.rounds.filter(cue => cue.kind === 'purchase');
+  assert.ok(purchases.length);
+  const held = m.purchaseHoldFrame(pv, nv, found.fresh, 'landscape');
+  assert.ok(held.game.hand.every(value => pv.game.hand.some(old => old.id === value.id)), 'not-yet-supplied own cards stay hidden');
+  assert.equal(held.game.seats.find(seat => seat.id === buyer).handCount, held.game.hand.length, 'own visible count and held hand agree');
+  assert.ok(!held.game.discard.some(value => purchases.some(cue => cue.cardId === value.id)), 'price cards have not reached the discard pile');
+  const observer = found.before.seats.find(seat => seat.id !== buyer).id;
+  const fullPrevious = { ...pv, game: m.projectOmniscient(found.before, observer) }, fullNext = { ...nv, game: m.projectOmniscient(found.after, observer) };
+  const heldFull = m.purchaseHoldFrame(fullPrevious, fullNext, found.fresh, 'landscape');
+  for (const cue of purchases) {
+    assert.ok(heldFull.game.privateHands[cue.seatId].every(value => fullPrevious.game.privateHands[cue.seatId].some(old => old.id === value.id)), 'even an authorized omniscient observer waits for purchased cards to arrive');
+    assert.equal(heldFull.game.seats.find(seat => seat.id === cue.seatId).handCount, heldFull.game.privateHands[cue.seatId].length);
+  }
+  assert.ok(!('privateHands' in held.game), 'normal purchase holding cannot introduce omniscient data');
+  assert.ok(purchases.every(cue => cue.flows.every(flow => !pres.gold.some(generic => generic.key === flow.key))), 'purchase payments cannot also use generic gold paths');
+  const initial = { lang: 'zh', hostKind: 'website', mode: 'full', view: null, display: null, flow: null, selected: [], hovered: null, keyboardCard: null, keyboardHeld: false, drag: null, pending: null, sending: false, localMessage: '', inspect: null, show: m.emptyShow(), busy: false, soundOn: false, gestures: {}, slowSeatIds: [], suspended: false, helpOpen: false, goldHold: null, knockAt: 0, orientation: 'landscape' };
+  const store = m.createStore(initial), controller = m.createController(store, { send() {} }), log = [], sounded = [];
+  store.subscribe(() => { const current = store.get(); log.push({ at: performance.now(), banner: current.show.banner?.kind === 'purchase' ? current.show.banner.key : null, ghosts: current.show.ghosts.map(ghost => ({ key: ghost.purchaseKey, cardId: ghost.cardId ?? null })), flowRevision: current.flow?.game?.revision }); });
+  const presenter = m.createPresenter(store, controller, { fx: () => null, root: () => ({ querySelector: () => null }), onBusy() {}, sound(kind, key) { sounded.push({ kind, key, at: performance.now() }); } });
+  store.set({ view: pv }); presenter.update(pv, null, false); store.set({ view: nv }); presenter.update(nv, pv, true);
+  const ack = { ...nv, pending: false }; store.set({ view: ack }); presenter.update(ack, nv, true);
+  const deadline = Date.now() + 25000;
+  while (store.get().busy) { assert.ok(Date.now() < deadline, 'purchase schedule completed'); await new Promise(resolve => setTimeout(resolve, 15)); }
+  for (const cue of purchases) {
+    const opened = log.find(entry => entry.banner === cue.key), price = log.find(entry => entry.ghosts.some(ghost => ghost.key === cue.key && ghost.cardId === cue.cardId)), draws = log.find(entry => entry.ghosts.some(ghost => ghost.key === cue.key && ghost.cardId === null));
+    assert.ok(opened && price && draws, 'each buyer has an explanation, price flight and replenishment');
+    assert.ok(price.at - opened.at >= 1750, 'the purchase explanation is visible before price flipping');
+    for (const flow of cue.flows) { const payment = sounded.filter(sound => sound.kind === 'coin' && sound.key === flow.key); assert.equal(payment.length, 1, 'purchase gold runs exactly once'); assert.ok(payment[0].at > price.at && payment[0].at < draws.at, 'payment follows flipping and precedes replenishment'); }
+    assert.ok(draws.flowRevision === pv.game.revision, 'turn flow waits for replenishment');
+  }
+  assert.ok(!store.get().show.ghosts.length && !store.get().show.arrived.length, 'all transient purchase markers clear');
+  assert.deepEqual(store.get().display.game.hand, nv.game.hand);
+  presenter.destroy();
+  pass('real purchase: explanation precedes price flip, each payment runs once, then anonymous replenishment');
+}
+
+// --- 16) 跳档仍不回放，当前代际清场 ---
+{
+  const initial = { lang: 'zh', hostKind: 'website', mode: 'full', view: prevView, display: null, flow: null, selected: [], hovered: null, keyboardCard: null, keyboardHeld: false, drag: null, pending: null, sending: false, localMessage: '', inspect: null, show: m.emptyShow(), busy: false, soundOn: false, gestures: {}, slowSeatIds: [], suspended: false, helpOpen: false, goldHold: null, knockAt: 0, orientation: 'landscape' };
+  const store = m.createStore(initial), controller = m.createController(store, { send() {} });
+  const presenter = m.createPresenter(store, controller, { fx: () => null, root: () => ({ querySelector: () => null }), onBusy() {}, sound() {} });
+  presenter.update(prevView, null, false); store.set({ view: nextView }); presenter.update(nextView, prevView, true);
+  const jump = { ...nextView, game: { ...nextView.game, revision: nextView.game.revision + 2 } };
+  store.set({ view: jump }); presenter.update(jump, nextView, true);
+  await new Promise(resolve => setTimeout(resolve, m.SETTLE_MS + m.FOCUS_MS + 50));
+  assert.equal(store.get().display, jump); assert.equal(store.get().flow, jump);
+  assert.ok(!store.get().show.power && !store.get().busy);
+  presenter.destroy();
+  pass('revision gaps clear old schedules instead of replaying incomplete events');
+}
+
+// --- 17) 公开事件夹具：同一投影的两家购买保持各自归属，牌阵/翻注不重复带走购买款 ---
+{
+  const pg = prevView.game, a = pg.seats[0].id, b = pg.seats[1].id;
+  const fresh = [{ code: 'SPECIAL_FLIGHT', seatId: a, amount: 3 }, { code: 'PAID_PLAYER', seatId: b, targetSeatId: a, amount: 3 }, { code: 'BUY_PRICE', seatId: a, cardIds: ['red-10'], amount: 10 }, { code: 'PAID_STAKES', seatId: a, amount: 10 }, { code: 'BUY_PRICE', seatId: b, cardIds: ['blue-6'], amount: 6 }, { code: 'PAID_PLAYER', seatId: b, targetSeatId: a, amount: 6 }];
+  const ng = { ...pg, revision: pg.revision + 1, deckCount: pg.deckCount - 8, discard: [...pg.discard, m.card('red-10'), m.card('blue-6')], seats: pg.seats.map(seat => ({ ...seat, handCount: seat.handCount + (seat.id === a || seat.id === b ? 3 : 0) })), events: [...pg.events, ...fresh] };
+  const nv = { ...prevView, game: ng }, pres = m.derivePresentation(pg, ng), cues = pres.rounds.filter(cue => cue.kind === 'purchase');
+  assert.deepEqual(cues.map(cue => cue.seatId), [a, b]);
+  assert.deepEqual(cues.map(cue => cue.flows.map(flow => flow.fromSeatId)), [[a], [b]], 'each buyer owns only its immediate payment');
+  assert.equal(pres.formations[0].flows.length, 1, 'formation stops before the first purchase');
+  assert.equal(pres.gold.length, 0, 'formation and purchase payments never duplicate generic flows');
+  const moves = m.cardMoves(prevView, nv, fresh, 'landscape');
+  for (const cue of cues) {
+    const group = moves.ghosts.filter(ghost => ghost.purchaseKey === cue.key);
+    assert.equal(group.filter(ghost => ghost.cardId === cue.cardId).length, 1, 'one public price card per buyer');
+    assert.equal(group.filter(ghost => !ghost.cardId).length, 3, 'anonymous replenishment belongs to the same buyer');
+  }
+  pass('public multiple-purchase fixture keeps price cards, private-free draws and gold owned by each buyer');
+}
+
+// --- 18) 同 revision 访问范围 / 本家变化立即清除私牌场景、流程与检查器 ---
+{
+  const other = seats.find(seat => seat.id !== leader).id;
+  const fullBefore = { ...prevView, game: m.projectOmniscient(before, leader) }, fullNext = { ...nextView, game: m.projectOmniscient(state, leader) };
+  const switched = { ...nextView, game: m.projectSeat(state, other) };
+  const cases = [
+    { name: 'omniscient to own seat', previous: fullBefore, next: fullNext, changed: nextView },
+    { name: 'own seat to omniscient', previous: prevView, next: nextView, changed: fullNext },
+    { name: 'self seat changes', previous: prevView, next: nextView, changed: switched },
+    { name: 'omniscient to no game', previous: fullBefore, next: fullNext, changed: { ...nextView, game: null } },
+  ];
+  for (const item of cases) {
+    const initial = { lang: 'zh', hostKind: 'website', mode: 'full', view: item.previous, display: null, flow: null, selected: [], hovered: null, keyboardCard: null, keyboardHeld: false, drag: null, pending: null, sending: false, localMessage: '', inspect: null, show: m.emptyShow(), busy: false, soundOn: false, gestures: {}, slowSeatIds: [], suspended: false, helpOpen: false, goldHold: null, knockAt: 0, orientation: 'landscape' };
+    const store = m.createStore(initial), controller = m.createController(store, { send() {} });
+    const presenter = m.createPresenter(store, controller, { fx: () => null, root: () => ({ querySelector: () => null }), onBusy() {}, sound() {} });
+    presenter.update(item.previous, null, false); store.set({ view: item.next }); presenter.update(item.next, item.previous, true);
+    assert.ok(store.get().busy, item.name + ': a presentation is underway');
+    store.set({ inspect: { cardId: ready, pinned: true }, hovered: ready, selected: [ready], keyboardCard: ready, keyboardHeld: true });
+    store.set({ view: item.changed }); presenter.update(item.changed, item.next, true);
+    assert.equal(store.get().display, item.changed, item.name + ': new projection replaces the old scene immediately');
+    assert.equal(store.get().flow, item.changed, item.name + ': old private flow cannot remain');
+    assert.ok(!store.get().busy && !store.get().show.power && !store.get().show.score);
+    assert.equal(store.get().inspect, null, item.name + ': a previously selected private face is cleared');
+    assert.deepEqual(store.get().selected, []);
+    assert.equal(store.get().hovered, null);
+    assert.equal(store.get().keyboardCard, null);
+    await new Promise(resolve => setTimeout(resolve, m.SETTLE_MS + m.FOCUS_MS + 50));
+    assert.equal(store.get().display, item.changed, item.name + ': old queue never restores its private projection');
+    if (item.changed.game && !('omniscient' in item.changed.game)) for (const key of ['privateHands', 'privateCommittedAntes', 'privateHandPowerHints', 'privateDeck', 'privateExcluded']) { assert.ok(!(key in store.get().display.game)); assert.ok(!(key in store.get().flow.game)); }
+    presenter.destroy();
+  }
+  pass('same-revision projection scope or self-seat changes clear old private frames and inspection immediately');
 }
 
 writeFileSync(join(out, 'result.json'), JSON.stringify({ checks }, null, 2));

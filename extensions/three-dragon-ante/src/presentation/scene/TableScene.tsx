@@ -156,13 +156,13 @@ export function TableScene({ state, controller, onFx, onFx3d, onOrientation, onL
             {seats.map(placement => { const seat = game.seats.find(s => s.id === placement.id)!; return <SeatBlock key={placement.id} seat={seat} placement={placement} game={game} selfSeatId={own?.selfSeatId ?? null} lang={state.lang}
               legalZone={legalZone} dragOver={drag?.cardId ? drag.overZone : null} targetSeatId={targetSeatId} waiting={waitingIds.has(placement.id)} gold={hold?.seats[seat.id] ?? seat.gold} tally={seatTally.get(seat.id)} onZoneClick={zone => controller.placeSelected(zone)} />; })}
             <CardLayer state={state} controller={controller} orientation={orientation} layer="table" placements={placements} seats={seats} known={known} onCardPointerDown={onCardPointerDown} onCardLand={onCardLand} />
-            <GhostLayer ghosts={state.show.ghosts} />
             {pips.map(pip => <div key={pip.cardId} className={`tda-pip is-step${tally?.step ?? 1} is-${pip.mark}`} style={{ left: pip.x, top: pip.y }} aria-hidden="true"><b className="tda-num">{pip.value}</b>{tally?.step === 2 && pip.mark !== "none" ? <small>{t(pip.mark === "lead" ? "tallyLeader" : pip.mark === "tied" ? "tallyTied" : "tallyIneligible", state.lang)}</small> : null}</div>)}
           </> : null}
         </div>
         {game ? <div className="tda-hand-layer" style={{ left: handAt.left, top: handAt.top, transform: `translateZ(${handAt.z}px)` }} data-hand-layer>
           <CardLayer state={state} controller={controller} orientation={orientation} layer="hand" placements={placements} seats={seats} known={known} onCardPointerDown={onCardPointerDown} onCardLand={onCardLand} />
         </div> : null}
+        <GhostLayer ghosts={state.show.ghosts} />
       </div>
     </div>
     <canvas ref={canvas} className="tda-fx" aria-hidden="true" />

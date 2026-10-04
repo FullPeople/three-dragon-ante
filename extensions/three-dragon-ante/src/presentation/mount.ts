@@ -9,6 +9,7 @@ import { readHandGesture, type HandGesture } from "../game/gesture";
 import type { TableLanguage } from "../game/text";
 import { createStore, emptyShow, privateGame, type Store, type UIState } from "./app/store";
 import { createController } from "./app/controller";
+import { pendingReceipt } from "./app/action-receipt";
 import { createPresenter } from "./app/presenter";
 import { TableApp } from "./app/TableApp";
 import type { FxLayer } from "./fx/particles";
@@ -75,15 +76,11 @@ export function mountTableUI(root: HTMLElement, deps: TableUIDeps): TableUISurfa
 
   function applyReceipt(view: TableView) {
     const p = store.get().pending; if (!p) return;
-    const game = view.game;
-    if (view.table?.id !== p.tableId || !game || game.id !== p.gameId || !("selfSeatId" in game) || (game as { selfSeatId: string }).selfSeatId !== p.action.seatId) { store.set({ pending: null, sending: false }); return; }
-    const receipt = view.actionReceipt;
-    if (!receipt || receipt.actionId !== p.actionId || receipt.tableId !== p.tableId || receipt.gameId !== p.gameId || !Number.isSafeInteger(receipt.revision)) return;
-    if (receipt.ok === true) { if (receipt.revision < p.revision + 1 || game.revision < receipt.revision) return; store.set({ pending: null, sending: false, selected: [] }); }
-    else if (receipt.ok === false && receipt.revision === p.revision) {
-      if (receipt.retryable === true) { store.set({ pending: { ...p, retryable: true }, sending: false, localMessage: receipt.code ?? "requestFailed" }); return; }
-      store.set({ pending: null, sending: false, keyboardHeld: false, localMessage: receipt.code ?? "requestFailed" });
-    }
+    const result = pendingReceipt(view, p);
+    if (result.kind === "accepted") store.set({ pending: null, sending: false, selected: [] });
+    else if (result.kind === "invalidated") store.set({ pending: null, sending: false });
+    else if (result.kind === "retry") store.set({ pending: { ...p, retryable: true }, sending: false, localMessage: result.code });
+    else if (result.kind === "rejected") store.set({ pending: null, sending: false, keyboardHeld: false, localMessage: result.code });
   }
   function trackSlow(view: TableView) {
     const game = view.game, own = privateGame(view);

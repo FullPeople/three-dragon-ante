@@ -20,9 +20,9 @@ export function PhaseBanner({ state }: { state: UIState }) {
   else if (cue.kind === "turn") { title = t("bannerTurn", lang, { name: name(cue.seatId) }); }
   else if (cue.kind === "ante") { title = t("bannerAnte", lang, { n: cue.gambit }); }
   else if (cue.kind === "end") { title = t("ended", lang); sub = t("bannerEnd", lang, { names: joinNames(cue.winners.map(name), lang) }); }
-  else if (cue.kind === "purchase") { title = t("bannerPurchase", lang, { name: name(cue.seatId), n: cue.price }); }
+  else if (cue.kind === "purchase") { title = t("bannerPurchaseStart", lang, { name: name(cue.seatId) }); }
   return <div className={`tda-banner tda-banner--${cue.kind}`} key={cue.key} role="status" aria-live="polite">
-    <div className="tda-banner-scroll tda-parchment"><h2>{title}</h2>{sub ? <p>{sub}</p> : null}{cue.kind === "purchase" ? <img className="tda-banner-card" src={cardFaceURL(cue.cardId)} alt="" /> : null}</div>
+    <div className="tda-banner-scroll tda-parchment"><h2>{title}</h2>{sub ? <p>{sub}</p> : null}</div>
   </div>;
 }
 

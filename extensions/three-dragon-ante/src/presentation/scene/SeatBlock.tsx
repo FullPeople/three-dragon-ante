@@ -1,6 +1,7 @@
 /** 一个座位：铭牌、绶带、前注槽、金币堆、牌阵区、常显的总点数铭牌。卡牌本身由 CardLayer 画。
  * 方桌侧边座位整体旋转 ±90°：槽位随座位旋转，铭牌与文字保持正向。 */
 import type { PublicSeat, PublicView } from "../../game/rules/types";
+import { useLayoutEffect, useRef } from "react";
 import type { SeatPlacement } from "../model/layout";
 import { CARD, flightStepFor } from "../model/layout";
 import { seatRibbon, type SeatRibbon } from "../model/flow";
@@ -12,6 +13,25 @@ import type { TallyItem } from "../app/store";
 export interface SeatBlockProps { seat: PublicSeat; placement: SeatPlacement; game: PublicView; selfSeatId: string | null; lang: Lang; legalZone: "ante" | "flight" | null; dragOver: "ante" | "flight" | null; targetSeatId: string | null; waiting: boolean; gold: number; tally?: TallyItem; onZoneClick(zone: "ante" | "flight"): void }
 
 const RIBBON_KEY: Record<Exclude<SeatRibbon, "">, string> = { waiting: "ribbonWaiting", committed: "ribbonCommitted", acting: "ribbonActing", thinking: "ribbonThinking", played: "ribbonPlayed", choosing: "ribbonChoosing" };
+
+/** 名字先按实际字宽缩小。极长昵称在可读字号下省略，完整名字仍在 DOM 和原生提示中。 */
+function SeatName({ name }: { name: string }) {
+  const slot = useRef<HTMLSpanElement>(null), text = useRef<HTMLSpanElement>(null);
+  useLayoutEffect(() => {
+    const outer = slot.current, inner = text.current; if (!outer || !inner) return;
+    let alive = true;
+    const fit = () => {
+      if (!alive || !outer.clientWidth) return;
+      inner.style.fontSize = "18px";
+      const naturalWidth = inner.scrollWidth;
+      inner.style.fontSize = `${Math.max(12, Math.min(18, 18 * outer.clientWidth / Math.max(1, naturalWidth)))}px`;
+    };
+    fit(); const observer = new ResizeObserver(fit); observer.observe(outer);
+    void document.fonts.ready.then(fit); document.fonts.addEventListener("loadingdone", fit);
+    return () => { alive = false; observer.disconnect(); document.fonts.removeEventListener("loadingdone", fit); };
+  }, [name]);
+  return <span ref={slot} className="tda-seat-name" title={name}><span ref={text} className="tda-seat-name-text">{name}</span></span>;
+}
 
 export function SeatBlock({ seat, placement, game, selfSeatId, lang, legalZone, dragOver, targetSeatId, waiting, gold, tally, onZoneClick }: SeatBlockProps) {
   const self = placement.self, s = placement.scale, rot = placement.rot, dir = placement.dir, inward = placement.inward, plateRot = placement.plateRot;
@@ -37,11 +57,16 @@ export function SeatBlock({ seat, placement, game, selfSeatId, lang, legalZone, 
   const changed = seat.scoringStrength !== seat.strength;
   return <div className={cls.join(" ")} data-seat={seat.id} style={{ "--seat-scale": s, "--seat-rot": `${rot}deg` } as React.CSSProperties}>
     <div className="tda-plate tda-seat-plate" style={{ ...at(placement.plate), "--rot": `${plateRot}deg` } as React.CSSProperties} data-seat-plate={seat.id}>
-      {seat.id === game.leaderSeatId ? <span className="tda-seat-leader" title={t("leader", lang)}>♛</span> : null}
-      <span className="tda-seat-name">{seat.name}{self && seat.name !== t("you", lang) ? ` · ${t("you", lang)}` : ""}</span>
-      <span className="tda-num tda-seat-gold">{gold}</span>
-      {seat.debt ? <span className="tda-seat-debt">−{seat.debt}</span> : null}
-      {!self ? <span className="tda-seat-hand" title={t("hand", lang)}><svg viewBox="0 0 12 14" width="10" height="12" aria-hidden="true"><rect x="0.5" y="2.5" width="7" height="10" rx="1" fill="none" stroke="currentColor" /><rect x="4.5" y="0.5" width="7" height="10" rx="1" fill="#15100b" stroke="currentColor" /></svg>{seat.handCount}</span> : null}
+      <div className="tda-seat-identity">
+        {seat.id === game.leaderSeatId ? <span className="tda-seat-leader" title={t("leader", lang)}>♛</span> : null}
+        <SeatName name={seat.name} />
+      </div>
+      <div className="tda-seat-funds">
+        {self && seat.name !== t("you", lang) ? <span className="tda-seat-self">{t("you", lang)}</span> : null}
+        <span className="tda-num tda-seat-gold">{gold}</span>
+        {seat.debt ? <span className="tda-num tda-seat-debt">−{seat.debt}</span> : null}
+        {!self ? <span className="tda-seat-hand" title={t("hand", lang)}><svg viewBox="0 0 12 14" width="10" height="12" aria-hidden="true"><rect x="0.5" y="2.5" width="7" height="10" rx="1" fill="none" stroke="currentColor" /><rect x="4.5" y="0.5" width="7" height="10" rx="1" fill="#15100b" stroke="currentColor" /></svg>{seat.handCount}</span> : null}
+      </div>
     </div>
     {ribbon ? <div className={`tda-ribbon tda-ribbon--${ribbon}`} style={{ ...at(placement.ribbon), "--rot": `${plateRot}deg` } as React.CSSProperties}>{t(RIBBON_KEY[ribbon], lang)}</div> : null}
     {/* 大法师效果：绶带位置旁的第二条绶带（身份标签区，不往桌心伸、不压牌堆） */}

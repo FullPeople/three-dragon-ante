@@ -66,14 +66,17 @@ export function createTableService({database,origin='https://obr.dnd.center',max
   }
  }
  const admin=(state,m)=>!isGuest(m.room)&&(state.table.hostPlayerId===m.id||roleOf(m)==='GM');
+ const mayInspect=(state,m)=>isGuest(m.room)?state.table.hostPlayerId===m.id:admin(state,m);
  function send(ws,value,compress=true){if(ws.readyState!==WebSocket.OPEN)return;if(ws.bufferedAmount>512000){ws.close(1013,'slowConsumer');return;}ws.send(JSON.stringify(value),{compress});}
  function view(ctx){
   const s=load(ctx.room),m=member(ctx.room,ctx.token),seat=s.table.seats.find(p=>p.playerId===m.id),isHost=s.table.hostPlayerId===m.id;
   if(ctx.receipt&&ctx.receipt.gameId!==s.game?.id)ctx.receipt=null;
   const live=s.game?{...s.game,history:(s.game.history||[]).slice(-4),historyComplete:false}:null;
-  let game=null;if(live)game=ctx.inspect&&admin(s,m)?packOmniscient(projectOmniscient(live,seat?.seatId||''),12000):seat?packSeat(projectSeat(live,seat.seatId),12000):packPublic(projectPublic(live),12000);
+  // Inspection belongs to this connection, and is revoked when ownership moves.
+  if(!mayInspect(s,m)||isGuest(m.room)&&!live)ctx.inspect=false;
+  let game=null;if(live)game=ctx.inspect&&mayInspect(s,m)?packOmniscient(projectOmniscient(live,seat?.seatId||''),12000):seat?packSeat(projectSeat(live,seat.seatId),12000):packPublic(projectPublic(live),12000);
   ctx.member=m.id;
-  return {actionReceiptVersion:1,table:s.table,selfPlayerId:m.id,isHost,role:roleOf(m),canEdit:admin(s,m),canKick:admin(s,m)||isGuest(m.room)&&isHost,canHandover:isHost&&s.table.seats.some(p=>p.playerId!==m.id),connected:true,pending:false,game,...(m.role==='PENDING'?{message:'admissionPending'}:{}),...(ctx.receipt?{actionReceipt:ctx.receipt}:{})};
+  return {actionReceiptVersion:1,table:s.table,selfPlayerId:m.id,isHost,role:roleOf(m),canEdit:admin(s,m)||isGuest(m.room)&&isHost&&ctx.inspect,canKick:admin(s,m)||isGuest(m.room)&&isHost,canHandover:isHost&&s.table.seats.some(p=>p.playerId!==m.id),connected:true,pending:false,game,...(m.role==='PENDING'?{message:'admissionPending'}:{}),...(ctx.receipt?{actionReceipt:ctx.receipt}:{})};
  }
  function publish(ctx,full=false){const next=view(ctx),seq=ctx.seq+1;
   if(full||!ctx.last){const m=member(ctx.room,ctx.token);send(ctx.ws,{type:'view',seq,view:next,identity:{memberId:m.id,challenge:m.challenge,role:next.role,owner:next.isHost,admitted:m.role!=='PENDING'}});}
@@ -121,7 +124,7 @@ export function createTableService({database,origin='https://obr.dnd.center',max
    send(ctx.ws,{type:'history',id,page:{gameId:s.game.id,before:cmd.before,entries,historyStartSequence:entries[0]?.sequence||0,historyComplete:entries[0]?.sequence===1||!entries.length}});return;
   }
   if(cmd.type==='omniscient'||cmd.type==='inspect'){
-   if(!admin(s,m))fail('notAllowed');ctx.inspect=cmd.enabled===true;publish(ctx,true);send(ctx.ws,{type:'ack',id,ok:true});return;
+   if(!mayInspect(s,m)||isGuest(m.room)&&!s.game)fail('notAllowed');ctx.inspect=cmd.enabled===true;publish(ctx,true);send(ctx.ws,{type:'ack',id,ok:true});return;
   }
   let next={...s,table:structuredClone(s.table),game:s.game},actionReceipt;
   if(cmd.type==='join'){
@@ -150,7 +153,7 @@ export function createTableService({database,origin='https://obr.dnd.center',max
    const applied=applyAction(s.game,a);if(!applied.ok)fail(applied.error.code);next.game=applied.state;
    actionReceipt={actionId:a.id,tableId:s.table.id,gameId:s.game.id,revision:next.game.revision,ok:true,source:'host'};
   }else if(cmd.type==='edit'){
-   if(!admin(s,m)||!s.game||cmd.gameId!==s.game.id)fail('notAllowed');next.game=applyEdit(s.game,cmd.edit);if(!next.game)fail('invalidEdit');
+   if(!(admin(s,m)||isGuest(m.room)&&owner&&ctx.inspect)||!s.game||cmd.gameId!==s.game.id)fail('notAllowed');next.game=applyEdit(s.game,cmd.edit);if(!next.game)fail('invalidEdit');
   }else fail('invalidCommand');
   next.table.revision++;next.table.stage=stage(next.game);
   const entries=next.game?.history||[];next={...next,game:trimGame(next.game)};

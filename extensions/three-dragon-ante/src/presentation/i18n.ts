@@ -111,6 +111,7 @@ const WORDS = {
   bannerAnte: ["第 {n} 轮局 · 前注", "Gambit {n} · ante"],
   bannerEnd: ["终局 · {names} 胜", "Game over · {names} wins"],
   bannerPurchase: ["{name} 买牌 · {n} 金币", "{name} buys cards · {n} gold"],
+  bannerPurchaseStart: ["{name} 买牌", "{name} buys cards"],
   bannerReward: ["{name} 特殊牌阵 · +{n}", "{name} special flight · +{n}"],
   formationColor: ["同色牌阵", "Color flight"],
   formationStrength: ["同点牌阵", "Strength flight"],

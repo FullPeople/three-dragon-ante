@@ -37,8 +37,8 @@ export function layoutBoxes(view: PublicView, selfSeatId: string, orientation: O
     const fc = { x: seat.flight.x + seat.dir.x * (flightCards - 1) * step / 2, y: seat.flight.y + seat.dir.y * (flightCards - 1) * step / 2 };
     boxes.push({ id: `${tag}:flight`, c: fc, w: length, h: CARD.h * s + 20, rot: seat.rot });
     // 本家铭牌在 CSS 里是左对齐（translate(0,-50%)），中心要往右挪半个宽度
-    // 本家铭牌 CSS 限宽 160（名字超长省略）；对手铭牌 180
-    boxes.push({ id: `${tag}:plate`, c: seat.self ? { x: seat.plate.x + 80, y: seat.plate.y } : seat.plate, w: seat.self ? 160 : 180, h: 36, rot: seat.plateRot });
+    // 铭牌两行：姓名按实测字宽缩小，金币独立保留；与 scene.css 的实际 160/180 × 44 相同。
+    boxes.push({ id: `${tag}:plate`, c: seat.self ? { x: seat.plate.x + 80, y: seat.plate.y } : seat.plate, w: seat.self ? 160 : 180, h: 44, rot: seat.plateRot });
     boxes.push({ id: `${tag}:ribbon`, c: seat.self ? { x: seat.ribbon.x + 36, y: seat.ribbon.y } : seat.ribbon, w: 72, h: 26, rot: seat.plateRot });
     boxes.push({ id: `${tag}:coins`, c: seat.coins, w: 70, h: 50, rot: 0 });
     const depthOut = CARD.h * s / 2 + 22;

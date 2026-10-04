@@ -12,7 +12,7 @@ export type RoundCue = { key: string } & (
   | { kind: "round" | "turn"; round: number; seatId: string }
   | { kind: "ante"; gambit: number }
   | { kind: "end"; winners: string[] }
-  | { kind: "purchase"; seatId: string; cardId: string; price: number });
+  | { kind: "purchase"; seatId: string; cardId: string; price: number; flows: PublicGoldFlow[] });
 
 /** 特殊牌阵：公开的三张牌、组合种类、奖励金额，以及紧随其后的金币流（同色：对手付钱；同点：取奖池）。 */
 export interface FormationCue { key: string; seatId: string; kind: PublicFlightFormationKind | "unknown"; amount: number; cardIds: string[]; flows: PublicGoldFlow[] }
@@ -24,7 +24,12 @@ export function roundCues(before: PublicView, after: PublicView, events: PublicE
   for (const [i, event] of events.entries()) {
     const key = `${prefix}:event:${i}`;
     if (event.code === "GAMBIT_SCORED" && event.score) cues.push({ key, kind: "score", report: event.score });
-    else if (event.code === "BUY_PRICE" && event.seatId && event.cardIds?.[0]) cues.push({ key, kind: "purchase", seatId: event.seatId, cardId: event.cardIds[0], price: event.amount ?? 0 });
+    else if (event.code === "BUY_PRICE" && event.seatId && event.cardIds?.[0]) {
+      // 引擎公开序列为价格牌 → 付款 → 抽牌；只带走这次购买紧随的付款，不能拿走该家的其他能力金币。
+      const payment = events[i + 1];
+      const flows = payment?.seatId === event.seatId && (payment.code === "PAID_STAKES" || payment.code === "PAID_PLAYER") ? publicGoldFlows(before, after).filter(flow => flow.key === `${prefix}:gold:${i + 1}`) : [];
+      cues.push({ key, kind: "purchase", seatId: event.seatId, cardId: event.cardIds[0], price: event.amount ?? 0, flows });
+    }
   }
   if (after.phase === "ended" && before.phase !== "ended") cues.push({ key: prefix + ":end", kind: "end", winners: after.winners });
   else if (after.phase === "ante" && after.gambit !== before.gambit) cues.push({ key: prefix + ":ante", kind: "ante", gambit: after.gambit });
@@ -44,7 +49,9 @@ export function revealCue(after: PublicView, events: PublicEvent[]): RevealCue |
   const ids = events[index].cardIds ?? [];
   if (ids.length !== after.seats.length || new Set(ids).size !== ids.length) return null;
   const following = events.slice(index + 1), allTied = following.some(event => event.code === "ANTE_ALL_TIED");
-  const payments = allTied ? [] : following.filter(event => event.code === "PAID_STAKES" && event.seatId && Number.isFinite(event.amount) && event.amount! > 0).map(event => ({ seatId: event.seatId!, amount: event.amount! }));
+  const purchaseIndex = following.findIndex(event => event.code === "BUY_PRICE");
+  const anteEvents = purchaseIndex < 0 ? following : following.slice(0, purchaseIndex);
+  const payments = allTied ? [] : anteEvents.filter(event => event.code === "PAID_STAKES" && event.seatId && Number.isFinite(event.amount) && event.amount! > 0).map(event => ({ seatId: event.seatId!, amount: event.amount! }));
   return { key: `${after.id}:${after.revision}:reveal`, cardIds: ids, allTied, payments };
 }
 
@@ -55,7 +62,7 @@ const safeCard = (id: string) => { try { return card(id); } catch { return null;
  *  结算帧里牌阵已被清空时，用公开的 ScoreReport 行取回这家结算时的牌。 */
 export function formationCues(after: PublicView, events: PublicEvent[], flows: PublicGoldFlow[]): FormationCue[] {
   const cues: FormationCue[] = [];
-  const boundary = new Set(["SPECIAL_FLIGHT", "GAMBIT_SCORED", "POWER_TRIGGERED", "ANTE_REVEALED"]);
+  const boundary = new Set(["SPECIAL_FLIGHT", "GAMBIT_SCORED", "POWER_TRIGGERED", "ANTE_REVEALED", "BUY_PRICE"]);
   const report = events.find(e => e.code === "GAMBIT_SCORED")?.score;
   for (const [i, event] of events.entries()) {
     if (event.code !== "SPECIAL_FLIGHT" || !event.seatId) continue;
@@ -82,8 +89,10 @@ export function derivePresentation(before: PublicView | null, after: PublicView 
   const taken = new Set(formations.flatMap(f => f.flows.map(flow => flow.key)));
   const scoreIndex = events.findIndex(e => e.code === "GAMBIT_SCORED");
   // 翻注付款走翻注序列；结算付款由计分板自己飞；特殊牌阵的金币流跟在它的说明层后面。三者都不重复进通用金币流。
-  const generic = allFlows.filter(flow => !(reveal && flow.code === "PAID_STAKES") && flow.code !== "GAMBIT_SCORED" && flow.code !== "GAMBIT_WON" && !taken.has(flow.key));
+  const rounds = roundCues(before, after, events);
+  const purchaseFlows = new Set(rounds.flatMap(cue => cue.kind === "purchase" ? cue.flows.map(flow => flow.key) : []));
+  const generic = allFlows.filter(flow => !(reveal && flow.code === "PAID_STAKES") && flow.code !== "GAMBIT_SCORED" && flow.code !== "GAMBIT_WON" && !taken.has(flow.key) && !purchaseFlows.has(flow.key));
   const gold = scoreIndex < 0 ? generic : generic.filter(flow => flowIndex(flow) < scoreIndex);
   const goldAfterScore = scoreIndex < 0 ? [] : generic.filter(flow => flowIndex(flow) > scoreIndex);
-  return { reveal, powers: powerEvents(before, after), rounds: roundCues(before, after, events), gold, goldAfterScore, formations };
+  return { reveal, powers: powerEvents(before, after), rounds, gold, goldAfterScore, formations };
 }

@@ -16,6 +16,7 @@ import { t } from "../i18n";
 import type { FxLayer } from "../fx/particles";
 import type { FxStage } from "../fx3d/FxStage";
 import type { Orientation } from "../model/layout";
+import { bindHiddenOmniscient } from "../../site/hidden-omniscient";
 
 export interface TableAppProps { store: Store; controller: Controller; onFx(fx: FxLayer | null): void; onFx3d?(stage: FxStage | null): void; onOrientation(orientation: Orientation): void; showTopBar: boolean; onLand?(key: string, zone: string): void }
 
@@ -28,6 +29,13 @@ export function TableApp({ store, controller, onFx, onFx3d, onOrientation, showT
   const seatName = (id: string) => game?.seats.find(s => s.id === id)?.name ?? id;
   const line = waitingLine(flowGame, own?.selfSeatId ?? null, lang, flags, seatName, state.slowSeatIds);
   const root = useRef<HTMLDivElement>(null);
+  useEffect(() => bindHiddenOmniscient(window, () => {
+    const current = store.get();
+    return current.hostKind === "website" && !!current.view?.connected && !!current.view.game && !current.suspended;
+  }, () => {
+    const current = store.get();
+    if (current.view?.isHost) controller.send({ type: "omniscient", enabled: !omniscientGame(current.view) });
+  }), [store, controller]);
   useEffect(() => { const el = root.current; if (!el) return; const onKey = (event: KeyboardEvent) => { if ((event.target as HTMLElement)?.closest?.("input, select, textarea, button, a, [role=dialog]")) return; controller.keyboard(event); }; el.addEventListener("keydown", onKey); return () => el.removeEventListener("keydown", onKey); }, [controller]);
   const inGame = !!game;
   const omniscient = !!omniscientGame(view);
