@@ -29,3 +29,11 @@
 默认软件2D run-o1ibiR 14/14、强开软件3D run-9ApAvm 16/16、default正常网站3D run-b66MlY 16/16均exit0。原13演出各全部保留，软件负对照两FX画布GL绘制0；两个3D模式都由真实已接受黑龙能力触发，无debug/gallery/手动cast，实际native POINTS前后非透明像素变化与ground非空绘制均阳性，说明打开/关闭各1，脚本/外域0。各wrapper source与FX/client/presenter文件前后hash稳定；default三驱动观测software=false不等于实体手机/弱机验收，readPixels开销不构成FPS证据。详情同日fx3d-ambient-network-validation runbook及ignored run-ambient-network-6b63f355。
 
 042e446d07ff87deba49b3b5ad6e5356d0faf5ae已normal push隔离integrate/fx3d-refresh-c3960047分支，无main/force/tag。精确CI37194506711已启动，执行29个run步骤，未删原25；当前尚未结论。gpt-6.1-sol独立复核版本/锁/脚本/CI旧行完整保留、client/FX/hash及权限Node13实际证据，有条件通过；生产参数和activehold画质及最终CI/包仍待，不把metadata通过当发布终裁。
+
+## 042冻结实际结果与发布停止
+
+精确CI37194506711/head042e446完整36步骤成功（原25 run完整保留，新4 run，共29 run）。独立冻结worktree已npmci两根exit0、打包exit0；stable/dev各973文件，GPL源码432 Git blob、tar SHA357e33b3e3e893cb1c3cee766d174bd6db77002d3cef48209bde9c84bc0aa555；server与部署脚本均与已上线801逐字相同。原独立checker固定970/972首次失败保留，先独立walk+逐名称/SHA/size后，仅RAM两常数适配973/975，1阳性+11阴性全过，原磁盘不改；详情ignored independent-package-042e446.json。
+
+实际合法blue pendingchoice通过真实mount/presenter建立原rate3/life2 hold，真实画质按钮重建新FX后choice仍在但native POINTS/ground/alpha全0，run-39HGpC首1阳性后exit1，停止后续fields、不改测试凑数。其他模型gpt-6.1-sol独立确认P2并裁决042不可发布；旧包保留修复前检查点，未上传/部署。后续仅presenter/mount交接修复，需新源码冻结+完整CI/新包/终审+定向部署与公网验收。
+
+新增真实producer工具和CI脚本将捕获FieldLayer/presenter实际spec，合法fixture不读真实房间数据、不手工造powerHold；第二次真正双canvas loss的2D阳性再做生产life派生尾清理。composition API null只代表路由清理控制，不声称真实choice解除；前一合成24 life1.2边界及所有历史失败保留。

@@ -39,7 +39,8 @@
     "test:website-auth-timeout": "node tools/website-auth-timeout-selftest.mjs",
     "test:website-pending-inspection": "node tools/website-pending-inspection-selftest.mjs",
     "test:fx3d-ambient": "node tools/fx3d-ambient-browser.mjs",
-    "test:site-presentation-3d": "node tools/site-presentation-browser.mjs --fx3d"
+    "test:site-presentation-3d": "node tools/site-presentation-browser.mjs --fx3d",
+    "test:fx3d-producer": "node tools/fx3d-producer-browser.mjs"
   },
   "dependencies": {
     "@fontsource/cinzel": "5.2.6",

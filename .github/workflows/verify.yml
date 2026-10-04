@@ -43,6 +43,7 @@ jobs:
       - run: npm run test:fx3d-lifecycle
       - run: node tools/fx3d-ambient-browser.mjs --baseline-ambient
       - run: npm run test:fx3d-ambient
+      - run: npm run test:fx3d-producer
       - run: npm run test:performance-structure
       - uses: actions/upload-artifact@v4
         if: always()
