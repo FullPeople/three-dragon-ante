@@ -46,3 +46,16 @@
 - 保留来源的8bce CI37184313948刷新失败、b779 CI37184908911失败及本地gVAuZ1清DOM失败边界；来源报告aR45Bs默认13通过和KtRdUc Node3通过是根任务对应源证据，不称本候选亲跑。认证到达与view接收时间继续区分，不由延迟猜字体/GL原因。
 - 本轮实际仅两个工具 `node --check`、package JSON与脚本合同校验、`git diff --check` 和生产/保护路径0diff；未重新build或跑测试。前节b37构建/纯回归通过仍是其历史证据，不冒称552增量完成浏览器验收。
 - 当前热修复发布状态以根任务回执为准，完整FX候选未发布；根公网热修复完成前浏览器仍独占。本增量不作为热修复的阻塞依赖。
+
+## 后续：801daf5 认证超时的最小生产修复（按时间追加）
+
+根任务明确授权将最新热修复冻结 `801daf580e9505a377dc97a544c4ad051ea029ac` 正常合入隔离FX候选。第一父 `815e37d1cedf70019e8d4db425856d17b66395a1`，共同祖先55218ea；fetch成功、起始工作树干净，未push/ff根/部署或启动浏览器。
+
+- 来源相对552为7文件：唯一产品变化是 `src/game/server-client.ts` 的 pre-auth `1008` 判定，只有 reason **精确**等于 `authenticationRequired` 的服务认证截止超时使用既有自动backoff；4001、notAllowed和未知1008仍原终态，stop仍取消backoff。不改服务5000ms截止、8000ms房主宽限、规则或协议字段。
+- 2处冲突workflow/TODO：保留全部FX/lifecycle/performance与旧专项，接受演出测试前移、新Node5控制，去掉重复演出step；TODO按时间保留失败与合入进度。package自动合入新script，当前版本仍0.9.1-dev，未擅自改版本。
+- 新5控制采用实际编译客户端/真实loopback WS/合成RAM服务，首个auth的故障注入不送达，用不变的真实5秒服务截止触发1008；同时保留有效重连、真实无效凭据、未知1008、4001、stop-during-backoff正反例。此工具仅语法查证，未在本候选执行；根对应源运行结果按bug-hotfix-deploy记录，不冒称本轮亲跑。
+- site-presentation诊断仅有界事件/公开头部元数据、auth-send布尔与allowlist close/status；原13测例、30秒等待和时序/私牌断言保留，native write/send调用透传。根Windows曾在同次真实1008后恢复并完成原13项，是根热修复证据，不替代该FX源浏览器回归。
+- 整个game树现在预期为 `29e44782845b76df380ff9565fa825bc7e60e23d`，相对801完全一致；相对第一父仅server-client这一个文件。规则/protocol/wire/private-channel/art/legacy/server都无变更：server仍 `39f5d2238d578cbc3fd194b989e754e48ec77529`，legacy仍 `a1bf4ab975cd1095643b548138ba5b6d30409449`。presentation/site相对第一父0diff，最新c396/namefitter/flight/演出/lifecycle保护保持。
+- 本轮实际验证：两新增/变更工具 `node --check`、`npm run typecheck`（tsc --noEmit零错误）、package script/CI去重合同及 `git diff --check` 通过；未build、未执行Node5或其它单元、未跑任何Playwright/browser。旧552/e347及更早失败证据原样保留。
+- 去重临时检查首次命令多一个引号而SyntaxError（未执行检查、未改源码），修正命令后实际exit0；不将此命令错误误归产品或藏作首次通过。
+- 后续FX应与独立热修复0.9.1区分版本，暂建议0.9.2-dev作为候选；真正改版本/构建发布元数据由根任务在FX完整回归与审计完成后决定。版本遗留同步TODO，完整FX仍未发布，公网热修复继续由根任务独占。

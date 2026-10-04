@@ -91,3 +91,5 @@
 - 反向合入8bce后的本候选实际轻回归：根/服务npmci、typecheck（0错）/build/buildserver、npm8（presentation20）、WS机械32、发布保护35、router12及四HTML lazy分包检查全部通过。未运行任何browser/Playwright，最新FX/生命周期/铭牌等仍须独立验收，不冒称热修复本机或Linux结果为该合并源通过。
 
 - 后续仅工具增量55218ea正常合入隔离候选：真实默认8s刷新与短/超期宽限Node三控制、代次/fresh-view和有界公开时序、CI重排/新script；生产源码相对b37零变化。仅静态检查亲跑，未运行浏览器；旧失败仍保留，最新热修复线上状态只认根任务回执。完整FX候选未发布，见hotfix-backmerge runbook后续段。
+
+- 后续801daf5热修复正常合入隔离FX候选：唯一产品增量为精确1008/authenticationRequired的 pre-auth 超时按原backoff重连，拒绝凭据/4001/未知1008终态保持；新增5个真实客户端/WS正反控制及公开诊断。整个game树更新为29e4478并与801一致，规则/协议字段/私牌/art/server/legacy不变，FX与在线反馈不变。本轮仅语法/typecheck0错，未运行浏览器；FX版本尚未改，后续应与热修复0.9.1区分。最新发布状态仍只认根回执。

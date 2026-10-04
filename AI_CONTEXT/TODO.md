@@ -5,6 +5,9 @@
 
 ## 待办
 
+- [x] 后续801daf5认证超时最小修复反向合入：精确authenticationRequired既有backoff，其他拒绝终态保持；保留FX与所有专项，新Node5/CI/安全诊断合入，语法/tsc0错/保护diff通过，本候选未跑browser。见hotfix-backmerge后续段。
+- [ ] 最新热修复801的精确CI/冻结包/定向部署与公网验收仍由根任务完成；552两次失败及e347真实认证超时原因和恢复证据保留，不能用根热修复13通过冒称完整FX验收。
+- [ ] FX真正发布前与热修复0.9.1区分版本，候选建议0.9.2-dev；当前package仍0.9.1-dev未改，待完整FX回归/独立终审与根任务发布决定后统一更新产物/发布元数据。
 - [x] 后续55218ea仅工具/CI增量反向合入：真实宽限三控制、新script与全能fresh-view诊断保持，生产/保护路径0diff、静态检查通过；未跑本候选browser，不作为根热修复阻塞依赖。
 - [x] 2026-10-04 热修复冻结 `8bce32b` 反向合入附件候选：保留 c396 特效及根保护、新姓名测宽 fitter/成熟工具/35发布guards；验证与冲突见 `RUNBOOKS/2026-10-04_hotfix-backmerge.md`。
 - [x] 8bce反向合入候选轻回归：根/服务npmci、typecheck0错/build/buildserver、npm8（presentation20）、WS32、发布guards35、router12和lazy产物检查通过；旧810阶段依赖/构建待项已完成，browser/完整CI/独立终审仍待。

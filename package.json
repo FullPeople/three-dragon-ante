@@ -35,7 +35,8 @@
     "test:performance-structure": "node tools/performance-compare-browser.mjs --structure-only",
     "test:performance-compare": "node tools/performance-compare-browser.mjs",
     "test:website-omniscient-live": "node tools/website-omniscient-live.mjs",
-    "test:host-refresh-grace": "node tools/website-refresh-grace-selftest.mjs"
+    "test:host-refresh-grace": "node tools/website-refresh-grace-selftest.mjs",
+    "test:website-auth-timeout": "node tools/website-auth-timeout-selftest.mjs"
   },
   "dependencies": {
     "@fontsource/cinzel": "5.2.6",
