@@ -82,6 +82,13 @@ export function TableScene({ state, controller, onFx, onFx3d, onOrientation, onL
       fx.burst(at(seats[0].flight), "ember", 1);
       void fx.flare(at(center.hole), "crown", 1000);
       void fx.ring(at(seats[0].ante), "grove", 150, 900);
+      fx.dust(at({ x: seats[0].flight.x + 180, y: seats[0].flight.y }), 1);
+      const other = seats[1] ?? seats[0];
+      void fx.claw(at(other.flight), "ember", 900);
+      void fx.grab(at(seats[0].coins), at(center.stakes), "ember", 1100);
+      void fx.swap(at(center.deck), at(other.ante), "tide", "crown", 1000);
+      const hand = at(seats[0].anchor); fx.ambient("gallery", { kind: "grove", rate: 36, area: { x: hand.x - 150, y: hand.y + 120, w: 300, h: 90 }, drift: { x: 0, y: -22 }, size: 2.4, life: 2, alpha: 0.75 });
+      setTimeout(() => fx.ambient("gallery", null), 2600);
     }, 800);
     return () => clearTimeout(timer);
   }, [fx3dGallery, game?.id, seats.length]);

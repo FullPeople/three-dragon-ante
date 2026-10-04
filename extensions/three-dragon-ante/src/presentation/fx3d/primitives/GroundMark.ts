@@ -1,7 +1,7 @@
 /** 地面法阵 / 印记：一张贴地 quad，SDF 画出外环、内环、刻度与一圈程序化符文（按 seed 变体），
- *  符文环缓慢旋转、内环反向；噪声让线条呼吸。mode 0 = 法阵（可驻留），mode 1 = 单环扩散（ring）。
+ *  符文环缓慢旋转、内环反向；噪声让线条呼吸。mode 0 = 法阵（可驻留），mode 1 = 单环扩散（ring），mode 2 = 三道爪痕（依次划出、焦痕余烬）。
  *  画在地面画布（卡牌之下），乘桌形裁剪。 */
-import { Mesh, PlaneGeometry, ShaderMaterial, Vector3 } from "three";
+import { Mesh, PlaneGeometry, ShaderMaterial } from "three";
 import type { Effect, FxStage } from "../FxStage";
 import { GLSL_COMMON, GLSL_TABLE } from "../shaders/lib";
 import { palette } from "../palette";
@@ -18,10 +18,23 @@ varying vec2 vUv; varying vec2 vWorld;
 ${GLSL_COMMON}${GLSL_TABLE}
 void main(){
   vec2 p = (vUv - 0.5) * 2.0; float r = length(p); float ang = atan(p.y, p.x);
-  float env = (uMode > 0.5) ? (1.0 - smoothstep(0.55, 1.0, uT)) : smoothstep(0.0, 0.22, uT) * (1.0 - uOut);
+  float env = (uMode > 1.5) ? 1.0 : (uMode > 0.5) ? (1.0 - smoothstep(0.55, 1.0, uT)) : smoothstep(0.0, 0.22, uT) * (1.0 - uOut);
   float shimmer = 0.8 + 0.4 * fbm3(p * 3.0 + uTime * 0.35 + uSeed);
   vec3 col = vec3(0.0);
-  if (uMode > 0.5) {
+  if (uMode > 1.5) {
+    // 爪痕：三道平行斜线依次划出（uT 0→1 内错开），亮芯 + 暗焦痕边，末段余烬闪烁
+    for (int i = 0; i < 3; i++) {
+      float fi = float(i); float on = clamp((uT - fi * 0.12) / 0.18, 0.0, 1.0);
+      vec2 o = vec2((fi - 1.0) * 0.26, 0.0);
+      vec2 a = o + vec2(-0.55, 0.62), b = o + vec2(0.55, -0.62);
+      vec2 bb = mix(a, b, on);
+      float d = sdSegment(p, a, bb);
+      float core = fillAA(d - 0.022) * on, scorch = fillAA(d - 0.06) * 0.55 * on;
+      float ember = 0.75 + 0.5 * vnoise(p * 9.0 + uTime * 4.0 + fi);
+      col += uBright * core * ember + mix(uColor, vec3(0.08, 0.03, 0.01), 0.6) * scorch;
+    }
+    col *= 1.0 - smoothstep(0.7, 1.0, uT);
+  } else if (uMode > 0.5) {
     // 单环扩散：半径随 uT 长到 1，带内侧余晖
     float rr = mix(0.15, 0.98, smoothstep(0.0, 1.0, uT));
     float ring = strokeAA(r - rr, 0.025 + 0.02 * (1.0 - uT));
@@ -49,13 +62,12 @@ void main(){
 }
 `;
 
-export interface GroundMarkOptions { kind: FxKind; radius: number; duration: number; mode?: 0 | 1; seed?: number; z?: number }
+export interface GroundMarkOptions { kind: FxKind; radius: number; duration: number; mode?: 0 | 1 | 2; seed?: number; z?: number }
 export class GroundMark implements Effect {
   readonly mesh: Mesh<PlaneGeometry, ShaderMaterial>;
   private readonly start: number; private released = -1; private readonly duration: number;
-  private readonly stage: FxStage;
   constructor(stage: FxStage, x: number, y: number, o: GroundMarkOptions) {
-    this.stage = stage; this.duration = o.duration; this.start = performance.now();
+    this.duration = o.duration; this.start = performance.now();
     const p = palette(o.kind);
     const material = new ShaderMaterial({ vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthWrite: false, depthTest: false, premultipliedAlpha: true, toneMapped: false,
       uniforms: { uColor: { value: p.main }, uBright: { value: p.bright }, uT: { value: 0 }, uTime: { value: 0 }, uSeed: { value: o.seed ?? Math.random() * 100 }, uMode: { value: o.mode ?? 0 }, uOut: { value: 0 }, ...stage.tableUniforms() } });
@@ -74,5 +86,5 @@ export class GroundMark implements Effect {
     if (this.released >= 0) { const k = (now - this.released) / 500; u.uOut.value = Math.min(1, k); return k < 1; }
     return true;
   }
-  dispose() { this.mesh.parent?.remove(this.mesh); this.mesh.geometry.dispose(); this.mesh.material.dispose(); void this.stage; }
+  dispose() { this.mesh.parent?.remove(this.mesh); this.mesh.geometry.dispose(); this.mesh.material.dispose(); }
 }

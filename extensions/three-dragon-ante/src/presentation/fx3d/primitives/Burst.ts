@@ -31,7 +31,7 @@ void main(){
 `;
 const FRAG = /* glsl */`
 precision highp float;
-uniform sampler2D uMap; uniform vec3 uColor, uBright;
+uniform sampler2D uMap; uniform vec3 uColor, uBright; uniform float uSolid;
 varying float vFade; varying float vSpin; varying float vSeed;
 ${GLSL_COMMON}
 void main(){
@@ -39,12 +39,13 @@ void main(){
   vec2 uv = vec2(c.x * co - c.y * s, c.x * s + c.y * co) + 0.5;
   vec4 tex = texture2D(uMap, uv);
   vec3 tint = mix(uColor, uBright, vSeed * 0.7);
+  if (uSolid > 0.5) { gl_FragColor = solidOut(tint, tex.a * vFade * 0.85); return; }
   vec3 col = tint * tex.a * vFade * 1.7;
   gl_FragColor = glowOut(col);
 }
 `;
 
-export interface BurstOptions { kind: FxKind; count: number; speed: number; up?: number; gravity?: number; drag?: number; size?: number; life?: number; sprites?: SpriteName[]; spread?: number }
+export interface BurstOptions { kind: FxKind; count: number; speed: number; up?: number; gravity?: number; drag?: number; size?: number; life?: number; sprites?: SpriteName[]; spread?: number; solid?: boolean }
 const FAMILY_SPRITES: Record<FxKind, SpriteName[]> = {
   ember: ["flame_01", "spark_03", "fire_01"], tide: ["magic_02", "star_05", "spark_01"], grove: ["star_01", "twirl_01", "magic_04"], arcane: ["magic_01", "magic_05", "star_07"],
   crown: ["star_05", "flare_01", "spark_06"], gold: ["spark_06", "star_01"], dust: ["dirt_01", "dirt_02", "smoke_01"],
@@ -74,7 +75,7 @@ export class Burst implements Effect {
       geo.setAttribute("position", new Float32BufferAttribute(g.pos, 3)); geo.setAttribute("aVel", new Float32BufferAttribute(g.vel, 3));
       geo.setAttribute("aLife", new Float32BufferAttribute(g.life, 4)); geo.setAttribute("aSeed", new Float32BufferAttribute(g.seed, 1));
       const mat = new ShaderMaterial({ vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthWrite: false, depthTest: false, premultipliedAlpha: true, toneMapped: false,
-        uniforms: { uMap: { value: sprite(names[gi]) as Texture }, uColor: { value: p.main }, uBright: { value: p.bright }, uTime: { value: this.start }, uGravity: { value: o.gravity ?? 900 }, uDrag: { value: o.drag ?? 2.2 }, uPointScale: { value: stage.pointScale() } } });
+        uniforms: { uMap: { value: sprite(names[gi]) as Texture }, uColor: { value: p.main }, uBright: { value: p.bright }, uTime: { value: this.start }, uGravity: { value: o.gravity ?? 900 }, uDrag: { value: o.drag ?? 2.2 }, uPointScale: { value: stage.pointScale() }, uSolid: { value: o.solid ? 1 : 0 } } });
       const pts = new Points(geo, mat); pts.frustumCulled = false; pts.renderOrder = 30;
       stage.air.group.add(pts); this.points.push(pts); this.materials.push(mat);
     });
