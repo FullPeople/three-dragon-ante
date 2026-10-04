@@ -18,12 +18,12 @@ export function SiteApp() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const changeLang = (value: Language) => { setLocalLang(value); setLang(value); };
-  async function enterRoom(mode: "create" | "join" | "reconnect") {
+  async function enterRoom(mode: "create" | "join" | "reconnect" | "watch") {
     if (busy) return;
     if (!name.trim()) { setError("invalidName"); return; }
     setBusy(true); setError("");
     try {
-      const admitted = mode === "create" ? await createGuestRoom(name) : await joinGuestRoom(code, name, mode === "reconnect");
+      const admitted = mode === "create" ? await createGuestRoom(name) : await joinGuestRoom(code, name, mode === "reconnect", mode === "watch" ? true : mode === "join" ? false : undefined);
       setOnline(admitted); setName(admitted.name); setCode(admitted.room.code); setScreen("online");
     } catch (value) { setError(value instanceof Error ? value.message : "requestFailed"); }
     finally { setBusy(false); }
@@ -49,6 +49,7 @@ export function SiteApp() {
         <div className="site-actions">
           <button type="button" className="tda-btn tda-btn--primary" disabled={busy} onClick={() => void enterRoom("create")}>{lang === "zh" ? "创建房间" : "Create room"}</button>
           <button type="submit" className="tda-btn" disabled={busy || !code.trim()}>{lang === "zh" ? "加入房间" : "Join room"}</button>
+          <button type="button" className="tda-btn" data-testid="watch-room" disabled={busy || !code.trim()} onClick={() => void enterRoom("watch")}>{lang === "zh" ? "观战" : "Watch"}</button>
           <button type="button" className="tda-btn" disabled={busy || !code.trim()} onClick={() => void enterRoom("reconnect")}>{lang === "zh" ? "重连房间" : "Reconnect"}</button>
         </div>
         {busy ? <p className="site-room-note" role="status">{lang === "zh" ? "连接中" : "Connecting"}</p> : null}
@@ -69,6 +70,7 @@ function OnlineScreen({ lang, admission, onClose, onLanguage }: { lang: Language
   const host = useRef<HTMLDivElement>(null), handle = useRef<OnlineMatchHandle | null>(null), link = useRef<HTMLInputElement>(null);
   const playing = useRef(false), leaveTrigger = useRef<HTMLElement | null>(null), leaveDialog = useRef<HTMLDivElement>(null);
   const [connected, setConnected] = useState(false), [message, setMessage] = useState(""), [copied, setCopied] = useState(false), [leaveOpen, setLeaveOpen] = useState(false);
+  const [spectating, setSpectating] = useState(admission.spectating === true);
   const requestClose = () => {
     if (!playing.current) { onClose(); return; }
     leaveTrigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -77,7 +79,7 @@ function OnlineScreen({ lang, admission, onClose, onLanguage }: { lang: Language
   const cancelLeave = () => { setLeaveOpen(false); };
   useEffect(() => {
     if (!host.current) return;
-    handle.current = createOnlineMatch(host.current, { admission, language: lang, onClose: requestClose, onLanguage, onStatus: (value, status, inProgress) => { playing.current = inProgress; setConnected(value); setMessage(status || ""); } });
+    handle.current = createOnlineMatch(host.current, { admission, language: lang, onClose: requestClose, onLanguage, onStatus: (value, status, inProgress, watching) => { playing.current = inProgress; setSpectating(watching); setConnected(value); setMessage(status || ""); } });
     return () => { handle.current?.destroy(); handle.current = null; };
   }, []);
   useEffect(() => { handle.current?.setLanguage(lang); }, [lang]);
@@ -88,7 +90,7 @@ function OnlineScreen({ lang, admission, onClose, onLanguage }: { lang: Language
   };
   return <main className="site-online-match" data-connected={connected}>
     <header className="site-room-bar" inert={leaveOpen}>
-      <div className="site-room-identity"><span>{lang === "zh" ? "房间" : "Room"} <strong data-testid="online-room-code">{admission.room.code}</strong></span><span>{admission.name}</span><span role="status">{connected ? (lang === "zh" ? "已连接" : "Connected") : message === "sessionReplaced" ? (lang === "zh" ? "座位已在其他窗口连接" : "Seat connected in another window") : message === "notAllowed" ? (lang === "zh" ? "连接已失效，请返回首页重连" : "Session expired; return home to reconnect") : message === "requestFailed" ? (lang === "zh" ? "连接失败" : "Connection failed") : (lang === "zh" ? "重连中" : "Reconnecting")}</span></div>
+      <div className="site-room-identity"><span>{lang === "zh" ? "房间" : "Room"} <strong data-testid="online-room-code">{admission.room.code}</strong></span><span>{admission.name}</span>{spectating ? <span data-testid="spectator-status">{lang === "zh" ? "观战" : "Watching"}</span> : null}<span role="status">{connected ? (lang === "zh" ? "已连接" : "Connected") : message === "sessionReplaced" ? (lang === "zh" ? "座位已在其他窗口连接" : "Seat connected in another window") : message === "notAllowed" ? (lang === "zh" ? "连接已失效，请返回首页重连" : "Session expired; return home to reconnect") : message === "requestFailed" ? (lang === "zh" ? "连接失败" : "Connection failed") : (lang === "zh" ? "重连中" : "Reconnecting")}</span></div>
       <div className="site-room-tools">
         <input ref={link} readOnly autoComplete="off" aria-label={lang === "zh" ? "邀请链接" : "Invite link"} value={inviteURL(admission.room.code)} />
         <button type="button" className="tda-btn tda-btn--quiet" onClick={() => void copy()}>{copied ? (lang === "zh" ? "已复制" : "Copied") : (lang === "zh" ? "复制邀请" : "Copy invite")}</button>
@@ -102,7 +104,7 @@ function OnlineScreen({ lang, admission, onClose, onLanguage }: { lang: Language
       if (event.key === "Tab") { event.preventDefault(); const buttons = [...event.currentTarget.querySelectorAll<HTMLButtonElement>("button")]; const index = buttons.indexOf(document.activeElement as HTMLButtonElement); buttons[(index + (event.shiftKey ? buttons.length - 1 : 1)) % buttons.length]?.focus(); }
     }}>
       <h2 id="site-leave-title">{lang === "zh" ? "退出对局？" : "Leave the game?"}</h2>
-      <p id="site-leave-description">{lang === "zh" ? "对局仍在进行。退出后座位离线，可用相同名字重连；房间无人超过 1 分钟会解散。" : "The game is still in progress. Your seat can reconnect with the same name; the room closes after 1 minute with no one online."}</p>
+      <p id="site-leave-description">{spectating ? (lang === "zh" ? "退出观战？可用相同名字重连。" : "Leave watching? You can reconnect with the same name.") : lang === "zh" ? "对局仍在进行。退出后座位离线，可用相同名字重连；房间无人超过 1 分钟会解散。" : "The game is still in progress. Your seat can reconnect with the same name; the room closes after 1 minute with no one online."}</p>
       <div className="site-actions">
         <button type="button" className="tda-btn" data-testid="leave-cancel" onClick={cancelLeave}>{lang === "zh" ? "继续对局" : "Keep playing"}</button>
         <button type="button" className="tda-btn tda-btn--primary" data-testid="leave-confirm" onClick={onClose}>{lang === "zh" ? "确认退出" : "Leave game"}</button>

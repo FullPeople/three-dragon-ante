@@ -2,7 +2,7 @@ import type { ServerSession } from "../game/server-protocol";
 import { serverPost } from "../game/server-endpoint";
 
 export interface GuestRoom { version: 1; id: string; code: string }
-export interface GuestAdmission { room: GuestRoom; session: ServerSession; name: string; reconnected: boolean }
+export interface GuestAdmission { room: GuestRoom; session: ServerSession; name: string; reconnected: boolean; spectating?: boolean }
 const ACTIVE_KEY = "three-dragon-site-active.v1";
 const roomCode = /^[A-Z0-9]{8}$/;
 const normalizedName = (name: string) => name.trim().normalize("NFKC").toLowerCase();
@@ -13,8 +13,9 @@ function admission(value: unknown): GuestAdmission | null {
   const v = value as GuestAdmission, s = v.session, r = v.room;
   if (r?.version !== 1 || !/^[a-f0-9]{32}$/.test(r.id) || !roomCode.test(r.code) || s?.roomId !== r.id ||
       !/^[a-f0-9]{32}$/.test(s.memberId) || !/^[a-f0-9]{64}$/.test(s.token) ||
-      !["GM", "PLAYER"].includes(s.role) || typeof s.owner !== "boolean" || typeof v.name !== "string" || v.name.length > 60) return null;
-  return { room: { version: 1, id: r.id, code: r.code }, session: { roomId: s.roomId, memberId: s.memberId, token: s.token, role: s.role, owner: s.owner }, name: v.name, reconnected: !!v.reconnected };
+      !["GM", "PLAYER"].includes(s.role) || typeof s.owner !== "boolean" || typeof v.name !== "string" || v.name.length > 60 ||
+      v.spectating !== undefined && typeof v.spectating !== "boolean") return null;
+  return { room: { version: 1, id: r.id, code: r.code }, session: { roomId: s.roomId, memberId: s.memberId, token: s.token, role: s.role, owner: s.owner }, name: v.name, reconnected: !!v.reconnected, spectating: v.spectating === true };
 }
 
 /** Only room access and this browser's seat capability are stored, never a game or a hand. */
@@ -63,15 +64,17 @@ async function post(path: string, body: unknown): Promise<GuestAdmission> {
   }
 }
 export function createGuestRoom(name: string) { return post("/guest/rooms", { name }); }
-export function joinGuestRoom(code: string, name: string, reconnect = false) {
+export function joinGuestRoom(code: string, name: string, reconnect = false, spectating?: boolean) {
   const normalized = code.trim().toUpperCase();
   if (!roomCode.test(normalized)) return Promise.reject(Error("invalidRoomCode"));
   const cached = reconnect ? readGuestSession(normalized, name) : null;
   const path = "/guest/rooms/" + normalized + "/sessions";
-  return post(path, { name, ...(reconnect ? { reconnect: true, ...(cached ? { reconnectToken: cached.session.token } : {}) } : {}) }).catch(error => {
+  const mode = spectating ?? cached?.spectating;
+  const request = { name, ...(mode === undefined ? {} : { spectating: mode }), ...(reconnect ? { reconnect: true, ...(cached ? { reconnectToken: cached.session.token } : {}) } : {}) };
+  return post(path, request).catch(error => {
     // An explicitly requested reconnect may recover an offline name after another browser rotated the saved capability.
     // The service still rejects an online seat or an unexpired claim; ordinary joins never use this fallback.
-    if (reconnect && cached && error instanceof Error && error.message === "notAllowed") return post(path, { name, reconnect: true });
+    if (reconnect && cached && error instanceof Error && error.message === "notAllowed") return post(path, { name, reconnect: true, ...(mode === undefined ? {} : { spectating: mode }) });
     throw error;
   });
 }

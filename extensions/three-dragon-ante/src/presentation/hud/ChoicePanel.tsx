@@ -1,11 +1,12 @@
 /** 能力选择：羊皮纸面板。每个选项都是同尺寸的"瓦片"：卡牌选项放真实卡面，文字选项放大字与短句。
  * 只发 choose 命令；单选时点另一项直接切换，多选时才会禁用多余项。 */
 import type { UIState } from "../app/store";
-import { privateGame } from "../app/store";
+import { omniscientGame, privateGame } from "../app/store";
 import type { Controller } from "../app/controller";
 import { cardFaceURL } from "../../game/card-images";
 import { card } from "../../game/rules/cards";
 import { cardName, prompt, t } from "../i18n";
+import { CardBackArt } from "../scene/CardBack";
 
 /** 选项短标题：大字 + 小字。只做展示，规则文本仍以 prompt() 为准。 */
 function optionLabel(code: string | undefined, id: string, lang: "zh" | "en"): { big: string; small: string } {
@@ -31,6 +32,8 @@ export function ChoicePanel({ state, controller }: { state: UIState; controller:
   const seatName = (id: string) => id === own.selfSeatId ? t("you", lang) : game.seats.find(s => s.id === id)?.name ?? id;
   const owner = (cardId: string) => game.seats.find(seat => seat.flight.some(entry => entry.cardId === cardId))?.name ?? null;
   const cardOptions = choice.options.filter(o => o.cardId);
+  const inspection = omniscientGame(view) ?? omniscientGame(state.display);
+  const hiddenIds = inspection && state.revealOmniscientHands !== true ? new Set([...Object.values(inspection.privateHands).flat().map(card => card.id), ...Object.values(inspection.privateCommittedAntes).filter(card => card !== null).map(card => card.id)]) : new Set<string>();
   // 并列提示：只对"取最低前注牌"一类按点数筛出来的选择，且全部卡牌选项同点数、只能选一张
   const tied = ["LOWEST_ANTE_CARD", "STRENGTH_FLIGHT_ANTE", "KEEP_ONE_ANTE_CARD"].includes(choice.code) && cardOptions.length > 1 && max === 1 && cardOptions.every(o => { try { return card(o.cardId!).strength === card(cardOptions[0].cardId!).strength; } catch { return false; } });
   const range = min === 0 ? t("choiceOptional", lang) : min === max ? t("choicePickN", lang, { n: min }) : t("choicePickRange", lang, { a: min, b: max });
@@ -43,15 +46,17 @@ export function ChoicePanel({ state, controller }: { state: UIState; controller:
       </p>
     </div>
     <div className="tda-choice-options" role="group">
-      {choice.options.map(option => {
+      {choice.options.map((option, index) => {
         const value = option.cardId ? card(option.cardId) : null;
+        const hidden = !!value && hiddenIds.has(value.id);
+        const backLabel = `${lang === "zh" ? "牌背" : "Card back"} ${index + 1}`;
         const isSelected = selected.has(option.id);
         // 单选：永远可点，点别的直接切换；多选：选满后其余禁用
         const disabled = locked || (max > 1 && !isSelected && selected.size >= max);
         if (value) return <button key={option.id} type="button" className={`tda-tile tda-tile--card${isSelected ? " is-selected" : ""}`} data-option={option.id} aria-pressed={isSelected} disabled={disabled}
-          onClick={() => controller.toggleOption(option.id)} onPointerEnter={event => { if (event.pointerType !== "touch") controller.inspect(value.id, false); }} onPointerLeave={() => { if (!state.inspect?.pinned) controller.inspect(null); }}>
-          <img src={cardFaceURL(value.id)} alt={`${cardName(value.id, lang)} · ${value.strength}`} draggable={false} />
-          <span className="tda-tile-strength tda-num">{value.strength}</span>
+          onClick={() => controller.toggleOption(option.id)} onPointerEnter={event => { if (!hidden && event.pointerType !== "touch") controller.inspect(value.id, false); }} onPointerLeave={() => { if (!state.inspect?.pinned) controller.inspect(null); }}>
+          {hidden ? <div className="tda-choice-card-back" role="img" aria-label={backLabel}><CardBackArt /></div> : <img src={cardFaceURL(value.id)} alt={`${cardName(value.id, lang)} · ${value.strength}`} draggable={false} />}
+          <span className="tda-tile-strength tda-num">{hidden ? backLabel : value.strength}</span>
           {owner(value.id) ? <small className="tda-tile-owner">{owner(value.id)}</small> : null}
         </button>;
         const label = option.seatId ? { big: seatName(option.seatId).slice(0, 2), small: seatName(option.seatId) } : optionLabel(option.code, option.id, lang);

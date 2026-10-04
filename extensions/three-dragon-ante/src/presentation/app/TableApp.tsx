@@ -51,6 +51,9 @@ export function TableApp({ store, controller, onFx, onFx3d, onOrientation, showT
   useEffect(() => { const el = root.current; if (!el) return; const onKey = (event: KeyboardEvent) => { if ((event.target as HTMLElement)?.closest?.("input, select, textarea, button, a, [role=dialog]")) return; controller.keyboard(event); }; el.addEventListener("keydown", onKey); return () => el.removeEventListener("keydown", onKey); }, [controller]);
   const inGame = !!game;
   const omniscient = !!omniscientGame(view);
+  const hiddenInspection = omniscientGame(view) ?? omniscientGame(display);
+  const inspectorHidden = state.revealOmniscientHands !== true && !!state.inspect && !!hiddenInspection &&
+    [...Object.values(hiddenInspection.privateHands).flat(), ...Object.values(hiddenInspection.privateCommittedAntes).filter(card => card !== null)].some(card => card.id === state.inspect!.cardId);
   const [newGameOpen, setNewGameOpen] = useState(false);
   const newGameDialog = useRef<HTMLDivElement>(null), newGameTrigger = useRef<HTMLButtonElement>(null);
   const cancelNewGame = () => { setNewGameOpen(false); newGameTrigger.current?.focus(); };
@@ -84,13 +87,13 @@ export function TableApp({ store, controller, onFx, onFx3d, onOrientation, showT
       <button type="button" className="tda-btn tda-btn--quiet tda-help-close" data-testid="table-help-close" onClick={() => store.set({ helpOpen: false })} aria-label={t("close", lang)}>×</button>
     </aside> : null}
     <ChoicePanel state={state} controller={controller} />
-    <CardInspector state={state} controller={controller} />
+    {!inspectorHidden ? <CardInspector state={state} controller={controller} /> : null}
     <PhaseBanner state={state} />
     <ScoreBoard state={state} />
     <PowerSpotlight state={state} controller={controller} />
     <FormationSpotlight state={state} controller={controller} />
     <EndPanel state={state} controller={controller} />
-    <Editor state={state} controller={controller} />
+    <Editor state={state} controller={controller} onToggleHands={() => store.set(current => ({ revealOmniscientHands: current.revealOmniscientHands !== true, inspect: null }))} />
     <Lobby state={state} controller={controller} />
     {newGameOpen ? <div className="tda-confirm-overlay"><div ref={newGameDialog} className="tda-parchment tda-confirm" role="dialog" aria-modal="true" aria-labelledby="tda-new-game-title" aria-describedby="tda-new-game-description" data-testid="new-game-confirmation" onKeyDown={event => {
       if (event.key === "Escape") { event.preventDefault(); cancelNewGame(); }

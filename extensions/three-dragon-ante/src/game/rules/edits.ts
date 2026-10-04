@@ -17,7 +17,10 @@ export type TableEdit =
   /** Swap two cards' locations. This is the "replace" path: it can trade a hand
    *  card for a card in the deck, the discard pile, another hand, or one of the
    *  20 cards the deck excluded, because both locations change together. */
-  | { kind: "replaceCard"; cardId: string; withCardId: string };
+  | { kind: "replaceCard"; cardId: string; withCardId: string }
+  /** Atomically reorder the current deck, next draw first. A revision-bound
+   * complete permutation cannot move cards between zones or overwrite a draw. */
+  | { kind: "deckOrder"; cardIds: string[]; revision: number };
 
 const MAX_AMOUNT = 100000;
 const MAX_HAND = 10;
@@ -55,6 +58,15 @@ function handHasRoom(state: GameState, seatIndex: number): boolean {
 
 export function applyEdit(state: GameState, edit: TableEdit): GameState | null {
   if (!edit || typeof edit !== "object") return null;
+  if (edit.kind === "deckOrder") {
+    if (!Number.isSafeInteger(edit.revision) || edit.revision !== state.revision || !Array.isArray(edit.cardIds) || edit.cardIds.length !== state.deck.length) return null;
+    const remaining = new Set(state.deck);
+    for (const id of edit.cardIds) if (typeof id !== "string" || !remaining.delete(id)) return null;
+    if (remaining.size) return null;
+    const next: GameState = structuredClone(state);
+    if (edit.cardIds.some((id, index) => id !== state.deck[index])) { next.deck = [...edit.cardIds]; next.revision++; }
+    return next;
+  }
   const next: GameState = structuredClone(state);
   if (edit.kind === "gold") {
     if (!Number.isSafeInteger(edit.amount) || edit.amount < 0 || edit.amount > MAX_AMOUNT) return null;

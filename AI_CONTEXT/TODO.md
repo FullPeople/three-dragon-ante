@@ -1,5 +1,9 @@
 # 待办清单 — 三龙牌
 
+- [x] 网站四反馈候选0.9.3实现与本机专项：术士场上前注/快拖12、公开观战Node13/browser13、全能牌背及牌堆Node10/browser19；原unit8/server2和build/tsc0通过。
+- [ ] 新冻结完整CI、独立发布终审/GPL包、双网站与必要server定向部署和公网新功能验收；当前线上仍801/0.9.1。见RUNBOOKS/2026-10-04_website-feedback2.md。
+- [x] 首轮快拖六组真实输入均正确B；只确认术士通用面板挡桌，未复现快拖A，继续取证。
+
 > 跨会话遗留登记处。任何未完成事项写这里（实质改动的遗留**双落**：runbook + 本文件）。
 > 完成的移到底部「已完成」并注 commit。
 
@@ -137,3 +141,7 @@
 - [x] flight-layer本地dev模块加载超时0测例（run-b0V2bL）；预构建实际当前/git show历史组件静态夹具，保留10原断言/control/30秒，root run-9r3wLp10/10；剩余顺序测试与新冻结CI仍待。
 
 - [ ] 用户再次更新c3960047附件：独立特效预览网页/截图、两新commit隔离整合并保留当前lifecycle/网站反馈，完整CI/换模型审计/定向发布；见fx3d-refresh runbook。
+
+- 2026-10-04 新批阶段事实：观战真实service13/13、牌堆顺序真实service10/10首次通过（自造临时SQLite，不是公网或browser）；node/buildserver实际0，serverci首次ENOSPC后隔离U缓存恢复0。新的前端/全部回归/独立审计和部署仍待，旧线上801保持；见website-spectator/website-deck-order-test/website-feedback2 runbook。
+
+- 2026-10-04 本批已实际：输入/实体前注综合12/12（c955171，旧重叠六组A→新12组B及两视口2–6席几何/inspect）、观战browser13/13与Node13/13、牌堆Node10/10、全能新扩展19/19（两独立P2已加真实断言）。完整精确CI/独立终审/冻结包/定向部署和公网验收仍待，见website-feedback2及各专项runbook。

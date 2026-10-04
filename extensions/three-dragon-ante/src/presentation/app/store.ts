@@ -57,6 +57,8 @@ export interface UIState {
   sending: boolean;
   localMessage: string;
   inspect: { cardId: string; pinned: boolean } | null;
+  /** Explicit local consent; never persisted or restored from a UI draft. */
+  revealOmniscientHands?: boolean;
   show: ShowState;
   busy: boolean;
   soundOn: boolean;

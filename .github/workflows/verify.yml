@@ -19,10 +19,15 @@ jobs:
       - run: npm ci --ignore-scripts --prefix server/three-dragon
       - run: npm run build
       - run: npm run build:server
+      - run: npm run test:website-spectator
+      - run: npm run test:website-deck-order
       - run: npm run test:host-refresh-grace
       - run: npm run test:website-auth-timeout
       - run: npm run test:website-pending-inspection
       - run: npx playwright install --with-deps chromium
+      - run: npm run test:website-spectator-browser
+      - run: npm run test:website-omniscient-controls
+      - run: npm run test:website-input-feedback
       - run: npm run test:nameplate
       - run: npm run test:website-omniscient
       - run: npm run test:site-presentation

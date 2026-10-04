@@ -1,5 +1,9 @@
 # AI_CONTEXT/MEMORY.md — 三龙牌 长期记忆（可移植正本）
 
+> 最新阶段：本批四项实现与本机专项已通过（input12、watch13/13、deck10、mask19），原unit8/server2与build/tsc0通过；两个审计遮罩P2已补真实合法choice/ActionBar验证。待精确完整CI/发布终审/GPL包/双网站+必要server部署和公网验收，线上仍801/0.9.1；见website-feedback2 runbook。
+
+> 2026-10-04 当前新反馈：用户确认801/0.9.1线上可用，四项后续在隔离release/website-feedback2-20261004按GOAL §13实施。候选0.9.3源码执行中，未通过新全回归或部署；基线快拖六组未误拖，术士挡位已实际确认。观战/全能新边界及遗留见RUNBOOKS/2026-10-04_website-feedback2.md和TODO。
+
 > 本项目「长期决策 + 当前状态」的**跨 AI 正本**。工具私有 Memory 只存指针指这里、不复制正文。
 > 写路由：长期决策/坑 → §A；当前运行态/风险 → §B；未完成 → `TODO.md`；每次实质改动 → `RUNBOOKS/`。
 > **保密**：禁写任何 Key/Token/密码；只写「密钥在 `.env.local`，由用户管理」。
@@ -115,3 +119,7 @@
 - 最新实际组件的41家族特效预览 `http://127.0.0.1:4174/?fx3d=1`，预览验证10/10、零脚本/资源/外域错误；预览不连接服务或创建牌局。相机/生命周期/实际单rAF与冷启动桌形回归、弱设备/实体手机仍须完成，见热修复runbook遗留。
 
 - 正式公网CLI `--gpu default` 也真实8/8（run-y3SPEy），原检查/等待保持、错误/外域0，GPU仅reported-hardware分类；此前新CLI未验状态是历史。强制软件GL超时仍待查，生产801未重新构建；正本见热修复runbook末节。
+
+- 2026-10-04 新批阶段事实：观战真实service13/13、牌堆顺序真实service10/10首次通过（自造临时SQLite，不是公网或browser）；node/buildserver实际0，serverci首次ENOSPC后隔离U缓存恢复0。新的前端/全部回归/独立审计和部署仍待，旧线上801保持；见website-spectator/website-deck-order-test/website-feedback2 runbook。
+
+- 2026-10-04 本批已实际：输入/实体前注综合12/12（c955171，旧重叠六组A→新12组B及两视口2–6席几何/inspect）、观战browser13/13与Node13/13、牌堆Node10/10、全能新扩展19/19（两独立P2已加真实断言）。完整精确CI/独立终审/冻结包/定向部署和公网验收仍待，见website-feedback2及各专项runbook。

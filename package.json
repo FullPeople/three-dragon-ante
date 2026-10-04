@@ -1,6 +1,6 @@
 {
   "name": "three-dragon-ante",
-  "version": "0.9.2-dev",
+  "version": "0.9.3-dev",
   "private": true,
   "description": "三龙牌独立网页、Owlbear Rodeo 扩展及权威游戏服务",
   "type": "module",
@@ -40,7 +40,12 @@
     "test:website-pending-inspection": "node tools/website-pending-inspection-selftest.mjs",
     "test:fx3d-ambient": "node tools/fx3d-ambient-browser.mjs",
     "test:site-presentation-3d": "node tools/site-presentation-browser.mjs --fx3d",
-    "test:fx3d-producer": "node tools/fx3d-producer-browser.mjs"
+    "test:fx3d-producer": "node tools/fx3d-producer-browser.mjs",
+    "test:website-spectator": "node tools/website-spectator-selftest.mjs",
+    "test:website-deck-order": "node tools/website-deck-order-selftest.mjs",
+    "test:website-spectator-browser": "node tools/website-spectator-browser.mjs",
+    "test:website-omniscient-controls": "node tools/website-omniscient-controls-browser.mjs",
+    "test:website-input-feedback": "node tools/website-feedback2-input-browser.mjs --drag-center"
   },
   "dependencies": {
     "@fontsource/cinzel": "5.2.6",

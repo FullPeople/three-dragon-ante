@@ -6,7 +6,7 @@ import type { CardPlacement, Orientation, Pose, SeatPlacement } from "../model/l
 import { CENTER, handShadowPose, isHeldByPending, pendingPose } from "../model/layout";
 import { CardNode } from "./CardNode";
 import type { UIState } from "../app/store";
-import { privateGame } from "../app/store";
+import { omniscientGame, privateGame } from "../app/store";
 import type { Controller } from "../app/controller";
 import { cardName, t } from "../i18n";
 import { card } from "../../game/rules/cards";
@@ -34,9 +34,11 @@ export function CardLayer({ state, controller, orientation, layer, placements, s
   const gestures = state.gestures;
   const hints = new Map(own?.handPowerHints.map(hint => [hint.cardId, hint]) ?? []);
   const selfId = own?.selfSeatId ?? null;
+  const inspection = omniscientGame(state.view) ?? omniscientGame(view);
 
   const nodes = placements.flatMap(placement => {
     const cardId = placement.cardId;
+    const hiddenPrivateCard = !!inspection && state.revealOmniscientHands !== true && (placement.zone === "hand" || placement.zone === "ante" && placement.faceDown);
     const pendingHere = isHeldByPending(placement, state.pending, selfId);
     // 待确认的牌永远画在桌面层（停在目标区上方），哪怕投影还把它算在手牌里
     const target: "table" | "hand" = pendingHere ? "table" : placement.layer;
@@ -72,16 +74,16 @@ export function CardLayer({ state, controller, orientation, layer, placements, s
     if (pendingHere && game && state.pending?.cardId) { const held = pendingPose(game, orientation, { cardId: state.pending.cardId, zone: state.pending.zone }); if (held) pose = held; }
     // 聚焦：刚落地、将要发动能力的牌抬起放大
     if (cardId && focusId === cardId && placement.zone === "flight") pose = { ...pose, z: pose.z + 46, scale: pose.scale * 1.12 };
-    const faceDownOverride = cardId && placement.zone === "ante" && revealIds.has(cardId) && reveal === "placing" ? true : undefined;
-    const label = cardId ? (() => { try { const value = card(cardId); return `${cardName(cardId, state.lang)} · ${t("cardStrength", state.lang, { n: value.strength })}`; } catch { return undefined; } })() : undefined;
+    const faceDownOverride = hiddenPrivateCard ? true : cardId && placement.zone === "ante" && revealIds.has(cardId) && reveal === "placing" ? true : inspection && placement.zone === "ante" && placement.faceDown && state.revealOmniscientHands === true ? false : undefined;
+    const label = hiddenPrivateCard ? (state.lang === "zh" ? "牌背" : "Card back") : cardId ? (() => { try { const value = card(cardId); return `${cardName(cardId, state.lang)} · ${t("cardStrength", state.lang, { n: value.strength })}`; } catch { return undefined; } })() : undefined;
     return [<CardNode key={placement.key} placement={{ ...placement, pose, layer: target, standing: false }} enterFrom={enterFrom} dropIn={dropIn} dropFaceDown={dropFaceDown} arriving={arriving} faceDownOverride={faceDownOverride}
       selected={isOwnHand && !!cardId && state.selected.includes(cardId)} hovered={isOwnHand && !!cardId && state.hovered === cardId}
       legal={isOwnHand && !!cardId && legal.has(cardId)} pending={pendingHere} dragging={dragging}
       top={!!cardId && topIds.has(cardId) && reveal === "price"} resolving={!!cardId && cardId === resolvingId} focus={!!cardId && cardId === focusId} lifted={lifted}
-      hint={isOwnHand && cardId ? hints.get(cardId) : undefined} label={label} wildLabel={t("wild", state.lang)} riderLabel={t("rider", state.lang)} tugged={tugged}
+      hint={!hiddenPrivateCard && isOwnHand && cardId ? hints.get(cardId) : undefined} label={label} wildLabel={t("wild", state.lang)} riderLabel={t("rider", state.lang)} tugged={tugged}
       onPointerDown={isOwnHand ? onCardPointerDown : undefined}
-      onClick={cardId ? id => { if (isOwnHand) controller.selectCard(id); else controller.inspect(id, true); } : undefined}
-      onHover={cardId ? id => { if (isOwnHand) controller.hover(id); else controller.inspect(id, false); } : undefined}
+      onClick={cardId ? id => { if (isOwnHand) controller.selectCard(id); else if (!hiddenPrivateCard) controller.inspect(id, true); } : undefined}
+      onHover={cardId ? id => { if (isOwnHand) controller.hover(id); else if (!hiddenPrivateCard) controller.inspect(id, false); } : undefined}
       onLand={onCardLand} />];
   });
   // 桌面层按 key 排序：一张牌换区（手牌 → 前注 → 弃牌堆）时在兄弟节点里的次序不变，React 不会移动 DOM 节点，正在进行的过渡不会被打断；前后遮挡由 translateZ 决定。
