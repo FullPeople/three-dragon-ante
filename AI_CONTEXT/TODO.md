@@ -5,13 +5,13 @@
 
 ## 待办
 
-- [ ] 552两次失败及e347诊断已留痕；现已查证1008/authenticationRequired晚认证被误判终态，最小客户端重连修复同次超时实际恢复、原演出13/13。新正反控制、精确head完整CI/冻结包/freshbaseline/公网仍须完成，见bug-hotfix-deploy runbook。
+- [ ] 0.9.1隐藏权限公网8项仍待完整验收：run-gLOLN8前5项真实通过，但刷新撤权阶段超时；新run-dc4yGB合法8码加入在HTTP201响应头后仍12秒aborted，JSON响应体未按期限完成，具体原因未证实。保留UalXWO/L7sRyY/4RlOqV和npm丢--origin的失败；先查证请求/刷新根因，不扩大等待或减少断言盲重跑。见bug-hotfix-deploy runbook。
 
 - [x] 0.9.1本家能力/切换/结算和买牌先后实际非reduced网络专项13/13；首次加载超时保留且原因未证实，补安全诊断后原全部断言通过，不把失败算通过。见bug-hotfix-deploy runbook。
 - [x] 0.9.1飞牌独立覆盖/真实旧版遮挡阴性对照10/10；桌面/390px长名完整财务及金属点数材质21/21。
 - [x] 0.9.1隐藏全能实际网站/服务13/13，真实断网、8秒暂停超时、刷新、交接撤权与恢复后合法动作通过。
-- [ ] 0.9.1完整本地回归通过，冻结候选换模型审计/精确SHA Linux CI、freshbaseline仅双网站与必要server部署、公网验收仍须完成；不重新部署Suite/枭熊。见bug-hotfix-deploy runbook。
-- [ ] c3960047附件特效已在隔离分支代码合并810e8ada（尚未完整构建/回归/审计或push），需实际单rAF阴性对照、冷启动桌形/Promise取消、dual-context生命周期/性能回归后另行发布。本次bug产品不含这些特效；4174实际组件预览10/10只算本机预览。
+- [x] 0.9.1/0.9.1-dev冻结801daf5已于16:07:25上线，仅双网站与必要server；原完整本地回归、认证超时5/5、刷新宽限3/3、精确CI37187336604、源码/包及真实freshbefore/after独立审核通过；一般公网12/12。Suite/card/nginx/unit/relay与保护服务内容/属性保留，不重发Suite/枭熊。原SSH本地等待exit-1不冒称applyexit0，真实远端receipt applied；回滚指针见bug-hotfix-deploy runbook。隐藏权限全8项仍按上项待验。
+- [ ] c3960047附件特效最新隔离候选c7b36be3已含hotfix801，build含tsc/build:server通过、认证Node5/5，但实际npm test 7/8（controller旁观handCount6 !== 5），首次run-KuUEel保留并停止完整回归；只读初查异步接收不同revision，未证实根因、不改断言凑数。未push/未部署，后续需实际单rAF/冷启动桌形/双context生命周期/性能、完整CI与独立终审；4174预览10/10只算本机预览。
 
 - [x] 第三方素材下载（用户 2026-10-03 同意）：Poly Haven dark_wood / medieval_wood / brown_leather / metal_plate，ambientCG Fabric034 / Paper006，Kenney Casino Audio；已压缩入库并登记 `docs/design/ASSETS.md`。
 - [ ] 持续效果（德鲁伊 / 祭司 / 龙巫妖…）的**持续音效**：需要 CC0 环境循环素材（Kenney 现有包没有），来源待用户批准；`FieldLayer` 已留位置。

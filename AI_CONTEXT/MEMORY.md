@@ -70,9 +70,12 @@
 - 独立远端复核1991发布文件、6971白名单外旧文件及原属性、4入口元数据和精确源码归档全部通过；角色卡/nginx/unit/relay及保护服务未变。发布 `20261004-7555f99-online-only`，每目标回退点与 SQLite 私有备份保留在服务器；从未下载数据库或备份。证据与回退命令见 `RUNBOOKS/2026-10-04_online-only.md`。
 - 本地预览 `http://127.0.0.1:4173/three-dragon-ante-dev/` 已恢复，使用 `.local-data/preview-online-only-20261004.sqlite` 合成存档；旧 C 段预览和枭熊验收阻塞是历史状态。
 
-## E. 2026-10-04 演出与附件反馈（当前在办）
+## E. 2026-10-04 演出热修复已上线，附件与公网专项仍在办
 
 - GOAL §11：买牌说明先翻价牌/补牌；飞牌覆盖手牌；同revision回执不能取消本家能力/切换/结算；长名与完整财务两行压缩；点数用已有金属材质区分木牌；网站房主用不可见fuvtt+Enter主动打开全能，默认普通私牌投影。断线/超时/房主交接必须立即清旧私投影，普通玩家无权限。
-- 0.9.1反馈产品以4f6fc6a为基线，用户要求优先发布正确bug，范围仅独立网站两个入口与必要server，不重新部署Suite/枭熊。冻结/上线/公网验收分别写 `RUNBOOKS/2026-10-04_bug-hotfix-deploy.md`，完成前线上仍D段0.9.0。独立审计已复核产品无必修问题，最终包/CI仍单独裁决。
+- **已上线0.9.1/0.9.1-dev（2026-10-04 16:07:25，Asia/Shanghai）**：冻结源 `801daf580e9505a377dc97a544c4ad051ea029ac`，精确head CI37187336604完整成功，生产/最终包与真实before/after独立核验通过。反馈产品以4f6fc6a为基线，包含铭牌实际测量收敛及1008/authenticationRequired精确自动重连；真实notAllowed、未知1008和4001仍终态，服务端期限不变。只更新两个网站与必要server，未重新部署Suite/枭熊、未合并main。D段0.9.0是上一线上基线，后续纯文档提交不改变801daf5线上源码。
+- 实际双网站各970构建文件+源码ZIP/发布JSON全部SHA匹配，511白名单外旧文件及目录属性保留；Suite-dev4797、Suite2112、card869和nginx/unit/relay/保护服务内容及属性不变。server SHA `f962764212aa4334639b6fa991706aecd5ec3ac2cb6782fd6a2389895dc88c3d`，active且原0644/root:root保持。事务 `20261004-801daf5-bug-hotfix` 的远端receipt applied；原SSH本地等待只终止PID16244、exit-1/stdout1字节，不能写applyexit0，transport原因未知。证据及回滚指针正本 `RUNBOOKS/2026-10-04_bug-hotfix-deploy.md`。
+- 一般公网12/12 `live-website/run-LbkWkp`：2次前注/6次出牌/4次选择/2次可见结算，刷新/断线/交接/空房等通过，脚本/失败资源/外域0。隐藏权限公网专项run-gLOLN8前5/8真实通过，刷新撤权阶段超时；另保留UalXWO/L7sRyY/4RlOqV失败与npm参数提前退出，最新dc4yGB合法8码加入收到201头后仍12秒aborted/响应体未完成，具体原因未证实。权限全8项尚待验，不能用本地13项或一般12项替代；实体手机与弱设备未验收。
 - UNC同名附件再次更新，最新HEAD c39600472d4ab7858f7b43c3548ad975b5d98dbc、mtime13:52:50、ZIP SHA3352e3bbd9a75f444295553626804868796d09eba682e5b9592758542ac18a7c。内部AI_CONTEXT已顺序读取，文档中的历史停止/旧本地机器人方向不覆盖当前用户授权。最新特效整合在隔离分支，不能整包覆盖网站逻辑或混入本次bug发布。
+- 最新FX隔离候选c7b36be3已含hotfix801，build/tsc及build:server通过，npm test 7/8（controller旁观handCount6 !== 5）停止完整回归，原失败run-KuUEel保留、根因待查；未push/未部署。该候选失败不替代线上801完整CI成功证据，见主工作区fx3d-refresh runbook与TODO。
 - 最新实际组件的41家族特效预览 `http://127.0.0.1:4174/?fx3d=1`，预览验证10/10、零脚本/资源/外域错误；预览不连接服务或创建牌局。相机/生命周期/实际单rAF与冷启动桌形回归、弱设备/实体手机仍须完成，见热修复runbook遗留。

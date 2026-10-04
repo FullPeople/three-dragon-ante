@@ -53,7 +53,9 @@ npm run dev:server
 - 独立枭熊扩展：在“扩展 → 添加”中填写 <https://obr.dnd.center/three-dragon-ante/manifest.json>；dev 频道为 <https://obr.dnd.center/three-dragon-ante-dev/manifest.json>。
 - Suite 三龙牌入口打开网站新窗口，保留原顶栏、功能开关和设置可操作；不在 Suite 内创建新牌局。
 
-已上线 0.9.0 / 0.9.0-dev，网站 <https://obr.dnd.center/three-dragon-ante/>。线上冻结源为 `7555f99e05a2853f495422d5b3c0f62a1a74c990`，CI、换模型审计和公网12项验收通过；后续纯文档提交不改变该冻结源。精确版本与源码 ZIP 路径读取 `manifest.json` 与 `three-dragon-release.json`。当前验证/发布记录见 `AI_CONTEXT/RUNBOOKS/2026-10-04_online-only.md`；旧0.8.0回执保留在同日 `owlbear-deploy` runbook。
+2026-10-04 16:07:25（Asia/Shanghai）已上线 **0.9.1 / 0.9.1-dev**，网站 <https://obr.dnd.center/three-dragon-ante/>。线上冻结源为 `801daf580e9505a377dc97a544c4ad051ea029ac`，[完整 CI](https://github.com/FullPeople/three-dragon-ante/actions/runs/37187336604)、独立源码/包/部署前后核验和一般公网12项验收通过。本次只更新两个网站与必要游戏服务，保留 Suite/枭熊网站链接及其他线上内容；后续纯留痕提交不改变该冻结源。精确版本与GPL源码 ZIP 路径读取 `manifest.json` 与 `three-dragon-release.json`。当前验证、SSH等待异常、回滚指针见 `AI_CONTEXT/RUNBOOKS/2026-10-04_bug-hotfix-deploy.md`；0.9.0和0.8.0历史回执分别保留在同日 `online-only` / `owlbear-deploy` runbook。
+
+网站房主隐藏全能的公网专项前5/8项通过，刷新撤权与后续专项仍待完整复核，失败证据保留；一般公网12项不能替代此项。实体手机/弱设备未验收，最新附件特效仍在独立本机预览，未随本次上线。
 
 ## 验证
 
