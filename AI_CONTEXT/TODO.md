@@ -5,10 +5,11 @@
 
 ## 待办
 
-- [ ] 2026-10-04 0.9.1反馈：本家回执不取消能力/切换/结算，购买提示先翻牌补牌，真实非reduced网络演出专项；见GOAL§11与presentation-feedback runbook。
-- [ ] 0.9.1飞牌独立覆盖/几何、长名数字边界与金属点数材质实际浏览器复核。
-- [ ] 0.9.1隐藏全能仅当前房主，键序不干扰输入/出牌；真实断网/刷新/交接立即撤权与私投影清理复核。
-- [ ] 0.9.1完整回归/CI、冻结候选换模型审计、freshbaseline定向部署与公网验收，双落本轮runbook。
+- [x] 0.9.1本家能力/切换/结算和买牌先后实际非reduced网络专项13/13；首次加载超时保留且原因未证实，补安全诊断后原全部断言通过，不把失败算通过。见bug-hotfix-deploy runbook。
+- [x] 0.9.1飞牌独立覆盖/真实旧版遮挡阴性对照10/10；桌面/390px长名完整财务及金属点数材质21/21。
+- [x] 0.9.1隐藏全能实际网站/服务13/13，真实断网、8秒暂停超时、刷新、交接撤权与恢复后合法动作通过。
+- [ ] 0.9.1完整本地回归通过，冻结候选换模型审计/精确SHA Linux CI、freshbaseline仅双网站与必要server部署、公网验收仍须完成；不重新部署Suite/枭熊。见bug-hotfix-deploy runbook。
+- [ ] c3960047附件特效已在隔离分支代码合并810e8ada（尚未完整构建/回归/审计或push），需实际单rAF阴性对照、冷启动桌形/Promise取消、dual-context生命周期/性能回归后另行发布。本次bug产品不含这些特效；4174实际组件预览10/10只算本机预览。
 
 - [x] 第三方素材下载（用户 2026-10-03 同意）：Poly Haven dark_wood / medieval_wood / brown_leather / metal_plate，ambientCG Fabric034 / Paper006，Kenney Casino Audio；已压缩入库并登记 `docs/design/ASSETS.md`。
 - [ ] 持续效果（德鲁伊 / 祭司 / 龙巫妖…）的**持续音效**：需要 CC0 环境循环素材（Kenney 现有包没有），来源待用户批准；`FieldLayer` 已留位置。

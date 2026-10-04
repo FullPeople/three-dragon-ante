@@ -1,8 +1,9 @@
 // Real Edge/Chromium checks of the actual SeatBlock and 2.5D layout, using only synthetic public seats.
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
-import { createServer } from 'vite';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { createServer } from 'node:http';
+import { extname, join, resolve, sep } from 'node:path';
+import { build } from 'vite';
 import { chromium, browserLaunchOptions } from './browser-runtime.mjs';
 
 const root = resolve(import.meta.dirname, '..');
@@ -24,22 +25,43 @@ const fit = fitPlane(innerWidth, innerHeight);
 const placements = seatPlacements(game, seats[0].id, fit.orientation);
 createRoot(document.getElementById('fixture')).render(<div className={'tda-table tda-table--' + fit.orientation} style={{'--scale':fit.scale, '--tilt':fit.spec.tilt+'deg', '--plane-w':fit.spec.w, '--plane-h':fit.spec.h}}><div className='tda-stage'><div className='tda-viewport'><div className='tda-plane'><div className='tda-surface'><div className='tda-felt-fallback' style={{display:'block'}} /></div>{placements.map((placement, i) => <SeatBlock key={placement.id} seat={seats[i]} placement={placement} game={game} selfSeatId={seats[0].id} lang='zh' legalZone={null} dragOver={null} targetSeatId={null} waiting={false} gold={seats[i].gold} onZoneClick={() => {}} />)}</div></div></div></div>);
 `);
-const server = await createServer({ configFile: false, root, base: '/', appType: 'custom', server: {host:'127.0.0.1', port:0} });
-server.middlewares.use((request, response, next) => {
-  if (!request.url?.startsWith('/nameplate-fixture?')) return next();
-  response.setHeader('Content-Type', 'text/html');
-  response.end(`<html><body style="margin:0"><div id="fixture" style="height:100dvh"></div><script type="module" src="/${entry.slice(root.length + 1).replaceAll('\\', '/')}"></script></body></html>`);
+// Match production loading: compile the actual fixture before launching the browser.
+// Navigation serves static modules/assets instead of compiling a dev module during the request.
+const dist = join(out, 'site');
+await build({ configFile: false, root, base: '/', logLevel: 'warn', build: { outDir: dist, emptyOutDir: true, manifest: true, rollupOptions: { input: entry, output: { assetFileNames(asset) {
+  const original = (asset.originalFileNames?.[0] || '').replaceAll('\\', '/');
+  const material = original.match(/\/textures\/([^/]+)\//)?.[1];
+  return material ? 'assets/textures/' + material + '/[name]-[hash][extname]' : 'assets/[name]-[hash][extname]';
+} } } } });
+const manifest = JSON.parse(readFileSync(join(dist, '.vite/manifest.json'), 'utf8'));
+const main = Object.values(manifest).find(value => value.isEntry); assert.ok(main);
+const html = '<!doctype html><html><head><meta charset="UTF-8">' + (main.css || []).map(file => '<link rel="stylesheet" href="/' + file + '">').join('') + '</head><body style="margin:0"><div id="fixture" style="height:100dvh"></div><script type="module" src="/' + main.file + '"></script></body></html>';
+const types = { '.js': 'text/javascript', '.css': 'text/css', '.webp': 'image/webp', '.png': 'image/png', '.svg': 'image/svg+xml', '.woff2': 'font/woff2' };
+const server = createServer((request, response) => {
+  const pathname = new URL(request.url, 'http://localhost').pathname;
+  if (pathname === '/nameplate-fixture') { response.setHeader('Content-Type', 'text/html; charset=UTF-8'); response.end(html); return; }
+  const file = resolve(dist, decodeURIComponent(pathname.slice(1)));
+  if (!file.startsWith(dist + sep) || !existsSync(file)) { response.writeHead(404); response.end(); return; }
+  response.setHeader('Content-Type', types[extname(file)] || 'application/octet-stream'); response.end(readFileSync(file));
 });
-await server.listen();
-const origin = 'http://127.0.0.1:' + server.httpServer.address().port;
+await new Promise(done => server.listen(0, '127.0.0.1', done));
+const origin = 'http://127.0.0.1:' + server.address().port;
 const browser = await chromium.launch({...browserLaunchOptions(), headless:true});
-const checks = [], errors = [], external = [], measurements = [];
+const checks = [], errors = [], external = [], resourceFailures = [], measurements = [];
 const pass = name => { checks.push(name); console.log('PASS ' + name); };
 try {
   for (const [layout, viewport] of [['desktop',{width:1440,height:900}],['narrow',{width:390,height:844}]]) {
     const context = await browser.newContext({viewport, locale:'zh-CN'});
     await context.addInitScript(() => { window.__fixtureErrors = []; window.addEventListener('error', event => window.__fixtureErrors.push(event.message)); });
     context.on('request', request => { if (!request.url().startsWith(origin + '/')) external.push(request.url()); });
+    context.on('response', response => {
+      const url = new URL(response.url());
+      if (url.origin === origin && url.pathname !== '/favicon.ico' && response.status() >= 400) resourceFailures.push({ kind: 'http', path: url.pathname, status: response.status() });
+    });
+    context.on('requestfailed', request => {
+      const url = new URL(request.url());
+      if (url.origin === origin && url.pathname !== '/favicon.ico') resourceFailures.push({ kind: 'request', path: url.pathname, error: request.failure()?.errorText });
+    });
     const page = await context.newPage(); page.on('pageerror', error => errors.push(error.message));
     for (const count of [2,3,4,5,6]) {
       await page.goto(origin + '/nameplate-fixture?players=' + count);
@@ -70,9 +92,9 @@ try {
     }
     await context.close();
   }
-  assert.deepEqual(errors,[]); assert.deepEqual(external,[]); pass('Actual components and self-hosted materials render without script errors or external requests');
-  writeFileSync(join(out,'result.json'),JSON.stringify({checks,measurements,errors,external,scope:'Actual React SeatBlock and CSS with synthetic public-seat data. Not a multiplayer or production-room acceptance.'},null,2));
+  assert.deepEqual(errors,[]); assert.deepEqual(external,[]); assert.deepEqual(resourceFailures,[]); pass('Actual components and self-hosted materials render without script errors or external requests');
+  writeFileSync(join(out,'result.json'),JSON.stringify({checks,measurements,errors,external,resourceFailures,scope:'Production-built actual React SeatBlock and CSS with synthetic public-seat data. Not a multiplayer or production-room acceptance.'},null,2));
   console.log(checks.length + '/' + checks.length + ' checks passed; ' + out);
 } catch(error) {
-  writeFileSync(join(out,'failure.json'),JSON.stringify({error:String(error),checks,measurements,errors,external},null,2)); console.log(out); throw error;
-} finally { await browser.close(); await server.close(); }
+  writeFileSync(join(out,'failure.json'),JSON.stringify({error:String(error),checks,measurements,errors,external,resourceFailures},null,2)); console.log(out); throw error;
+} finally { await browser.close(); await new Promise(done => server.close(done)); }

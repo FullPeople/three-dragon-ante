@@ -7,12 +7,36 @@ import { pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 import { build } from 'vite';
 import { chromium, browserLaunchOptions } from './browser-runtime.mjs';
+import { finishWebSocketProxy, traceWebSocketFrames } from './site-websocket-fixture.mjs';
 
 const root = resolve(import.meta.dirname, '..'), base = '/three-dragon-ante-dev/';
 mkdirSync(join(root, '.local-evidence'), { recursive: true });
 const out = mkdtempSync(join(root, '.local-evidence', 'site-multiplayer-')), dist = join(out, 'site');
 const checks = [], errors = [], external = [], resourceFailures = [], actors = [], connections = new Map();
 const gameplay = { antes: 0, plays: 0, choices: 0, visibleSettlements: 0 };
+// Public, bounded fixture diagnostics: no URLs, room codes, capabilities, names or projections.
+const transportTrace = [], traceStarted = Date.now(); let transportTraceDropped = 0, nextConnectionId = 0;
+const publicActor = key => ['owner', 'player', 'duplicate', 'fresh', 'replacing'].find(label => key === 'TDA-site-browser-' + label) || 'probe';
+const tcpTrace = (key, event, socket, code, metadata = {}) => {
+  const allowed = ['ECONNRESET', 'EPIPE', 'ECONNREFUSED', 'ERR_STREAM_DESTROYED'];
+  transportTrace.push({ actor: publicActor(key), event, ms: Date.now() - traceStarted, destroyed: !!socket?.destroyed, writableBytes: socket?.writableLength || 0, ...(code ? { code: allowed.includes(code) ? code : 'other' } : {}), ...metadata });
+  if (transportTrace.length > 160) { transportTrace.shift(); transportTraceDropped++; }
+};
+async function publicDiagnostics() {
+  const browserTrace = await Promise.all(actors.map(async actor => {
+    let timer;
+    try {
+      const value = await Promise.race([actor.page.evaluate(() => {
+        const status = document.querySelector('.site-room-identity [role="status"]')?.textContent?.trim();
+        const allowed = ['已连接', 'Connected', '座位已在其他窗口连接', 'Seat connected in another window', '连接已失效，请返回首页重连', 'Session expired; return home to reconnect', '连接失败', 'Connection failed', '重连中', 'Reconnecting'];
+        return { lang: ['zh-CN', 'en'].includes(document.documentElement.lang) ? document.documentElement.lang : 'other', status: status == null ? null : allowed.includes(status) ? status : 'other', connected: document.querySelector('.site-online-match')?.getAttribute('data-connected') || null, closes: window.__siteSocketCloseDiagnostics || [] };
+      }), new Promise((_, reject) => { timer = setTimeout(() => { const error = new Error('Public diagnostic read timed out'); error.name = 'DiagnosticsTimeout'; reject(error); }, 3000); })]);
+      return { actor: actor.label, wsAttempts: actor.wsAttempts, ...value };
+    } catch (error) { return { actor: actor.label, wsAttempts: actor.wsAttempts, readError: error.name }; }
+    finally { clearTimeout(timer); }
+  }));
+  return { browsers: browserTrace, tcp: transportTrace, dropped: transportTraceDropped };
+}
 let overlayHelpVerified = false;
 const connectionOnly = process.argv.includes('--connection-only') || process.argv.includes('--reconnect-only');
 const pass = label => { checks.push(label); console.log('PASS ' + label); };
@@ -40,16 +64,23 @@ const staticServer = createServer((req, res) => {
   res.setHeader('Content-Type', types[extname(file)] || 'application/octet-stream'); res.end(readFileSync(file));
 });
 staticServer.on('upgrade', (req, socket, head) => {
+  const key = req.headers['user-agent'], connectionId = ++nextConnectionId;
   const upstream = httpRequest({ hostname: '127.0.0.1', port: upstreamPort, path: req.url, headers: req.headers });
   upstream.on('upgrade', (response, backend, backendHead) => {
     socket.write('HTTP/1.1 101 Switching Protocols\r\n' + Object.entries(response.headers).map(([key, value]) => key + ': ' + value).join('\r\n') + '\r\n\r\n');
     if (backendHead.length) socket.write(backendHead); if (head.length) backend.write(head);
-    const key = req.headers['user-agent']; const entry = { socket, backend }; connections.set(key, entry);
-    socket.on('error', () => backend.destroy()); backend.on('error', () => socket.destroy());
+    const entry = { socket, backend }; connections.set(key, entry);
+    const trace = (event, target, code, frame) => tcpTrace(key, event, target, code, { connectionId, ...frame });
+    trace('upgrade', socket, undefined, { frontendHeadBytes: head.length, backendHeadBytes: backendHead.length });
+    traceWebSocketFrames(socket, frame => trace('frame-to-server', socket, undefined, frame), head);
+    traceWebSocketFrames(backend, frame => trace('frame-to-client', backend, undefined, frame), backendHead);
+    for (const event of ['end', 'finish', 'close']) { socket.on(event, () => trace('frontend-' + event, socket)); backend.on(event, () => trace('backend-' + event, backend)); }
+    socket.on('error', error => { trace('frontend-error', socket, error.code); backend.destroy(); }); backend.on('error', error => { trace('backend-error', backend, error.code); socket.destroy(); });
     socket.on('close', () => { backend.destroy(); if (connections.get(key) === entry) connections.delete(key); });
-    backend.on('close', () => socket.destroy()); socket.pipe(backend); backend.pipe(socket);
+    // The pipe ends the frontend after flushing. Destroying it here can discard queued close frames.
+    backend.on('close', () => finishWebSocketProxy(socket)); socket.pipe(backend); backend.pipe(socket);
   });
-  upstream.on('error', () => socket.destroy()); upstream.end();
+  upstream.on('error', error => { tcpTrace(key, 'upgrade-error', socket, error.code, { connectionId }); socket.destroy(); }); upstream.end();
 });
 await new Promise(done => staticServer.listen(0, '127.0.0.1', done));
 const origin = 'http://127.0.0.1:' + staticServer.address().port;
@@ -78,6 +109,22 @@ function wirePacket(actor, raw) {
 }
 async function actor(label, narrow = false) {
   const value = { label, privateFrames: 0, wsAttempts: 0, beforeUnloadPrompts: 0, wire: null }, context = await browser.newContext({ userAgent: 'TDA-site-browser-' + label, locale: 'zh-CN', viewport: narrow ? { width: 390, height: 844 } : { width: 1280, height: 900 }, isMobile: narrow, hasTouch: narrow, reducedMotion: 'reduce' });
+  await context.addInitScript(started => {
+    const closes = window.__siteSocketCloseDiagnostics = [];
+    const NativeSocket = window.WebSocket;
+    window.WebSocket = class extends NativeSocket {
+      constructor(...args) {
+        super(...args);
+        let openedMs = null;
+        this.addEventListener('open', () => { openedMs = Date.now() - started; });
+        this.addEventListener('close', event => {
+          const allowed = ['notAllowed', 'sessionReplaced', 'roomMissing', 'protocolMismatch'];
+          closes.push({ ms: Date.now() - started, openedMs, code: event.code, wasClean: event.wasClean, reason: !event.reason ? '' : allowed.includes(event.reason) ? event.reason : 'other' });
+          if (closes.length > 16) closes.shift();
+        });
+      }
+    };
+  }, traceStarted);
   value.context = context; value.page = await context.newPage(); actors.push(value);
   context.on('request', request => { if (!request.url().startsWith(origin + '/')) external.push(request.url()); });
   await context.route('**/*', route => route.request().url().startsWith(origin + '/') ? route.continue() : route.abort());
@@ -325,10 +372,10 @@ try {
   pass('confirmed new-game command returns to the authoritative lobby and redeals in the same named room without replacing seats');
   assert.deepEqual(errors, []); assert.deepEqual(external, []); assert.deepEqual(resourceFailures, []);
   pass('desktop and narrow online pages have no page errors, failed assets, horizontal overflow or external requests');
-  writeFileSync(join(out, 'result.json'), JSON.stringify({ checks, gameplay, connectionOnly, errors, external, resourceFailures, privateFrames: actors.reduce((sum, actor) => sum + actor.privateFrames, 0), realOwlbearRoom: false, scope: 'Isolated production website build; real desktop/narrow browsers, local WebSocket proxy and temporary SQLite. No production room or real Owlbear account.' }, null, 2) + '\n'); console.log(out);
+  writeFileSync(join(out, 'result.json'), JSON.stringify({ checks, gameplay, connectionOnly, diagnostics: await publicDiagnostics(), errors, external, resourceFailures, privateFrames: actors.reduce((sum, actor) => sum + actor.privateFrames, 0), realOwlbearRoom: false, scope: 'Isolated production website build; real desktop/narrow browsers, local WebSocket proxy and temporary SQLite. No production room or real Owlbear account.' }, null, 2) + '\n'); console.log(out);
 } catch (error) {
   for (const actor of actors) if (!actor.page.isClosed()) await actor.page.screenshot({ path: join(out, actor.label + '-failure.png') }).catch(() => {});
-  writeFileSync(join(out, 'failure.json'), JSON.stringify({ error: String(error), checks, errors, external, resourceFailures }, null, 2)); console.log(out); throw error;
+  writeFileSync(join(out, 'failure.json'), JSON.stringify({ error: String(error), checks, diagnostics: await publicDiagnostics(), errors, external, resourceFailures }, null, 2)); console.log(out); throw error;
 } finally {
   await browser.close(); await service.close();
   for (const { socket, backend } of connections.values()) { socket.destroy(); backend.destroy(); }

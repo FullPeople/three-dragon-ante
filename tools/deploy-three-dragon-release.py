@@ -29,6 +29,7 @@ DATABASE = pathlib.Path('/var/lib/obr-three-dragon/game.sqlite')
 PRIVATE = pathlib.Path('/var/backups/three-dragon-releases')
 UPLOAD = pathlib.Path('/var/tmp/three-dragon-release')
 TARGETS = ('three-dragon-ante-dev', 'three-dragon-ante', 'suite-dev', 'suite')
+WEBSITE_TARGETS = ('three-dragon-ante-dev', 'three-dragon-ante')
 PROTECTED_FILES = (
     '/etc/nginx/sites-enabled/obr-plugins',
     '/etc/systemd/system/obr-three-dragon.service',
@@ -230,6 +231,41 @@ def backup_database(destination):
     os.chmod(destination, 0o600)
 
 
+def selected_targets(scope, names):
+    expected = WEBSITE_TARGETS if scope == 'website-only' else TARGETS if scope == 'all-four' else None
+    if expected is None or not isinstance(names, list) or len(names) != len(expected) or any(not isinstance(name, str) for name in names) or set(names) != set(expected):
+        raise ValueError('Release must select all four known targets, or explicitly website-only with both independent targets')
+    return tuple(name for name in TARGETS if name in names)
+
+
+def manifest_targets(manifest):
+    targets = manifest.get('targets')
+    if not isinstance(targets, list) or any(not isinstance(target, dict) for target in targets):
+        raise ValueError('Invalid release targets')
+    names = selected_targets(manifest.get('scope', 'all-four'), [target.get('name') for target in targets])
+    if manifest.get('scope') == 'website-only' and manifest.get('hostOverlay') is not None:
+        raise ValueError('Website-only release cannot include a Suite host overlay')
+    return names
+
+
+def receipt_targets(receipt):
+    # Old four-target receipts did not carry an explicit selection. Recovery of
+    # a partially staged old receipt must still treat all four as its scope.
+    names = selected_targets(receipt.get('scope', 'all-four'), receipt.get('releaseTargets', list(TARGETS)))
+    if not set(receipt['targets']).issubset(names):
+        raise ValueError('Receipt contains a target outside its release scope')
+    if receipt['status'] == 'applied' and set(receipt['targets']) != set(names):
+        raise ValueError('Applied receipt must contain every target in its release scope')
+    return names
+
+
+def require_preserved_targets(baseline, selected, description, current=None):
+    for name in TARGETS:
+        if name not in selected:
+            actual = current['targets'][name] if current is not None else tree_digest(BASE / name)
+            require_equal(actual, baseline['targets'][name], description + ': ' + name)
+
+
 def package_manifest(archive, destination):
     expected = {'release-manifest.json'}
     with tarfile.open(archive, 'r:gz') as package:
@@ -247,8 +283,7 @@ def package_manifest(archive, destination):
             raise ValueError('Unexpected release format/repository/API')
         if not re.fullmatch(r'[0-9a-f]{40}', manifest.get('source', '')):
             raise ValueError('Invalid frozen source commit')
-        if sorted(item.get('name') for item in manifest['targets']) != sorted(TARGETS):
-            raise ValueError('Exactly four known targets are required')
+        manifest_targets(manifest)
         records = {}
         host = manifest.get('hostOverlay') or {}
         if host and (host.get('mode') != 'website-link-only' or host.get('website') != 'https://obr.dnd.center/three-dragon-ante/'):
@@ -323,9 +358,10 @@ def space_guard(archive, baseline):
                 raise ValueError('Package contains a non-regular entry')
         expanded = sum(entry.size for entry in entries)
         source_size = sum(entry.size for entry in entries if re.fullmatch(r'three-dragon-source-[0-9a-f]{12}\.zip', entry.name))
-    old_size = sum(path.stat().st_size for name in TARGETS if baseline['targets'][name] is not None for path in (BASE / name).rglob('*') if path.is_file())
-    old_entries = sum(len(item['files']) + len(item['directories']) for item in baseline['targets'].values() if item is not None)
-    static_needed = expanded + 2 * old_size + len(TARGETS) * source_size + (len(entries) + 2 * old_entries) * 4096
+        selected = manifest_targets(json.load(package.extractfile('release-manifest.json')))
+    old_size = sum(path.stat().st_size for name in selected if baseline['targets'][name] is not None for path in (BASE / name).rglob('*') if path.is_file())
+    old_entries = sum(len(baseline['targets'][name]['files']) + len(baseline['targets'][name]['directories']) for name in selected if baseline['targets'][name] is not None)
+    static_needed = expanded + 2 * old_size + len(selected) * source_size + (len(entries) + 2 * old_entries) * 4096
     wal = DATABASE.with_name(DATABASE.name + '-wal')
     private_needed = DATABASE.stat().st_size + (wal.stat().st_size if wal.exists() else 0) + SERVER.stat().st_size + 16 * 1024 * 1024
     sites_parent, private_parent = existing_parent(BASE), existing_parent(PRIVATE)
@@ -434,10 +470,12 @@ def apply_release(args):
     os.chmod(work, 0o700)
     payload = work / 'payload'
     manifest = package_manifest(archive, payload)
+    selected = manifest_targets(manifest)
     validate_host_baseline(manifest, baseline)
     subprocess.run(['/usr/local/bin/node', '--check', str(payload / manifest['server']['path'])], check=True, capture_output=True)
     receipt = {'format': 1, 'id': args.release_id, 'source': manifest['source'], 'status': 'preparing', 'baseline': baseline,
-               'createdUTC': datetime.datetime.now(datetime.timezone.utc).isoformat(), 'targets': {}, 'serverInstalled': False}
+               'createdUTC': datetime.datetime.now(datetime.timezone.utc).isoformat(), 'scope': manifest.get('scope', 'all-four'),
+               'releaseTargets': list(selected), 'targets': {}, 'serverInstalled': False}
     receipt_file = private / 'receipt.json'
     atomic_json(receipt_file, receipt, private=True)
     stage_root = work / 'stage'
@@ -471,6 +509,7 @@ def apply_release(args):
         restart_and_check()
         for target in manifest['targets']:
             name = target['name']
+            require_preserved_targets(baseline, selected, 'Unselected targets before switching')
             require_equal(tree_digest(BASE / name), baseline['targets'][name], name + ' before switching')
             stage = stage_root / name
             # Backups are already complete; persist intent before the atomic
@@ -483,7 +522,10 @@ def apply_release(args):
                 exchange(stage, BASE / name)
             atomic_json(receipt_file, receipt, private=True)
             require_equal(tree_digest(BASE / name), receipt['targets'][name]['newFiles'], name + ' after switching')
-        require_equal(snapshot()['protected'], baseline['protected'], 'Protected card/nginx/unit/relay')
+            require_preserved_targets(baseline, selected, 'Unselected targets after switching')
+        current = snapshot()
+        require_preserved_targets(baseline, selected, 'Unselected targets after release', current)
+        require_equal(current['protected'], baseline['protected'], 'Protected card/nginx/unit/relay')
         health()
         receipt['status'] = 'applied'
         receipt['finishedUTC'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
@@ -498,6 +540,8 @@ def apply_release(args):
 
 
 def restore(receipt, work, private, automatic=False):
+    selected = receipt_targets(receipt)
+    require_preserved_targets(receipt['baseline'], selected, 'Unselected targets before restoring')
     require_equal(snapshot()['protected'], receipt['baseline']['protected'], 'Protected card/nginx/unit/relay before restoring')
     if not automatic:
         require_equal(file_state(SERVER), receipt['serverNewState'], 'Server bundle/permissions before rollback')

@@ -109,20 +109,21 @@ async function actor(admission) {
     };
     new MutationObserver(scan).observe(document, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'data-busy', 'data-phase'] });
   }, admission);
-  const page = await context.newPage(), actor = { context, page, acknowledgements: 0, actionFrames: [], lastRevision: 0 }; actors.push(actor);
+  const page = await context.newPage(), actor = { context, page, acknowledgements: 0, actionFrames: [], lastRevision: 0, loadStep: 'navigation', closes: [] }; actors.push(actor);
   context.on('request', request => { if (!request.url().startsWith(origin + '/')) external.push('unexpected-origin'); });
   await context.route('**/*', route => route.request().url().startsWith(origin + '/') ? route.continue() : route.abort());
   page.on('pageerror', () => errors.push('script-error')); page.on('dialog', dialog => dialog.type() === 'beforeunload' ? dialog.accept() : dialog.dismiss());
-  page.on('websocket', socket => { if (!socket.url().startsWith(origin.replace('http:', 'ws:') + '/')) external.push('unexpected-websocket-origin'); socket.on('framereceived', event => {
+  page.on('websocket', socket => { if (!socket.url().startsWith(origin.replace('http:', 'ws:') + '/')) external.push('unexpected-websocket-origin'); socket.on('close', () => { if (actor.closes.length < 8) actor.closes.push({ ms: Date.now(), loadStep: actor.loadStep }); }); socket.on('framereceived', event => {
     const packet = JSON.parse(event.payload.toString());
     if (packet.type === 'ack' && packet.actionReceipt?.ok) { actor.acknowledgements++; actor.actionFrames.push('ack'); }
     else if (packet.type === 'view' && packet.view.game) { actor.lastRevision = packet.view.game.revision; actor.actionFrames.push('view'); }
     else if (packet.type === 'patch') { if (packet.gamePatch?.set?.revision) actor.lastRevision = packet.gamePatch.set.revision; actor.actionFrames.push('view'); }
   }); });
-  await page.goto(origin + base + '?room=' + admission.room.code); await page.locator('.site-online-match[data-connected=true]').waitFor();
+  await page.goto(origin + base + '?room=' + admission.room.code); actor.loadStep = 'connected'; await page.locator('.site-online-match[data-connected=true]').waitFor();
+  actor.loadStep = 'own-hand';
   await page.locator('.tda-card--hand[data-card]').first().waitFor();
   assert.equal(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches), false);
-  return actor;
+  actor.loadStep = 'ready'; return actor;
 }
 async function scenario(kind) {
   stage = kind + '-fixture';
@@ -246,7 +247,7 @@ try {
 } catch (error) {
   const publicDiagnostics = [];
   for (const actor of actors) try { publicDiagnostics.push(await actor.page.evaluate(() => ({ busy: document.querySelector('.tda-shell')?.getAttribute('data-busy'), phase: document.querySelector('.tda-shell')?.getAttribute('data-phase'), powerCount: document.querySelectorAll('.tda-spotlight').length, ghostCount: document.querySelectorAll('.tda-ghost').length, coinCount: document.querySelectorAll('.tda-fx-coin').length, probe: window.__presentationProbe ? { events: window.__presentationProbe.events, fxDraws: window.__presentationProbe.fxDraws } : null }))); } catch {}
-  failure = { stage, kind: error.name, publicDiagnostics, message: 'Real website presentation assertion failed; no private projection or selector is written to evidence.' };
+  failure = { stage, kind: error.name, publicDiagnostics, loadDiagnostics: actors.map(actor => ({ loadStep: actor.loadStep, closes: actor.closes, authoritativeFrameCount: actor.actionFrames.length })), message: 'Real website presentation assertion failed; no private projection or selector is written to evidence.' };
 }
 finally {
   await browser.close(); await service.close(); await new Promise(done => server.close(done));
