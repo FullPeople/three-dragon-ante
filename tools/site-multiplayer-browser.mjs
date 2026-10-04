@@ -29,7 +29,7 @@ async function publicDiagnostics() {
       const value = await Promise.race([actor.page.evaluate(() => {
         const status = document.querySelector('.site-room-identity [role="status"]')?.textContent?.trim();
         const allowed = ['已连接', 'Connected', '座位已在其他窗口连接', 'Seat connected in another window', '连接已失效，请返回首页重连', 'Session expired; return home to reconnect', '连接失败', 'Connection failed', '重连中', 'Reconnecting'];
-        return { lang: ['zh-CN', 'en'].includes(document.documentElement.lang) ? document.documentElement.lang : 'other', status: status == null ? null : allowed.includes(status) ? status : 'other', connected: document.querySelector('.site-online-match')?.getAttribute('data-connected') || null, closes: window.__siteSocketCloseDiagnostics || [] };
+        return { lang: ['zh-CN', 'en'].includes(document.documentElement.lang) ? document.documentElement.lang : 'other', status: status == null ? null : allowed.includes(status) ? status : 'other', connected: document.querySelector('.site-online-match')?.getAttribute('data-connected') || null, closes: window.__siteSocketCloseDiagnostics || [], socketEvents: window.__siteSocketEventDiagnostics || [], lifecycle: window.__sitePageLifecycleDiagnostics || [], dropped: window.__siteLifecycleDiagnosticsDropped || { socket: 0, page: 0 } };
       }), new Promise((_, reject) => { timer = setTimeout(() => { const error = new Error('Public diagnostic read timed out'); error.name = 'DiagnosticsTimeout'; reject(error); }, 3000); })]);
       return { actor: actor.label, wsAttempts: actor.wsAttempts, ...value };
     } catch (error) { return { actor: actor.label, wsAttempts: actor.wsAttempts, readError: error.name }; }
@@ -111,16 +111,41 @@ async function actor(label, narrow = false) {
   const value = { label, privateFrames: 0, wsAttempts: 0, beforeUnloadPrompts: 0, wire: null }, context = await browser.newContext({ userAgent: 'TDA-site-browser-' + label, locale: 'zh-CN', viewport: narrow ? { width: 390, height: 844 } : { width: 1280, height: 900 }, isMobile: narrow, hasTouch: narrow, reducedMotion: 'reduce' });
   await context.addInitScript(started => {
     const closes = window.__siteSocketCloseDiagnostics = [];
+    // Fixed public states only; no URLs, event text, room/player identifiers or payloads.
+    const socketEvents = window.__siteSocketEventDiagnostics = [], lifecycle = window.__sitePageLifecycleDiagnostics = [];
+    const dropped = window.__siteLifecycleDiagnosticsDropped = { socket: 0, page: 0 };
+    const statusKind = () => {
+      const value = document.querySelector('.site-room-identity [role="status"]')?.textContent?.trim();
+      if (value == null) return 'none';
+      const groups = [
+        ['connected', ['已连接', 'Connected']],
+        ['replaced', ['座位已在其他窗口连接', 'Seat connected in another window']],
+        ['expired', ['连接已失效，请返回首页重连', 'Session expired; return home to reconnect']],
+        ['failed', ['连接失败', 'Connection failed']],
+        ['reconnecting', ['重连中', 'Reconnecting']],
+      ];
+      return groups.find(([, texts]) => texts.includes(value))?.[0] || 'other';
+    };
+    const documentState = () => ({ visibility: ['visible', 'hidden', 'prerender'].includes(document.visibilityState) ? document.visibilityState : 'other', hasFocus: document.hasFocus(), documentReady: ['loading', 'interactive', 'complete'].includes(document.readyState) ? document.readyState : 'other', status: statusKind(), connected: ['true', 'false'].includes(document.querySelector('.site-online-match')?.getAttribute('data-connected')) ? document.querySelector('.site-online-match').getAttribute('data-connected') : null });
+    const record = (list, kind, value) => { list.push({ ms: Date.now() - started, ...value }); if (list.length > 32) { list.shift(); dropped[kind]++; } };
+    const recordLifecycle = event => record(lifecycle, 'page', { event, ...documentState() });
+    for (const event of ['visibilitychange', 'readystatechange', 'DOMContentLoaded']) document.addEventListener(event, () => recordLifecycle(event));
+    for (const event of ['focus', 'blur', 'pageshow', 'pagehide']) window.addEventListener(event, () => recordLifecycle(event));
+    recordLifecycle('init');
+    let nextSocketId = 0;
+    const recordSocket = (event, socket, socketId) => record(socketEvents, 'socket', { event, socketId, readyState: socket.readyState, ...documentState() });
     const NativeSocket = window.WebSocket;
     window.WebSocket = class extends NativeSocket {
       constructor(...args) {
         super(...args);
+        const socketId = ++nextSocketId; recordSocket('create', this, socketId);
         let openedMs = null;
-        this.addEventListener('open', () => { openedMs = Date.now() - started; });
+        this.addEventListener('open', () => { openedMs = Date.now() - started; recordSocket('open', this, socketId); });
         this.addEventListener('close', event => {
-          const allowed = ['notAllowed', 'sessionReplaced', 'roomMissing', 'protocolMismatch'];
+          const allowed = ['authenticationRequired', 'notAllowed', 'sessionReplaced', 'roomMissing', 'protocolMismatch'];
           closes.push({ ms: Date.now() - started, openedMs, code: event.code, wasClean: event.wasClean, reason: !event.reason ? '' : allowed.includes(event.reason) ? event.reason : 'other' });
           if (closes.length > 16) closes.shift();
+          recordSocket('close', this, socketId);
         });
       }
     };
@@ -333,6 +358,7 @@ try {
     const expiredSession = await owner.page.evaluate(code => JSON.parse(localStorage.getItem('three-dragon-site-session.v1:' + code + ':甲')), roomCode);
     assert.ok(expiredSession); const attemptsBeforeRefresh = owner.wsAttempts;
     await owner.page.evaluate(saved => sessionStorage.setItem('three-dragon-site-active.v1', JSON.stringify(saved)), expiredSession); await owner.page.reload();
+    console.log('PUBLIC expired-session-wait ' + JSON.stringify({ ms: Date.now() - traceStarted, checks: checks.length, wsAttempts: owner.wsAttempts, attemptsBeforeRefresh, transportEvents: transportTrace.length, transportDropped: transportTraceDropped }));
     await owner.page.locator('.site-room-identity [role="status"]').filter({ hasText: '连接已失效，请返回首页重连' }).waitFor();
     assert.equal(await owner.page.getByRole('button', { name: '重试连接', exact: true }).count(), 0); await owner.page.waitForTimeout(1600);
     assert.equal(owner.wsAttempts, attemptsBeforeRefresh + 1); assert.equal(JSON.stringify(state()), beforeStaleReconnect);

@@ -5,6 +5,9 @@
 
 ## 待办
 
+- [x] 原多人expired等待连接/lifecycle安全诊断prepare及换模型审核通过，tool3932a286，原81assert/42wait/4timer/19pass与流程保留；无新browser/产品整改。
+- [ ] 该新冻结首次Linux原流程/生命周期采证与完整CI；保留111原17pass后超时和6d2/d580失败，不盲重跑到通过、不改期限/次数/前台前置。
+
 - [x] 新goal续轮：原FX合取断言安全诊断准备获换模型独立认可，28assert/7page+locator wait/6pass/取点与fixture逐字保持，仅公开数字/布尔/固定类别于原assert前输出；tool9a2c1064，见fx3d-pointer-diagnostic runbook。
 - [x] 6d2首次本机构建/服务端构建exit0、FX9/9；Linux37197852779两个屏幕可见/命中均true、前7项通过，原ticks >20合取失败，当前原写入顺序导致实际两侧计数缺失；保留失败与本地边界。
 - [ ] 最新1117450首次Linux CI37199170133在多人17checks后原expired-status30s等待失败，后续FX及所有步骤skipped，未取得ticks；先补安全连接/lifecycle观测查明确切延迟，不能事后expired代原结果或称凭据复活。保留旧6d2计数缺失与d580指针未知；原断言/期限不变，0.9.2继续未部署。

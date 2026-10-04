@@ -23,6 +23,8 @@
 
 ## B. 当前状态（最近为真；过时即更新）
 
+- **连接观测准备完成**：仅site-multiplayer原监听追加socket/page各32有界固定状态与时间、authenticationRequired白名单，以及原expired等待前同步既有计数日志。tool3932a286经独立AST/逐字复原审核，原81assert/42wait/4timer/19pass及完整原流程保持，没有新等待/foreground/产品改变。新冻结首次CI尚待，不能以诊断准备称失败已修；见site-auth-lifecycle-diagnostic runbook。
+
 - **2026-10-04 续轮最新查证**：线上仍801/0.9.1，两manifest/正确release marker/服务health新读均200。6d2本机构建与FX9/9、Linux两个屏幕可见/命中true后ticks合取失败分别保留；仅提前既有计数输出的新冻结1117450首次CI37199170133在更早多人第26步骤17checks后过期status等待30s超时，FX全skipped、没有新ticks，不猜旧token授权或把事后expired代原等待。安全artifact看到第一1008无auth帧、第二auth被notAllowed拒，延迟原因未知；准备补连接/lifecycle安全观察，原断言期限保留。首次有界性能profiling两capture/5checks/18样本完成，长帧期间surface与coin原生计数零增量，具体CSS/GPU/输入因果未证实，插桩FPS不替原基线。候选仍未部署、目标继续；见website-release-status及performance-profiling runbooks。
 
 
