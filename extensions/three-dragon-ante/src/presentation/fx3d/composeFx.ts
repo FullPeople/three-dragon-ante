@@ -1,7 +1,7 @@
 /** 把 three.js 图元接到现有 FxLayer 接口上：有舞台时 sigil / ring / beam / burst / flare 走 three，
  *  其余（金币 DOM 精灵、拍桌、尘土、抓取、交换、划痕、环境粒子…）仍走 2D 贴图层，逐步替换。
  *  没有舞台（WebGL 不可用 / 减少动态 / 用户关掉 / 软件 GL）→ 原样返回 2D 层，presenter 零改动。 */
-import type { FxKind, FxLayer, Point } from "../fx/particles";
+import type { AmbientSpec, FxKind, FxLayer, Point } from "../fx/particles";
 import type { FxStage } from "./FxStage";
 import { GroundMark } from "./primitives/GroundMark";
 import { Pillar } from "./primitives/Pillar";
@@ -26,6 +26,8 @@ export function composeFx(fx2d: FxLayer, stage: FxStage | null): FxLayer {
   // 驻留态（等待选择 / 场地）：发射器 + 可选的驻留法阵 + 可选的系绳飘带循环
   interface Hold { emitter: Emitter | null; marks: GroundMark[]; collar: Collar | null; tether: (() => void) | null }
   const ambients = new Map<string, Hold>();
+  // Only currently requested residents survive a renderer change; null never leaves a tombstone.
+  const requested = new Map<string, AmbientSpec>();
   const releaseHold = (h: Hold) => { h.emitter?.release(); for (const m of h.marks) m.release(); h.collar?.release(); h.tether?.(); };
   const domPoint = (selector: string): { x: number; y: number } | null => { const r = document.querySelector(selector)?.getBoundingClientRect(); return r ? plane({ x: r.left + r.width / 2, y: r.top + r.height / 2 }) : null; };
   // 等待选择的形态：按选择码分 索要 / 去向 / 顺序 / 挑牌
@@ -42,8 +44,66 @@ export function composeFx(fx2d: FxLayer, stage: FxStage | null): FxLayer {
     return undefined;
   };
   const kit = new Kit(stage);
-  let destroyed = false;
-  const removeUnavailable = stage.onUnavailable(() => { for (const hold of ambients.values()) releaseHold(hold); ambients.clear(); });
+  let destroyed = false, usingThree = stage.available;
+  const clearThreeAmbients = () => { for (const hold of ambients.values()) releaseHold(hold); ambients.clear(); };
+  const buildThreeAmbient = (id: string, spec: AmbientSpec) => {
+    const s = stage.metrics().scale;
+    const r = spec.area; let area: { x: number; y: number; w: number; h: number };
+    if (r) { const p1 = plane({ x: r.x, y: r.y }), p2 = plane({ x: r.x + r.w, y: r.y + r.h }); area = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2, w: Math.abs(p2.x - p1.x), h: Math.abs(p2.y - p1.y) }; }
+    else { const m = stage.metrics(); area = { x: m.planeW / 2, y: m.planeH / 2, w: m.planeW * 0.8, h: m.planeH * 0.8 }; }
+    const drift = { x: spec.drift.x / s, y: 0, z: -spec.drift.y / s };
+    const k = kOf();
+    const hold: Hold = { emitter: null, marks: [], collar: null, tether: null };
+    const markR = Math.max(90, Math.min(220, Math.max(area.w, area.h) * 0.55));
+    if (spec.hold) {
+      // 等待选择：等自己 → 本家手牌下暖色驻留法阵 + 更密的上升粒子；等对手 → 对手手牌下法阵 + 源牌到等待者的系绳飘带
+      const self = spec.hold.who === "self";
+      hold.marks.push(new GroundMark(stage, area.x, area.y, { kind: spec.kind, radius: markR, duration: 0, form: holdForm(spec.hold.code) }));
+      hold.emitter = new Emitter(stage, area, { kind: spec.kind, rate: spec.rate * k * (self ? 3 : 1.6), life: spec.life, drift, size: 14 * spec.size, alpha: spec.alpha ?? 0.75 });
+      if (self) hold.collar = new Collar(stage, area.x, area.y, { kind: spec.kind, radius: markR * 0.9, height: 90, duration: 0, ticks: /GIVE|PAY|GOLD|DEMAND/.test(spec.hold.code) ? 24 : 0, pulse: 1.2 });
+      if (!self && spec.hold.from) {
+        const from = plane(spec.hold.from), to = { x: area.x, y: area.y };
+        const fire = () => new Beam(stage, { ...from, z: 30 }, { ...to, z: 30 }, { kind: spec.kind, duration: 1300, lift: 60, width: 9, tail: 0.6 });
+        fire(); hold.tether = stage.repeat(fire, 1400);
+      }
+      if (/DESTINATION/.test(spec.hold.code)) { const st = domPoint('[data-pile="stakes"]'); if (st) hold.marks.push(new GroundMark(stage, st.x, st.y + 20, { kind: "gold", radius: 110, duration: 0, form: { points: 0, ticks: 16, ribs: 0 } })); }
+    } else if (spec.field) {
+      // 场地持续效果按种类：德鲁伊落叶 + 藤纹；祭司暖光上升 + 四角印；龙巫妖磷火 + 骨色钩印；大法师秘法刻度环；其余小印 + 粒子
+      const f = spec.field;
+      const sprites = f === "druid" ? ["star_01", "twirl_01"] as const : f === "dracolich" ? ["smoke_06", "magic_05"] as const : f === "priest" ? ["light_02", "star_05"] as const : undefined;
+      const z0 = f === "druid" || f === "dracolich" ? 160 : 0;
+      hold.emitter = new Emitter(stage, area, { kind: spec.kind, rate: spec.rate * k * 1.5, life: spec.life, drift: z0 ? { x: drift.x, y: 0, z: -Math.abs(drift.z) - 20 } : drift, size: 14 * spec.size, alpha: spec.alpha ?? 0.7, sprites: sprites ? [...sprites] : undefined, z0 });
+      const form: Partial<GlyphForm> = f === "druid" ? { points: 3, hooks: true, ribs: 6, ticks: 0 } : f === "priest" ? { points: 4, ribs: 8, ticks: 0 } : f === "dracolich" ? { points: 4, hooks: true, rhombus: true, ticks: 16, ribs: 0 } : f === "archmage" ? { points: 5, ticks: 30, ribs: 10, rhombus: true } : f === "monarch" ? { points: 12, ticks: 12, ribs: 0 } : f === "merchant" ? { points: 8, ticks: 16, rhombus: true, ribs: 0 } : { points: 8, ribs: 8, ticks: 0 };
+      hold.marks.push(new GroundMark(stage, area.x, area.y, { kind: spec.kind, radius: spec.area ? markR : 240, duration: 0, form }));
+    } else {
+      hold.emitter = new Emitter(stage, area, { kind: spec.kind, rate: spec.rate * k, life: spec.life, drift, size: 14 * spec.size, alpha: spec.alpha ?? 0.75 });
+    }
+    ambients.set(id, hold);
+  };
+  const removeUnavailable = stage.onUnavailable(reason => {
+    if (reason === "destroyed") { destroyComposition(); return; }
+    if (destroyed || !usingThree) return;
+    usingThree = false; clearThreeAmbients();
+    for (const [id, spec] of [...requested]) {
+      if (destroyed) break;
+      if (requested.get(id) === spec) fx2d.ambient(id, spec);
+    }
+  });
+  const removeAvailable = stage.onAvailable(() => {
+    if (destroyed || usingThree || !stage.available) return;
+    usingThree = true;
+    for (const [id, spec] of [...requested]) {
+      if (destroyed || !stage.available) break;
+      fx2d.ambient(id, null);
+      if (requested.get(id) === spec) buildThreeAmbient(id, spec);
+    }
+  });
+  function destroyComposition() {
+    if (destroyed) return;
+    destroyed = true; removeUnavailable(); removeAvailable();
+    for (const id of requested.keys()) fx2d.ambient(id, null);
+    requested.clear(); clearThreeAmbients(); fx2d.destroy();
+  }
   const wait = (ms: number) => stage.wait(ms);
   const composed: FxLayer = {
     ...fx2d,
@@ -94,40 +154,16 @@ export function composeFx(fx2d: FxLayer, stage: FxStage | null): FxLayer {
     },
     // 持续环境粒子（等待选择 / 场地）：GPU 循环发射器；传 null 淡出
     ambient(id, spec) {
+      if (destroyed) return;
+      requested.delete(id);
       const old = ambients.get(id); if (old) { releaseHold(old); ambients.delete(id); }
+      // Cancel the same id in both paths, including a fallback begun during context loss.
+      fx2d.ambient(id, null);
       if (!spec) return;
-      const s = stage.metrics().scale;
-      const r = spec.area; let area: { x: number; y: number; w: number; h: number };
-      if (r) { const p1 = plane({ x: r.x, y: r.y }), p2 = plane({ x: r.x + r.w, y: r.y + r.h }); area = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2, w: Math.abs(p2.x - p1.x), h: Math.abs(p2.y - p1.y) }; }
-      else { const m = stage.metrics(); area = { x: m.planeW / 2, y: m.planeH / 2, w: m.planeW * 0.8, h: m.planeH * 0.8 }; }
-      const drift = { x: spec.drift.x / s, y: 0, z: -spec.drift.y / s };
-      const k = kOf();
-      const hold: Hold = { emitter: null, marks: [], collar: null, tether: null };
-      const markR = Math.max(90, Math.min(220, Math.max(area.w, area.h) * 0.55));
-      if (spec.hold) {
-        // 等待选择：等自己 → 本家手牌下暖色驻留法阵 + 更密的上升粒子；等对手 → 对手手牌下法阵 + 源牌到等待者的系绳飘带
-        const self = spec.hold.who === "self";
-        hold.marks.push(new GroundMark(stage, area.x, area.y, { kind: spec.kind, radius: markR, duration: 0, form: holdForm(spec.hold.code) }));
-        hold.emitter = new Emitter(stage, area, { kind: spec.kind, rate: spec.rate * k * (self ? 3 : 1.6), life: spec.life, drift, size: 14 * spec.size, alpha: spec.alpha ?? 0.75 });
-        if (self) hold.collar = new Collar(stage, area.x, area.y, { kind: spec.kind, radius: markR * 0.9, height: 90, duration: 0, ticks: /GIVE|PAY|GOLD|DEMAND/.test(spec.hold.code) ? 24 : 0, pulse: 1.2 });
-        if (!self && spec.hold.from) {
-          const from = plane(spec.hold.from), to = { x: area.x, y: area.y };
-          const fire = () => new Beam(stage, { ...from, z: 30 }, { ...to, z: 30 }, { kind: spec.kind, duration: 1300, lift: 60, width: 9, tail: 0.6 });
-          fire(); hold.tether = stage.repeat(fire, 1400);
-        }
-        if (/DESTINATION/.test(spec.hold.code)) { const st = domPoint('[data-pile="stakes"]'); if (st) hold.marks.push(new GroundMark(stage, st.x, st.y + 20, { kind: "gold", radius: 110, duration: 0, form: { points: 0, ticks: 16, ribs: 0 } })); }
-      } else if (spec.field) {
-        // 场地持续效果按种类：德鲁伊落叶 + 藤纹；祭司暖光上升 + 四角印；龙巫妖磷火 + 骨色钩印；大法师秘法刻度环；其余小印 + 粒子
-        const f = spec.field;
-        const sprites = f === "druid" ? ["star_01", "twirl_01"] as const : f === "dracolich" ? ["smoke_06", "magic_05"] as const : f === "priest" ? ["light_02", "star_05"] as const : undefined;
-        const z0 = f === "druid" || f === "dracolich" ? 160 : 0;
-        hold.emitter = new Emitter(stage, area, { kind: spec.kind, rate: spec.rate * k * 1.5, life: spec.life, drift: z0 ? { x: drift.x, y: 0, z: -Math.abs(drift.z) - 20 } : drift, size: 14 * spec.size, alpha: spec.alpha ?? 0.7, sprites: sprites ? [...sprites] : undefined, z0 });
-        const form: Partial<GlyphForm> = f === "druid" ? { points: 3, hooks: true, ribs: 6, ticks: 0 } : f === "priest" ? { points: 4, ribs: 8, ticks: 0 } : f === "dracolich" ? { points: 4, hooks: true, rhombus: true, ticks: 16, ribs: 0 } : f === "archmage" ? { points: 5, ticks: 30, ribs: 10, rhombus: true } : f === "monarch" ? { points: 12, ticks: 12, ribs: 0 } : f === "merchant" ? { points: 8, ticks: 16, rhombus: true, ribs: 0 } : { points: 8, ribs: 8, ticks: 0 };
-        hold.marks.push(new GroundMark(stage, area.x, area.y, { kind: spec.kind, radius: spec.area ? markR : 240, duration: 0, form }));
-      } else {
-        hold.emitter = new Emitter(stage, area, { kind: spec.kind, rate: spec.rate * k, life: spec.life, drift, size: 14 * spec.size, alpha: spec.alpha ?? 0.75 });
-      }
-      ambients.set(id, hold);
+      const owned: AmbientSpec = { ...spec, drift: { ...spec.drift }, area: spec.area ? { ...spec.area } : null,
+        hold: spec.hold ? { ...spec.hold, from: spec.hold.from ? { ...spec.hold.from } : undefined } : undefined };
+      requested.set(id, owned);
+      if (stage.available) buildThreeAmbient(id, owned); else fx2d.ambient(id, owned);
     },
     sigil(point, kind, radius = 120, duration = 1400) {
       const p = plane(point);
@@ -154,7 +190,7 @@ export function composeFx(fx2d: FxLayer, stage: FxStage | null): FxLayer {
       new Burst(stage, p.x, p.y, 20, { kind, count: Math.round(64 * kOf()), speed: 290, up: 0.9, size: 40, life: 1.0 });
       return wait(duration);
     },
-    destroy() { if (destroyed) return; destroyed = true; removeUnavailable(); for (const h of ambients.values()) releaseHold(h); ambients.clear(); fx2d.destroy(); },
+    destroy: destroyComposition,
   };
   // Check availability for every call: losing either context restores the complete 2D path.
   return new Proxy(composed, { get(target, key: keyof FxLayer) {
@@ -162,8 +198,9 @@ export function composeFx(fx2d: FxLayer, stage: FxStage | null): FxLayer {
     if (typeof method !== "function" || key === "destroy") return method;
     return (...args: unknown[]) => {
       if (destroyed) return key === "script" ? Promise.resolve(false) : Promise.resolve();
-      const live = stage.available ? target[key] : fx2d[key];
-      if (typeof live === "function") return Reflect.apply(live, stage.available ? target : fx2d, args);
+      const owned = key === "ambient" || stage.available;
+      const live = owned ? target[key] : fx2d[key];
+      if (typeof live === "function") return Reflect.apply(live, owned ? target : fx2d, args);
       return key === "script" ? Promise.resolve(false) : undefined;
     };
   } });

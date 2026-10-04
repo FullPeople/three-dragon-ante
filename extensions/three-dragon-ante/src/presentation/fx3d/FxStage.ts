@@ -22,10 +22,11 @@ export interface FxStage {
   readonly mode: `three-${Tier}` | "canvas2d";
   /** Both live canvases must have their contexts, and the stage must not be destroyed. */
   readonly available: boolean;
-  schedule(callback: () => void, ms: number): () => void;
+  schedule(callback: () => void, ms: number, onCancel?: () => void): () => void;
   repeat(callback: () => void, ms: number): () => void;
   wait(ms: number): Promise<void>;
-  onUnavailable(callback: () => void): () => void;
+  onUnavailable(callback: (reason?: "context-lost" | "destroyed") => void): () => void;
+  onAvailable(callback: () => void): () => void;
   readonly air: { scene: Scene; camera: PerspectiveCamera; group: Group; renderer: WebGLRenderer };
   readonly ground: { scene: Scene; camera: OrthographicCamera; renderer: WebGLRenderer } | null;
   readonly tier: Tier;
@@ -106,7 +107,8 @@ export function mountFxStage(host: HTMLElement, airCanvas: HTMLCanvasElement, gr
   let raf = 0, last = 0, destroyed = false, frames = 0, renders = 0, lastRender = 0;
   const lostCanvases = new Set<HTMLCanvasElement>();
   const timers = new Map<ReturnType<typeof setTimeout>, () => void>();
-  const invalidated = new Set<() => void>();
+  const invalidated = new Set<(reason?: "context-lost" | "destroyed") => void>();
+  const restored = new Set<() => void>();
   const available = () => !destroyed && lostCanvases.size === 0;
   function schedule(callback: () => void, ms: number, onCancel = () => {}) {
     if (!available()) { onCancel(); return () => {}; }
@@ -122,7 +124,7 @@ export function mountFxStage(host: HTMLElement, airCanvas: HTMLCanvasElement, gr
     timers.clear();
     for (const effect of effects.splice(0)) disposeEffect(effect);
     setVisible(false);
-    for (const callback of invalidated) callback();
+    for (const callback of [...invalidated]) if (invalidated.has(callback)) callback(destroyed ? "destroyed" : "context-lost");
     window.dispatchEvent(new CustomEvent("tda-fx-tier"));
   }
   const tableUniforms = { uTableHalf: { value: new Vector2(826, 486) }, uTableShape: { value: 0 } };
@@ -160,7 +162,13 @@ export function mountFxStage(host: HTMLElement, airCanvas: HTMLCanvasElement, gr
   observer.observe(host); layout(); setVisible(false);
   // Any lost canvas invalidates this run. Restore three rendering only when both are back.
   const onLost = (e: Event) => { e.preventDefault(); if (destroyed) return; lostCanvases.add(e.currentTarget as HTMLCanvasElement); invalidate(); };
-  const onRestored = (e: Event) => { if (destroyed) return; lostCanvases.delete(e.currentTarget as HTMLCanvasElement); if (!available()) return; layout(); window.dispatchEvent(new CustomEvent("tda-fx-tier")); };
+  const onRestored = (e: Event) => {
+    if (destroyed || !lostCanvases.delete(e.currentTarget as HTMLCanvasElement) || !available()) return;
+    layout();
+    // Notify only on the last real context restoration; listeners may dispose the stage.
+    for (const callback of [...restored]) { if (!available()) break; if (restored.has(callback)) callback(); }
+    if (available()) window.dispatchEvent(new CustomEvent("tda-fx-tier"));
+  };
   for (const c of [airCanvas, groundCanvas]) if (c) { c.addEventListener("webglcontextlost", onLost); c.addEventListener("webglcontextrestored", onRestored); }
 
   // 自适应降档：效果活跃期间 rAF 间隔的 EMA 连续 1.5 s > 28 ms 就降一档（只降不升），同时降 DPR
@@ -200,6 +208,7 @@ export function mountFxStage(host: HTMLElement, airCanvas: HTMLCanvasElement, gr
     },
     wait: ms => new Promise<void>(resolve => schedule(resolve, ms, resolve)),
     onUnavailable(callback) { invalidated.add(callback); return () => invalidated.delete(callback); },
+    onAvailable(callback) { restored.add(callback); return () => restored.delete(callback); },
     air: { scene: airScene, camera: airCam, group, renderer: airRenderer },
     ground: groundRenderer ? { scene: groundScene, camera: groundCam, renderer: groundRenderer } : null,
     get tier() { return tier; },
@@ -217,7 +226,7 @@ export function mountFxStage(host: HTMLElement, airCanvas: HTMLCanvasElement, gr
     wake,
     frameStats: () => ({ frames, renders, effects: effects.length, names: effects.map(effect => effect.constructor?.name ?? "?") }),
     destroy() {
-      if (destroyed) return; destroyed = true; observer.disconnect(); invalidate(); invalidated.clear();
+      if (destroyed) return; destroyed = true; observer.disconnect(); invalidate(); invalidated.clear(); restored.clear();
       for (const c of [airCanvas, groundCanvas]) if (c) { c.removeEventListener("webglcontextlost", onLost); c.removeEventListener("webglcontextrestored", onRestored); }
       // 释放 GL 上下文（浏览器每页上限约 16 个；牌桌反复挂载时不能堆积）
       airRenderer.dispose(); airRenderer.forceContextLoss(); if (groundRenderer) { groundRenderer.dispose(); groundRenderer.forceContextLoss(); }
