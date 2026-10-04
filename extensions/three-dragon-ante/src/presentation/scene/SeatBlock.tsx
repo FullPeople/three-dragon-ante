@@ -10,7 +10,7 @@ import { t, type Lang } from "../i18n";
 import { CoinStack } from "./CoinStack";
 import type { TallyItem } from "../app/store";
 
-export interface SeatBlockProps { seat: PublicSeat; placement: SeatPlacement; game: PublicView; selfSeatId: string | null; lang: Lang; legalZone: "ante" | "flight" | null; dragOver: "ante" | "flight" | null; targetSeatId: string | null; waiting: boolean; gold: number; tally?: TallyItem; onZoneClick(zone: "ante" | "flight"): void }
+export interface SeatBlockProps { seat: PublicSeat; placement: SeatPlacement; game: PublicView; selfSeatId: string | null; lang: Lang; legalZone: "ante" | "flight" | null; dragOver: "ante" | "flight" | null; targetSeatId: string | null; waiting: boolean; gold: number; coinTilt?: number; tally?: TallyItem; onZoneClick(zone: "ante" | "flight"): void }
 
 const RIBBON_KEY: Record<Exclude<SeatRibbon, "">, string> = { waiting: "ribbonWaiting", committed: "ribbonCommitted", acting: "ribbonActing", thinking: "ribbonThinking", played: "ribbonPlayed", choosing: "ribbonChoosing" };
 
@@ -33,7 +33,7 @@ function SeatName({ name }: { name: string }) {
   return <span ref={slot} className="tda-seat-name" title={name}><span ref={text} className="tda-seat-name-text">{name}</span></span>;
 }
 
-export function SeatBlock({ seat, placement, game, selfSeatId, lang, legalZone, dragOver, targetSeatId, waiting, gold, tally, onZoneClick }: SeatBlockProps) {
+export function SeatBlock({ seat, placement, game, selfSeatId, lang, legalZone, dragOver, targetSeatId, waiting, gold, coinTilt, tally, onZoneClick }: SeatBlockProps) {
   const self = placement.self, s = placement.scale, rot = placement.rot, dir = placement.dir, inward = placement.inward, plateRot = placement.plateRot;
   const ribbon = seatRibbon(game, seat.id, selfSeatId);
   const active = game.activeSeatId === seat.id && (game.phase === "play" || game.phase === "choice");
@@ -75,7 +75,7 @@ export function SeatBlock({ seat, placement, game, selfSeatId, lang, legalZone, 
       data-drop-zone="ante" data-drop-seat={seat.id} onClick={anteLegal ? () => onZoneClick("ante") : undefined} role={anteLegal ? "button" : undefined} aria-label={self ? t("placeAnte", lang) : undefined}>
       <span className="tda-slot-label">{t("ante", lang)}</span>
     </div>
-    <div className="tda-coins-anchor" style={at(placement.coins)} data-coins-seat={seat.id}><CoinStack amount={gold} scale={s} /></div>
+    <div className="tda-coins-anchor" style={at(placement.coins)} data-coins-seat={seat.id}><CoinStack amount={gold} scale={s} tilt={coinTilt} /></div>
     <div className={`tda-slot tda-slot--flight${flightLegal ? " is-legal" : ""}${dragOver === "flight" && self ? " is-over" : ""}`} style={box(flightCenter, flightLength, flightDepth)}
       data-drop-zone="flight" data-drop-seat={seat.id} onClick={flightLegal ? () => onZoneClick("flight") : undefined} role={flightLegal ? "button" : undefined} aria-label={self ? t("placeFlight", lang) : undefined}>
       <span className="tda-slot-label">{t("flight", lang)}</span>

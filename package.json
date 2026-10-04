@@ -22,6 +22,7 @@
     "test:browser": "node tools/site-controls-browser.mjs",
     "test:server-browser": "node tools/three-dragon-server-browser.mjs",
     "test:fx3d": "node tools/fx3d-alignment-check.mjs",
+    "test:fx3d-lifecycle": "node tools/fx3d-lifecycle-browser.mjs",
     "test:guest-server": "node tools/three-dragon-guest-server-selftest.mjs",
     "test:empty-room": "node tools/server-empty-room-selftest.mjs",
     "test:site-multiplayer": "node tools/site-multiplayer-browser.mjs",

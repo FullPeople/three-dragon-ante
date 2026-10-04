@@ -9,7 +9,8 @@
 .tda-plane { position: absolute; inset: 0; transform: rotateX(var(--tilt)); transform-style: preserve-3d; transform-origin: 50% 50%; }
 
 /* 桌面：WebGL 法线贴图渲染；不可用时 CSS 照片材质兜底 */
-.tda-surface { position: absolute; inset: 0; border-radius: 230px; overflow: hidden; filter: drop-shadow(0 40px 30px rgba(0, 0, 0, .6)); }
+/* 桌沿投影用 box-shadow（随 border-radius），不用 filter：filter 会让这块 1800×1100 的层每次合成都重新过滤 */
+.tda-surface { position: absolute; inset: 0; border-radius: 230px; overflow: hidden; box-shadow: 0 40px 30px rgba(0, 0, 0, .6); }
 .tda-surface[data-shape="round"] { border-radius: 50%; }
 .tda-surface[data-shape="round"] .tda-felt-fallback::after { border-radius: 50%; }
 .tda-surface-gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
@@ -60,13 +61,12 @@
 .tda-ribbon--archmage { background-color: #3b2a5e; }
 .tda-coins-anchor { position: absolute; width: 0; height: 0; transform-style: preserve-3d; }
 .tda-coins { position: absolute; left: 0; top: 0; transform-origin: 0 0; transform-style: preserve-3d; }
-/* 每枚硬币：整圆照片 + 两层深色边缘 = 3 px 厚度 */
-/* 每枚龙金：原作的沙漏形裁图原样显示，厚度靠随形投影（drop-shadow 跟着透明通道走） */
-.tda-coin { position: absolute; left: -15px; top: -16px; width: 30px; height: 32px; object-fit: contain; filter: drop-shadow(0 1.5px 0 #7a5a1c) drop-shadow(0 1.5px 0 #4a3512) drop-shadow(0 3px 3px rgba(0, 0, 0, .5)); }
-.tda-coins--big .tda-coin { width: 36px; height: 38px; left: -18px; top: -19px; }
+/* 整堆金币画在一张画布上（CoinStack.tsx）；厚度与投影烘焙在贴图里，没有 filter */
+.tda-coins-canvas { position: absolute; pointer-events: none; }
 /* 飞行中的金币（DOM 精灵） */
 .tda-fx-dom { position: absolute; inset: 0; z-index: 55; pointer-events: none; overflow: visible; }
-.tda-coin-fly { position: absolute; left: 0; top: 0; width: 34px; height: 36px; margin: -18px 0 0 -17px; object-fit: contain; filter: drop-shadow(0 1.5px 0 #7a5a1c) drop-shadow(0 1.5px 0 #4a3512) drop-shadow(0 8px 8px rgba(0, 0, 0, .55)); will-change: transform; }
+/* 飞行精灵用同一张烘焙贴图（161×182，本体 141×148 在 (10,6)）：本体 34 px 宽 → 整图 39×44，margin 让本体中心落在 (0,0) */
+.tda-coin-fly { position: absolute; left: 0; top: 0; width: 39px; height: 44px; margin: -19.5px 0 0 -19.5px; object-fit: contain; will-change: transform; }
 
 /* 卡牌 */
 .tda-card-layer { position: absolute; inset: 0; transform-style: preserve-3d; pointer-events: none; }
@@ -95,7 +95,8 @@
 .tda-back-art { position: absolute; inset: 0; width: 100%; height: 100%; }
 .tda-card::after { content: ""; position: absolute; inset: 0; border-radius: 8px; pointer-events: none; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .07), inset 0 -2px 0 rgba(0, 0, 0, .35); }
 .tda-card--hand.is-legal { cursor: grab; }
-.tda-card--hand:not(.is-legal) .tda-card-face { filter: saturate(.7) brightness(.8); }
+/* 不可打出的手牌压暗：用叠色层而不是 filter（扇面 10 张牌各一个滤镜层在每次过渡时都要重过滤） */
+.tda-card--hand:not(.is-legal) .tda-card-face::after { content: ""; position: absolute; inset: 0; background: rgba(34, 22, 10, .42); pointer-events: none; }
 .tda-card.is-dragging { cursor: grabbing; }
 .tda-card.is-pending { opacity: .85; }
 .tda-card.is-legal .tda-card-face { box-shadow: var(--shadow-card), 0 0 0 2px rgba(234, 211, 143, .55); }
@@ -131,7 +132,7 @@
 .tda-field.is-leaving { animation: tda-field-out 800ms both; }
 .tda-field-ring { position: absolute; inset: 0; border-radius: 50%; border: 2px dashed var(--fx); opacity: .85; animation: tda-field-spin 14s linear infinite; }
 .tda-field-ring--inner { inset: 14%; border-style: solid; border-width: 1px; animation-direction: reverse; animation-duration: 20s; opacity: .55; }
-.tda-field.is-ember { --fx: var(--ember); } .tda-field.is-tide { --fx: var(--tide); } .tda-field.is-grove { --fx: var(--grove); } .tda-field.is-arcane { --fx: var(--arcane); } .tda-field.is-crown { --fx: var(--crown); }
+.tda-field.is-ember { --fx: var(--ember); } .tda-field.is-tide { --fx: var(--tide); } .tda-field.is-grove { --fx: var(--grove); } .tda-field.is-arcane { --fx: var(--arcane); } .tda-field.is-crown { --fx: var(--crown); } .tda-field.is-verdigris { --fx: var(--verdigris); } .tda-field.is-necro { --fx: var(--necro); }
 .tda-field-label { position: absolute; left: 50%; bottom: -14px; transform: translate(-50%, 100%) translateZ(26px); white-space: nowrap; padding: 2px 10px; border: 1px solid var(--fx); border-radius: 2px; background: rgba(20, 11, 6, .88); color: var(--fx); font-size: 12px; letter-spacing: .06em; }
 @keyframes tda-field-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes tda-field-out { from { opacity: 1; } to { opacity: 0; } }

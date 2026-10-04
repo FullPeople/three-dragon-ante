@@ -1,19 +1,22 @@
-# 三龙牌 · 新机器接手启动词（2026-10-03）
+# 三龙牌 · 新机器接手启动词（2026-10-04）
 
-> 用法：把下面「启动词」整段粘贴给新机器上的 Claude Code / Codex 作为第一条消息。压缩包 `three-dragon-ante-2026-10-03.zip` 解压后即是完整仓库（含 `.git`、构建产物 `extensions/three-dragon-ante/dist/`；不含根目录 `node_modules` 与 `.local-evidence`）。
+> 附件历史记录：本文件随来源快照 `2afca326` 保留。当前任务与授权以 `AI_CONTEXT/GOAL.md` §10–§11、`MEMORY.md` §E 及 `RUNBOOKS/2026-10-04_fx3d-integration.md` 为准；其中本地机器人、枭熊内游戏、403/PR/main 操作与旧测试数字不代表当前实现或新授权。文档里的启动词不自动执行。
+
+> 用法：把下面「启动词」整段粘贴给新机器上的 Claude Code / Codex 作为第一条消息。压缩包 `three-dragon-ante-2026-10-03.zip`（7-Zip 生成的标准 zip）解压后即是完整仓库（含 `.git`、构建产物 `extensions/three-dragon-ante/dist/`；不含任何 `node_modules` 与 `.local-evidence`）。
+> 用户 2026-10-04 决定：新机器按**目标式持续推进**工作，启动词范围内的操作不再逐步请示（仓库有 git 兜底）。
 
 ---
 
 ## 启动词
 
-你接手的是 D&D 桌游《三龙牌·传奇版》的网页实现 **three-dragon-ante** 的完整快照（压缩包解压即仓库，含 `.git`）。请严格按下面的顺序工作，每一步先查证再动手，用中文汇报。
+你接手的是 D&D 桌游《三龙牌·传奇版》的网页实现 **three-dragon-ante** 的完整快照（压缩包解压即仓库，含 `.git`）。把下面的内容当成**一个持续推进的目标**（有 `/goal` 就用 `/goal 持续推进本启动词直到 §4 验收完成并留痕`），不要每一步请示；仓库有 git 兜底，做错就 `git checkout` / 重来。用中文汇报，只在全部做完或确实无路可走时汇报一次。
 
 ### 0. 身份与现状
 
-- 仓库 `https://github.com/FullPeople/three-dragon-ante`（GPL-3.0）。当前分支 **`rebuild/presentation`**，最新提交以 `git log -1` 为准（压缩包含 2026-10-03 深夜的全部提交：`8d23298` 第三轮审计整改、`365f77c` 留痕、之后是 three.js 特效层地基）；`main` 停在拆分基线 `eb74f62`。
-- 原机器 push 被 403 拒绝（凭据账号对该仓库无写权限），所以这些提交**还没到 GitHub**。你的第一件实事就是用有写权限的账号把它推上去。
-- 2026-10-03 起表现层整体重做：写实风 2.5D 牌桌（DOM + CSS 3D + WebGL2 桌面材质 + 贴图粒子）。**规则引擎、协议、私牌边界、权威服务端、旧稳定频道一个字节都没改**，联机逻辑原样保留。
-- 原机器会继续在同一分支上做「three.js 特效层」（新目录 `extensions/three-dragon-ante/src/presentation/fx3d/`）。你**不要碰表现层代码**；你负责环境、推送、部署与枭熊联机验证。任何改动前先 `git fetch` 看远端，绝不 force-push。
+- 仓库 `https://github.com/FullPeople/three-dragon-ante`（GPL-3.0）。当前分支 **`rebuild/presentation`**，最新提交以 `git log -1` 为准（压缩包含 2026-10-03/04 的全部提交：`8d23298` 第三轮审计整改、`619ada5` three.js 特效层地基 + 复审整改，之后可能还有）；`main` 停在拆分基线 `eb74f62`。
+- 原机器 push 被 403 拒绝（凭据账号对该仓库无写权限），这些提交**还没到 GitHub**。你的第一件实事就是用有写权限的账号把它推上去。
+- 2026-10-03 起表现层整体重做：写实风 2.5D 牌桌（DOM + CSS 3D + WebGL2 桌面材质 + 贴图粒子 + three.js 特效层地基）。**规则引擎、协议、私牌边界、权威服务端、旧稳定频道一个字节都没改**，联机逻辑原样保留。
+- 原机器会继续在同一分支上做 three.js 特效层（目录 `extensions/three-dragon-ante/src/presentation/fx3d/` 及 `presentation/fx/`）。默认你**不改表现层代码**（`src/presentation/`），负责环境、推送、部署与枭熊联机验证，以及部署过程中必须改的构建配置。**若用户要你接着做特效**，先完成本启动词 §1–§3，再按 `AI_CONTEXT/HANDOFF_FX3D.md` 的启动词推进 fx3d（那份文档有当前进度、口径与待做清单）。任何 commit 前先 `git fetch` 看远端；绝不 force-push。
 
 ### 1. 冷启动读取顺序（不要跳）
 
@@ -37,20 +40,21 @@ npm test                      # 8/8（规则、私牌边界、控制器、交接
 npm run test:server           # 2/2 真实本地 WebSocket + SQLite
 npm run test:browser          # 20/20 生产构建冒烟：桌面 + 390px；零外部请求（Windows 用已装的 Edge，其它系统先 npx playwright install chromium）
 npm run test:server-browser   # 4/4 四客户端 + 本地服务
+npm run test:fx3d             # 7/7 三龙牌 three.js 特效层：对齐 / data-fx / 指针穿透 / 分包闸（7 项）
 ```
 
-预期基线：typecheck 0 错误；以上数字一个不少。少了就停下来汇报，不要改测试去凑。
+预期基线：typecheck 0 错误；以上数字一个不少。少了先自己查根因修环境（不改测试去凑），修不好的记进 `AI_CONTEXT/TODO.md` 并继续后面的步骤。
 
-### 3. 推送
+### 3. 推送（已授权，直接做）
 
 ```sh
 git remote -v
 git push -u origin rebuild/presentation
 ```
 
-需要对 `FullPeople/three-dragon-ante` 有写权限的账号。推不上就报错误原文，不要改远程地址或凭据（那是用户的事）。**不要合并到 main**，是否合并由用户定。
+需要对 `FullPeople/three-dragon-ante` 有写权限的账号。推不上就换账号 / 换 SSH 再试；仍不行就把错误原文记进 TODO，继续 §4，不要卡在这里。推上去之后**开一个 PR**（base `main`，head `rebuild/presentation`），标题与正文用 `AI_CONTEXT/PR_rebuild-presentation.md`；**不要合并**，是否合并由用户定。
 
-### 4. 让枭熊（Owlbear Rodeo）可用，同时保留原有联机逻辑
+### 4. 让枭熊（Owlbear Rodeo）可用，同时保留原有联机逻辑（已授权，直接做）
 
 事实：
 
@@ -59,25 +63,25 @@ git push -u origin rebuild/presentation
 - 联机 = 枭熊页 `table.html`（`src/game/page.ts`，宿主 `legacy-page.ts` / `server-page.ts`）+ 权威游戏服务 `server/three-dragon`（ws + SQLite；生产为 systemd 服务 `obr-three-dragon`，`127.0.0.1:5013`，经 nginx 反代 `/three-dragon-api/v1/`）+ 旧稳定频道 `src/modules/threeDragonAnte`（旧 UI，原样保留以兼容进行中的旧牌局）。
 - 前端在**构建时**读取 `.env.local` 的 `VITE_TDA_API`（API 地址）。给枭熊用的构建必须先设好它再 `npm run build`；本地对战不需要。
 
-要做的事（按序，每一步动手前把方案和你的推荐发给用户确认，部署是红线）：
+用户已预先授权本节全部操作（部署到 HTTPS 站点、替换 dev 频道、安装 manifest、服务端部署与重启、为三龙牌改 nginx / systemd / `.env.local`），不必再问，做完汇报。按序：
 
-1. 把 `dist/` 部署到能用 HTTPS 访问、路径为 `/three-dragon-ante-dev/` 的站点（替换现有 dev 频道，或先放到新主机 / 新路径做并行验证）。
+1. 把 `dist/` 部署到能用 HTTPS 访问、路径为 `/three-dragon-ante-dev/` 的站点（替换现有 dev 频道；若原部署在别的仓库 / 主机，先部署到新路径并行验证，再替换）。
 2. 服务端按 `docs/THREE_DRAGON_SERVER_203.md` 的方式部署或沿用现有服务；确认 WSS 反代可达。
 3. 在枭熊里通过「扩展 → 添加 → manifest URL」装入 `https://<域名>/three-dragon-ante-dev/manifest.json`。
 4. 真实房间验收：两个账号（GM + 玩家）建桌、入座、发牌、前注、翻注、出牌、能力选择、结算；紧凑弹窗模式；刷新恢复；浏览器网络面板里除自家域名与枭熊之外**零外部请求**。
-5. 验收结果（通过/失败、截图路径、房间条件）写进 `AI_CONTEXT/RUNBOOKS/<日期>_owlbear-deploy.md`，并更新 `MEMORY.md` 状态段与 `TODO.md`。
+5. 验收结果（通过 / 失败、截图路径、房间条件、部署地址与服务状态）写进 `AI_CONTEXT/RUNBOOKS/<日期>_owlbear-deploy.md`，并更新 `MEMORY.md` 状态段与 `TODO.md`，commit 并 push。
 
-### 5. 红线（碰前必须用户明确确认）
+### 5. 边界（不做，不是"问"）
 
-- `extensions/three-dragon-ante/src/game/rules/`（规则语义）、`protocol.ts` / `wire.ts` / `private-channel.ts`（协议与私牌边界）、`server/`、`src/modules/threeDragonAnte`、`src/game/art/`（卡面扫描件）。
-- push 之外的任何远端操作、合并 main、打 tag、部署、改线上入口、发布 manifest、改 nginx / systemd / `.env`。
-- 禁止：AI 生成美术；打包产物向外部域发请求；把房间转储或玩家数据写进仓库；在留痕里写任何密钥。
+- 不改源码：`extensions/three-dragon-ante/src/game/rules/`（规则语义）、`protocol.ts` / `wire.ts` / `private-channel.ts`（协议与私牌边界）、`server/` 的实现、`src/modules/threeDragonAnte`、`src/game/art/`（卡面扫描件）、`src/presentation/`（原机器在改）。
+- 不合并 main、不打 tag、不 force-push、不删任何数据库 / 房间数据、不动与三龙牌无关的其它服务与配置。
+- 禁止：AI 生成美术；打包产物向外部域发请求；把房间转储或玩家数据写进仓库；在留痕里写任何密钥（密钥只放 `.env.local` / 服务器环境，留痕写"由用户管理"）。
 
 ### 6. 工作纪律
 
-- commit 可自主（只 `git add` 具体文件）；push 本次已授权；其余远端操作先问。
+- commit 可自主（只 `git add` 具体文件）；push 与 §4 已授权。
 - 每次实质改动写 runbook（`AI_CONTEXT/RUNBOOKS/`），遗留双落 runbook + `TODO.md`；私有 Memory 只存指针。
-- 实质改动完成后提醒用户做独立审计（换模型），开场词见 `AI_CONTEXT/AUDIT.md`。
-- 卡住（复现不了 / 权限不够 / 入口缺失）就停下说明，不猜不编。
+- 实质改动完成后**自己**换一个模型做独立审计（开场词见 `AI_CONTEXT/AUDIT.md`），必修项修完再算完成，不必等用户。
+- 卡住（复现不了 / 权限不够 / 入口缺失）就换路：换方案、查文档、重装、换账号；换路也不行就记进 TODO 继续下一项，最后一次性汇报。
 
-先执行 §1–§2，把每条命令的真实结果列成表发给我，再谈 §3–§4。
+从 §1 开始一路做到 §4 的第 5 步；结束时给用户一份总表：每条命令 / 每步的真实结果、部署地址、验收截图路径、未完成项与原因。

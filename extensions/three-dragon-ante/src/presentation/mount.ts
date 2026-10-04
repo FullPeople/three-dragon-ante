@@ -60,14 +60,16 @@ export function mountTableUI(root: HTMLElement, deps: TableUIDeps): TableUISurfa
   const controller = createController(store, { send: deps.send, gesture: deps.gesture, id: deps.id, onLanguage: deps.onLanguage });
   root.dataset.mode = deps.mode ?? "full";
   // 宿主与测试夹具从挂载根读取的状态镜像。
-  store.subscribe(() => { const s = store.get(); root.dataset.pendingAction = s.pending ? "true" : "false"; root.dataset.omniscient = String(!!(s.view?.game && "omniscient" in s.view.game && (s.view.game as { omniscient?: boolean }).omniscient)); root.dataset.busy = String(s.busy); });
+  store.subscribe(() => { const s = store.get(); root.dataset.pendingAction = s.pending ? "true" : "false"; root.dataset.omniscient = String(!!(s.view?.game && "omniscient" in s.view.game && (s.view.game as { omniscient?: boolean }).omniscient)); root.dataset.busy = String(s.busy); root.dataset.reveal = s.show.revealPhase ?? ""; });
   (controller as unknown as { _setDrag(v: UIState["drag"]): void })._setDrag = value => store.set({ drag: value });
   const presenter = createPresenter(store, controller, { fx: () => fx, fx3d: () => fx3d, root: () => root, onBusy: busy => { if (busy !== notifiedBusy) { notifiedBusy = busy; deps.onPresentationChange?.(busy); } }, sound: (kind, key) => audio.play(kind, key) });
   root.classList.add("tda-root");
   const reactRoot: Root = createRoot(root);
-  const render = () => flushSync(() => reactRoot.render(createElement(TableApp, { store, controller, onFx: value => { fx = value; }, onFx3d: value => { fx3d = value; }, onOrientation: value => { orientation = value; store.set({ orientation: value }); }, showTopBar: deps.topBar !== false, onLand: (key, zone) => audio.play("thud", `${key}:${zone}:${store.get().view?.game?.revision ?? 0}`) })));
+  const render = () => flushSync(() => reactRoot.render(createElement(TableApp, { store, controller, onFx: value => { fx = value; root.dataset.fx = fx3d?.available ? fx3d.mode : fx ? "canvas2d" : "none"; }, onFx3d: value => { fx3d = value; root.dataset.fx = fx3d?.available ? fx3d.mode : fx ? "canvas2d" : "none"; }, onOrientation: value => { orientation = value; store.set({ orientation: value }); }, showTopBar: deps.topBar !== false, onLand: (key, zone) => audio.play("thud", `${key}:${zone}:${store.get().view?.game?.revision ?? 0}`) })));
   // 本家拍桌：声音在这里，震动与手掌在场景层
   let knockSeen = 0; store.subscribe(() => { const at = store.get().knockAt; if (at && at !== knockSeen) { knockSeen = at; audio.play("slap", `knock:${at}`); } });
+  const syncFxMode = () => { root.dataset.fx = fx3d?.available ? fx3d.mode : fx ? "canvas2d" : "none"; };
+  window.addEventListener("tda-fx-tier", syncFxMode);
   render();
   const gestureTimers = new Map<string, ReturnType<typeof setTimeout>>();
   // 远端拍桌：每个座位自己的"手还在桌上"计时，连拍走短动作
@@ -133,6 +135,7 @@ export function mountTableUI(root: HTMLElement, deps: TableUIDeps): TableUISurfa
     failed() { const s = store.get(); store.set({ sending: false, localMessage: "requestFailed", pending: s.pending ? { ...s.pending, retryable: true } : null, view: s.view ? { ...s.view, pending: false, connected: false } : null }); presenter.clear(); },
     destroy() {
       if (destroyed) return; destroyed = true;
+      window.removeEventListener("tda-fx-tier", syncFxMode);
       presenter.destroy(); controller.destroy(); audio.destroy(); for (const timer of gestureTimers.values()) clearTimeout(timer); for (const timer of slowTimers.values()) clearTimeout(timer);
       // 宿主常在另一个 React 树的 effect 清理里销毁牌桌；同步 unmount 会被 React 19 推迟并在开发模式告警，
       // 所以放到下一个宏任务，且不再手动清空容器（否则推迟的 removeChild 会找不到节点）。

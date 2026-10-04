@@ -5,6 +5,9 @@
 
 ## 待办
 
+- [x] 2026-10-04 附件 `2afca326` 的17条特效/合成层提交隔离整合，当前在线0.9.1反馈实现和所有原测例保留；审计舞台生命周期/桌形/拖拽/金币横竖屏问题整改，见 `RUNBOOKS/2026-10-04_fx3d-integration.md`。
+- [ ] 附件整合候选：完整CI/当前软件GL 6人受控性能复测、真实弱机/实体手机、换模型独立终审、源冻结与线上验收；本机专项不能替代这些。
+
 - [ ] 2026-10-04 0.9.1反馈：本家回执不取消能力/切换/结算，购买提示先翻牌补牌，真实非reduced网络演出专项；见GOAL§11与presentation-feedback runbook。
 - [ ] 0.9.1飞牌独立覆盖/几何、长名数字边界与金属点数材质实际浏览器复核。
 - [ ] 0.9.1隐藏全能仅当前房主，键序不干扰输入/出牌；真实断网/刷新/交接立即撤权与私投影清理复核。
@@ -24,7 +27,7 @@
 - [x] 阶段 4 时序对齐：落地帧 → 说明 → 效果与金币（commit `2c2df3f`）。
 - [x] `test:browser` 改测新 `index.html`；`test:server-browser` 改新选择器。
 - [x] **原 push 被拒已解除（2026-10-04）**：有写权限账号已将 `619ada5` 推至 `origin/rebuild/presentation`，未合并 main。历史原因：用户 2026-10-03 授权"修复完之后推送"，但 `git push -u origin rebuild/presentation` 返回 403——Git Credential Manager 里的 GitHub 账号 `pzy197684` 对 `FullPeople/three-dragon-ante` 无写权限（本机未装 gh）。需用户：给该账号写权限 / 在凭据管理器换成有权限的账号 / 或改推到自己的 fork；之后重跑 push。是否合并 main 由用户定。
-- [ ] **three.js 特效层 fx3d（用户 2026-10-03 批准）**：地基已交付（runbook `2026-10-03_fx3d-kickoff.md` §2）；待办：设计定稿 → 图元工具箱 → 家族签名 → 单牌变体 → 传说牌定制 → 持续 / 环境 → 尘土与手；MIT 署名文件待随首个移植图元一起加入 `docs/design/ASSETS.md` 与 THIRD_PARTY 说明。
+- [x] **three.js 特效层 fx3d P0–P5**：附件 `2afca326` 已整合，图元/41家族脚本/等待与场地/画质与降档/尘土与飘带头粒子及MIT署名入库；可选Wisps/Volume、真实手掌照片、持续音效和弱机验收仍未完成，见 kickoff 与本次integration runbook。
 - [ ] 字体子集化：vendor CSS 约 500 kB 来自 fontsource 全部 unicode-range 子集声明；可改为只保留 chinese-simplified + latin 子集或自建子集。
 - [ ] 网站实体手机验收；原枭熊双账号/紧凑弹窗游戏验收按 GOAL §10 退出当前范围，历史未通过不改称通过。
 - [ ] `src/modules/threeDragonAnte`（旧稳定频道）是否删除或也切新表现层，待用户定。

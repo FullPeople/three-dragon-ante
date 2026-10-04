@@ -86,3 +86,15 @@ Kenney 音效包 zip SHA-256：`f36250766ac5bc378c13708ddf12a23a8e54a3251f8d482c
 | `@fontsource/cinzel` | 5.2.6 | 拉丁与数字显示字体（700 / 900） | SIL OFL 1.1 |
 
 字体文件由 fontsource 按 unicode-range 切片，构建时全部进入 `dist/assets/`（约 396 个 woff2），浏览器只下载用到的子集；字体子集化见 `AI_CONTEXT/TODO.md`。
+
+## 技术移植（代码，非素材）
+
+| 来源 | 许可 | 用到哪里 | 说明 |
+|---|---|---|---|
+| Elemental Sandbox — https://github.com/achrefelouafi/LinearAbiltyCastingExtendedThreeJS | MIT, Copyright (c) 2026 mohamedachrefelouafi（全文见 `docs/design/THIRD_PARTY-elemental-sandbox.md`） | `extensions/three-dragon-ante/src/presentation/fx3d/`（Shell ← BurstSphere 的噪声位移壳、Collar ← AcidCollar 站立环、Beam ← 顶点着色器摆放的丝带、Burst / Emitter ← GPU 粒子解析运动、GroundMark ← SDF 符印、Pillar ← 相机朝向光柱、预乘发光合成口径） | 技术思路与结构的移植，按本项目的 DOM 2.5D 坐标重写，没有逐字复制源码；未搬运其任何模型 / HDR / 贴图素材 |
+
+## 现有原作金币的派生显示贴图
+
+| 文件 | 来源 | 权利 | 处理 | 字节 | SHA-256 |
+|---|---|---|---|---|---|
+| `presentation/assets/coin-gold.webp` | 已有 `src/game/art/currency/dragon-gold.webp`；附件 `cce0fe3` 提供 | 原作 Wizards 版权沿用，不改为 CC0/GPL 授权 | 将厚度/软投影烘焙到透明贴图；原作源文件未改；没有 AI 生成美术 | 11416 | `132c02207c778a5505d0b2bda6c8a6f2ec55e84398e3224714052385e4742422` |
