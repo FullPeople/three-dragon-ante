@@ -50,7 +50,7 @@ git remote -v
 git push -u origin rebuild/presentation
 ```
 
-需要对 `FullPeople/three-dragon-ante` 有写权限的账号。推不上就换账号 / 换 SSH 再试；仍不行就把错误原文记进 TODO，继续 §4，不要卡在这里。**不要合并到 main**，是否合并由用户定。
+需要对 `FullPeople/three-dragon-ante` 有写权限的账号。推不上就换账号 / 换 SSH 再试；仍不行就把错误原文记进 TODO，继续 §4，不要卡在这里。推上去之后**开一个 PR**（base `main`，head `rebuild/presentation`），标题与正文用 `AI_CONTEXT/PR_rebuild-presentation.md`；**不要合并**，是否合并由用户定。
 
 ### 4. 让枭熊（Owlbear Rodeo）可用，同时保留原有联机逻辑（已授权，直接做）
 
