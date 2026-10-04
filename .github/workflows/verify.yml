@@ -28,6 +28,7 @@ jobs:
       - run: npm run test:browser
       - run: node tools/site-entry-browser.mjs
       - run: npm run test:server-browser
+      - run: npm run test:site-websocket-fixture
       - run: npm run test:site-multiplayer
       - run: npm run test:fx3d
       - run: npm run test:website-omniscient

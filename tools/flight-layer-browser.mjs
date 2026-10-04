@@ -2,9 +2,10 @@
 // Synthetic card backs and one public price face; no multiplayer state or player data is retained.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
-import { join, resolve, dirname, relative } from 'node:path';
-import { createServer } from 'vite';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { createServer } from 'node:http';
+import { extname, join, resolve, dirname, relative, sep } from 'node:path';
+import { build } from 'vite';
 import { chromium, browserLaunchOptions } from './browser-runtime.mjs';
 
 const root=resolve(import.meta.dirname,'..'), area=join(root,'.local-evidence/flight-layer');
@@ -29,16 +30,29 @@ const ghost={key:'synthetic-flight',from:{...center.deck,rot:0,scale:1,z:20},to:
 const placement={layer:'table',key:'deck',card:null,zone:'deck',pose:{...center.deck,rot:0,scale:1,z:1},faceDown:true,order:0};
 createRoot(document.getElementById('fixture')).render(<div className={'tda-table tda-table--'+fit.orientation+(old?' fixture-baseline':'')} style={{'--scale':fit.scale,'--tilt':fit.spec.tilt+'deg','--plane-w':fit.spec.w,'--plane-h':fit.spec.h}}><div className='tda-stage'><div className='tda-viewport'><div className='tda-plane'><div className='tda-card-layer'><CardNode placement={placement}/></div>{old?<PreviousGhostLayer ghosts={[ghost]}/>:null}</div><div className='tda-hand-layer' style={{left:hand.left,top:hand.top,transform:'translateZ('+hand.z+'px)'}}><div className='tda-card-layer'><CardNode placement={{...placement,key:'hand-back',zone:'hand',layer:'hand',pose:{x:0,y:0,rot:0,scale:1,z:0}}}/></div></div>{old?null:<GhostLayer ghosts={[ghost]}/>}</div></div></div>);
 `);
-const server=await createServer({configFile:false,root,base:'/',appType:'custom',server:{host:'127.0.0.1',port:0}});
-server.middlewares.use((req,res,next)=>{
-  if(!req.url?.startsWith('/flight-fixture'))return next();
-  res.setHeader('Content-Type','text/html');
-  res.end('<html><body style="margin:0"><style>.fixture-baseline .tda-ghost-layer{position:static;transform-style:flat;pointer-events:auto}</style><div id="fixture" style="height:100dvh"></div><script type="module" src="'+url(entry)+'"></script></body></html>');
+// Compile the actual current and git-show control components before browser navigation,
+// matching production loading and avoiding request-time dev module compilation.
+const dist=join(out,'site');
+await build({configFile:false,root,base:'/',logLevel:'warn',build:{outDir:dist,emptyOutDir:true,manifest:true,rollupOptions:{input:entry}}});
+const manifest=JSON.parse(readFileSync(join(dist,'.vite/manifest.json'),'utf8'));
+const main=Object.values(manifest).find(value=>value.isEntry);assert.ok(main);
+const html='<!doctype html><html><head><meta charset="UTF-8">'+(main.css||[]).map(file=>'<link rel="stylesheet" href="/'+file+'">').join('')+'</head><body style="margin:0"><style>.fixture-baseline .tda-ghost-layer{position:static;transform-style:flat;pointer-events:auto}</style><div id="fixture" style="height:100dvh"></div><script type="module" src="/'+main.file+'"></script></body></html>';
+const types={'.js':'text/javascript','.css':'text/css','.webp':'image/webp','.png':'image/png','.svg':'image/svg+xml','.woff2':'font/woff2'};
+const server=createServer((req,res)=>{
+  const pathname=new URL(req.url,'http://localhost').pathname;
+  if(pathname==='/flight-fixture'){res.setHeader('Content-Type','text/html; charset=UTF-8');res.end(html);return;}
+  const file=resolve(dist,decodeURIComponent(pathname.slice(1)));
+  if(!file.startsWith(dist+sep)||!existsSync(file)){res.writeHead(404);res.end();return;}
+  res.setHeader('Content-Type',types[extname(file)]||'application/octet-stream');res.end(readFileSync(file));
 });
-await server.listen();const origin='http://127.0.0.1:'+server.httpServer.address().port;
+await new Promise(done=>server.listen(0,'127.0.0.1',done));const origin='http://127.0.0.1:'+server.address().port;
 const browser=await chromium.launch({...browserLaunchOptions(),headless:true});
-const checks=[],errors=[],external=[],measurements=[];
+const checks=[],errors=[],external=[],resourceFailures=[],measurements=[];
 const pass=label=>{checks.push(label);console.log('PASS '+label);};
+function trackResources(context){
+  context.on('response',response=>{const value=new URL(response.url());if(value.origin===origin&&value.pathname!=='/favicon.ico'&&response.status()>=400)resourceFailures.push({kind:'http',path:value.pathname,status:response.status()});});
+  context.on('requestfailed',request=>{const value=new URL(request.url());if(value.origin===origin&&value.pathname!=='/favicon.ico')resourceFailures.push({kind:'request',path:value.pathname,error:request.failure()?.errorText});});
+}
 async function at(page,fraction){
   return page.evaluate(fraction=>{
     const node=document.querySelector('.tda-ghost'),animation=node.getAnimations()[0];
@@ -52,6 +66,7 @@ async function at(page,fraction){
 try{
   for(const [name,viewport] of [['desktop',{width:1440,height:900}],['narrow',{width:390,height:844}]]){
     const context=await browser.newContext({viewport,locale:'zh-CN',reducedMotion:'no-preference'});
+    trackResources(context);
     context.on('request',r=>{if(!r.url().startsWith(origin+'/'))external.push('external-origin');});
     const page=await context.newPage();page.on('pageerror',()=>errors.push('script-error'));
     await page.goto(origin+'/flight-fixture?baseline=1');await page.locator('.tda-ghost').waitFor();
@@ -78,6 +93,7 @@ try{
     await context.close();
   }
   const reduced=await browser.newContext({viewport:{width:1280,height:900},reducedMotion:'reduce'});
+  trackResources(reduced);
   reduced.on('request',r=>{if(!r.url().startsWith(origin+'/'))external.push('external-origin');});
   const reducedPage=await reduced.newPage();reducedPage.on('pageerror',()=>errors.push('script-error'));
   await reducedPage.goto(origin+'/flight-fixture?reveal=1');await reducedPage.locator('.tda-ghost:not(.is-face-down) .tda-card-face img').waitFor();
@@ -85,8 +101,8 @@ try{
   assert.equal(await reducedPage.locator('.tda-ghost').evaluate(node=>node.getAnimations().length),0);
   pass('reduced motion still reveals the public price face before the ghost is removed');
   await reduced.close();
-  assert.deepEqual(errors,[]);assert.deepEqual(external,[]);pass('card assets and actual components have no script errors or external requests');
-  writeFileSync(join(out,'result.json'),JSON.stringify({checks,measurements,errors,external,scope:'Actual GhostLayer/CardNode/CSS with synthetic backs and a frozen pre-fix occlusion control. Not a multiplayer acceptance.'},null,2));
+  assert.deepEqual(errors,[]);assert.deepEqual(external,[]);assert.deepEqual(resourceFailures,[]);pass('card assets and actual components have no script errors or external requests');
+  writeFileSync(join(out,'result.json'),JSON.stringify({checks,measurements,errors,external,resourceFailures,scope:'Production-built actual GhostLayer/CardNode/CSS with synthetic backs and a frozen pre-fix occlusion control. Not a multiplayer acceptance.'},null,2));
   console.log(checks.length+'/'+checks.length+' checks passed; '+out);
-}catch(error){writeFileSync(join(out,'failure.json'),JSON.stringify({checks,error:String(error),measurements,errors,external},null,2));console.log(out);throw error;}
-finally{await browser.close();await server.close();}
+}catch(error){writeFileSync(join(out,'failure.json'),JSON.stringify({checks,error:String(error),measurements,errors,external,resourceFailures},null,2));console.log(out);throw error;}
+finally{await browser.close();await new Promise(done=>server.close(done));}

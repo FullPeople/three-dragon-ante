@@ -72,3 +72,7 @@
 
 - [x] 铭牌专项改为生产build静态加载真实组件，保留21项断言/超时并补失败资源检查，run-v0eA1h21/21；旧dev模块请求挂起底层原因未查明，代理/扫描猜测不作事实。见presentation-feedback runbook。
 - [ ] CI37179407116网站过期token提示等待失败（17项后停止）：增加有界公共状态/关闭码诊断与真实CI artifact上传，保留失败证据，不减少测例/放宽断言。需完整CI和包独立终审，再定向发布。见presentation-feedback runbook。
+
+- [x] flight-layer本地dev模块加载超时0测例（run-b0V2bL）；预构建实际当前/git show历史组件静态夹具，保留10原断言/control/30秒，root run-9r3wLp10/10；剩余顺序测试与新冻结CI仍待。
+
+- [ ] 用户再次更新c3960047附件：独立特效预览网页/截图、两新commit隔离整合并保留当前lifecycle/网站反馈，完整CI/换模型审计/定向发布；见fx3d-refresh runbook。

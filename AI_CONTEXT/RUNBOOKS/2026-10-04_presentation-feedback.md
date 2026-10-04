@@ -68,3 +68,13 @@
 - 仅nameplate工具改为先Vite build真实SeatBlock/CSS/原素材，再staticHTTP加载，与生产路径一致；原21实际DOM/数字/材质/2–6席/桌面窄屏断言和30秒均保留。基于实际originalFileNames保留材质目录名，未放宽metal_plate/dark_wood断言；首次默认hash资源命名导致材质URL断言失败run-KoVF4E（1项）保留。最终run-v0eA1h/result.json完整21/21，脚本/外域/失败资源0；新增同源404/requestfailed也计入原最终zero断言。开发服务器挂起的底层原因未查明，产品和其他工具未为此更改。
 
 - 网站联机工具仅加有界公共诊断，服务/proxy/重试/22项完整断言保持原样；每actor读取上限3秒，数组有界。reconnect-only实际13/13：.local-evidence/site-multiplayer-FItBdl/result.json，真实关闭1008/wasClean=true/notAllowed后4001/wasClean=true/sessionReplaced，中文终态正确，TCP33项/drop0，脚本/外域/资源失败0。旧Linux失败原因仍未证实，下一CI利用真实上传证据确认，不声称已修产品auth问题。
+
+- 新冻结d337588已push、CI37180749694启动。root剩余本地顺序在flight-layer首次page.goto baseline就30秒超时：run-b0V2bL/failure.json，checks0；其余未执行，不包装全绿。与铭牌同类dev加载路径，正只调整这一harness为预构建真实组件静态加载，保留git show d7a4232真实control/10断言与超时。底层Vite挂起原因仍未证明，不改产品或断言。
+
+- 飞牌只工具预构建静态加载收口：git show d7a4232原GhostLayer对照和当前组件一起真实编译，全部10原DOM/几何/遮挡/穿透/reduce公开价牌断言及30秒保留，资源失败额外计零。agent run-PITBJv10/10，root后续顺序亲跑run-9r3wLp10/10，脚本/外域/资源失败0。run-b0V2bL/failure.json原失败完整保留；根顺序脚本复用feedback-final-test-flight-layer.log后该聚合log已是成功run，不能再把此log称旧失败日志。开发模块底层挂起仍未证明，不动产品。
+
+- CI37180749694/d337588第二次失败已取得真实failed log：这次过期中文提示等待已过，tools/site-multiplayer-browser.mjs:331的wsAttempts期望4实际5，拒绝后出现多一次连接尝试；先前项全通过、后续跳过。新公共artifact已真实上传，正读取关闭码/状态查因，不能将该失败泛化为旧中文等待超时或声称只需重试。日志.local-evidence/feedback-ci-37180749694-failure.log。root剩余顺序全能run-2QaR5E13/13、非减少动态演出run-sFalZL13/13通过；后续仍执行中。
+
+- 生命周期原dev-load失败run-JMbRfZ为0项保留；只改加载harness为actual Vitebuild静态网页，原fixture源码hash完全相同、9原断言/真实双contextloss/2Ddraw/非减少动态/32金币几何/真实drag/30秒保留。agent run-V3LVa7和root独立亲跑run-UG8fhs均9/9；root性能结构structure-zWlyF4 5/5、资源/脚本/外域0。新日志feedback-lifecycle-static-root.log未覆盖原失败log。
+- CI37180749694真实artifact中owner过期连接1006→1008，中文终态正确但额外一次WS。本机共用tests-only proxy helper用destroySoon等待finish排空关闭帧再释放半开socket，异常/RST仍destroy。真实80ms writable延迟保留原WSframe bits：backend-end时14bytes排队，旧8/8得1006，新8/8得1008；共32关闭/清理情景无残留，分片header/64位长度/masked close探针通过。反例 .local-evidence/ws-proxy-close-probe.mjs 与同名result，未保存payload。换模型独立审helper通过；证明队列截断机制修复，不证明旧CI实际触发点完全查明。
+- 新helper真实完整联机run-t6TtuE22/22，60原assert及次数/timeout保持，过期阶段只新增一次WS后1008notAllowed即停；脚本/外域/资源0。新增逐connectionId/首2帧及控制帧opcode/bytes/closeCode/head长度/公共时间，仅有界元数据。新冻结Linux全CI仍必需，未部署。

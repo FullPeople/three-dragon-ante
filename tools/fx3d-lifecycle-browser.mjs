@@ -1,15 +1,15 @@
 // Actual TableApp, controller, scene and effect adapter; all six seats are synthetic.
 // Browser probes retain counts and public rendering state, never projections or card identities.
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
-import { join, resolve, relative } from 'node:path';
-import { createServer } from 'vite';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { createServer } from 'node:http';
+import { extname, join, resolve, sep } from 'node:path';
+import { build } from 'vite';
 import { chromium, browserLaunchOptions } from './browser-runtime.mjs';
 
 const root = resolve(import.meta.dirname, '..');
 const area = join(root, '.local-evidence/fx3d-lifecycle'); mkdirSync(area, { recursive: true });
 const out = mkdtempSync(join(area, 'run-')), entry = join(out, 'fixture.tsx');
-const entryURL = '/' + relative(root, entry).replaceAll('\\', '/');
 writeFileSync(entry, `import React from 'react';
 import {createRoot} from 'react-dom/client';
 import '/extensions/three-dragon-ante/src/presentation/theme/base.css';
@@ -70,14 +70,23 @@ probe.addLatePrimitive=stage=>{
  return {before,after:stage.air.group.children.length,attached:burst.points.some(p=>!!p.parent)};
 };
 `);
-const server = await createServer({ configFile: false, root, base: '/', appType: 'custom', server: { host: '127.0.0.1', port: 0 } });
-server.middlewares.use((req, res, next) => {
-  if (!req.url?.startsWith('/lifecycle-fixture')) return next();
-  res.setHeader('Content-Type', 'text/html');
-  res.end('<html><body><div id="fixture" class="tda-root"></div><script type="module" src="' + entryURL + '"></script></body></html>');
+// Build the actual source fixture before browser startup, matching production loading.
+// The lifecycle probes and source components remain unchanged; only module delivery is static.
+const dist = join(out, 'site');
+await build({ configFile: false, root, base: '/', logLevel: 'warn', build: { outDir: dist, emptyOutDir: true, manifest: true, chunkSizeWarningLimit: 5000, rollupOptions: { input: entry } } });
+const manifest = JSON.parse(readFileSync(join(dist, '.vite/manifest.json'), 'utf8'));
+const main = Object.values(manifest).find(value => value.isEntry); assert.ok(main);
+const html = '<!doctype html><html><head><meta charset="UTF-8">' + (main.css || []).map(file => '<link rel="stylesheet" href="/' + file + '">').join('') + '</head><body><div id="fixture" class="tda-root"></div><script type="module" src="/' + main.file + '"></script></body></html>';
+const types = { '.js': 'text/javascript', '.css': 'text/css', '.webp': 'image/webp', '.png': 'image/png', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.ogg': 'audio/ogg' };
+const server = createServer((req, res) => {
+  const pathname = new URL(req.url, 'http://localhost').pathname;
+  if (pathname === '/lifecycle-fixture') { res.setHeader('Content-Type', 'text/html; charset=UTF-8'); res.end(html); return; }
+  const file = resolve(dist, decodeURIComponent(pathname.slice(1)));
+  if (!file.startsWith(dist + sep) || !existsSync(file)) { res.writeHead(404); res.end(); return; }
+  res.setHeader('Content-Type', types[extname(file)] || 'application/octet-stream'); res.end(readFileSync(file));
 });
-await server.listen();
-const origin = 'http://127.0.0.1:' + server.httpServer.address().port;
+await new Promise(done => server.listen(0, '127.0.0.1', done));
+const origin = 'http://127.0.0.1:' + server.address().port;
 const browser = await chromium.launch({ ...browserLaunchOptions(), headless: true, args: ['--no-proxy-server', '--enable-webgl', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const checks = [], errors = [], external = [], resourceFailures = [], contextNotices = [];
 let page, failure, phase = 'load';
@@ -89,6 +98,7 @@ try {
   page = await context.newPage();
   page.on('pageerror', () => errors.push('page-script-error'));
   page.on('response', response => { if (response.status() >= 400 && !response.url().endsWith('/favicon.ico')) resourceFailures.push(response.status()); });
+  page.on('requestfailed', request => { const url = new URL(request.url()); if (url.origin === origin && url.pathname !== '/favicon.ico') resourceFailures.push({ kind: 'request', path: url.pathname, error: request.failure()?.errorText }); });
   page.on('console', message => {
     const text = message.text();
     // These exact renderer notices are expected only because this test deliberately loses contexts.
@@ -212,8 +222,8 @@ try {
   failure={phase,kind:error.name,diagnostics,message:'Actual FX lifecycle assertion failed; evidence omits all projection and card data.'};
 }
 finally {
-  await browser.close(); await server.close();
-  writeFileSync(join(out,'result.json'),JSON.stringify({checks,completed:!failure,errors,external,resourceFailures,contextNotices,scope:'Actual source TableApp/Controller/FX with synthetic six-seat SeatView, real WebGL context loss, quality rebuild and pointer unmount. No production rooms, bots or player data.',...(failure?{failure}:{})},null,2));
+  await browser.close(); await new Promise(done => server.close(done));
+  writeFileSync(join(out,'result.json'),JSON.stringify({checks,completed:!failure,errors,external,resourceFailures,contextNotices,scope:'Production-built actual source TableApp/Controller/FX with synthetic six-seat SeatView, real WebGL context loss, quality rebuild and pointer unmount. No production rooms, bots or player data.',...(failure?{failure}:{})},null,2));
   console.log(checks.length+' checks; '+out);
 }
 if(failure)throw Error(failure.phase+': '+failure.message);
