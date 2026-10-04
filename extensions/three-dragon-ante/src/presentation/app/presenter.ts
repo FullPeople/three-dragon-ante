@@ -210,6 +210,7 @@ export function purchaseHoldFrame(previous: TableView, next: TableView, events: 
 export function createPresenter(store: Store, controller: Controller, hooks: PresenterHooks) {
   const queue: QueueItem[] = [];
   let running = false, destroyed = false, generation = 0;
+  let powerHoldGameId: string | null = null, powerHoldFx: FxLayer | null = null, powerHoldKey: string | null = null;
   // 0×0 的锚点（奖池 / 偿债池的金币锚点）也是合法终点：没有宽高就用它的位置
   const centerOf = (selector: string): Point | null => { const el = hooks.root().querySelector(selector) as HTMLElement | null; if (!el || typeof el.getBoundingClientRect !== "function") return null; const r = el.getBoundingClientRect(); if (!r.width && !r.height && !r.left && !r.top) return null; return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; };
   const rectOf = (selector: string): Rect | null => { const el = hooks.root().querySelector(selector) as HTMLElement | null; if (!el || typeof el.getBoundingClientRect !== "function") return null; const r = el.getBoundingClientRect(); return r.width ? { x: r.left, y: r.top, w: r.width, h: r.height } : null; };
@@ -230,6 +231,20 @@ export function createPresenter(store: Store, controller: Controller, hooks: Pre
     const root = hooks.root(); const all = root.querySelectorAll ? Array.from(root.querySelectorAll(`[data-zone="hand"][data-seat="${esc(seatId)}"]`)) : [];
     const el = all[Math.floor(all.length / 2)] as HTMLElement | undefined; if (!el || typeof el.getBoundingClientRect !== "function") return null;
     const r = el.getBoundingClientRect(); return r.width ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null;
+  };
+  const releasePowerHold = () => {
+    if (powerHoldFx && powerHoldKey) powerHoldFx.ambient(powerHoldKey, null);
+    powerHoldFx = null; powerHoldKey = null;
+  };
+  const emitPowerHold = (view: TableView, hold: NonNullable<ReturnType<typeof emptyShow>["powerHold"]>) => {
+    const fx = hooks.fx(); if (!fx) return;
+    const key = `hold:${hold.choiceId}`;
+    releasePowerHold();
+    const rect = handRect(hold.seatId), choice = view.game!.choice!;
+    const selfSeat = view.game && "selfSeatId" in view.game ? (view.game as SeatView).selfSeatId : null;
+    powerHoldFx = fx; powerHoldKey = key;
+    fx.ambient(key, { kind: familyFx(hold.cue.family), rate: 3, area: rect ? { x: rect.x - 16, y: rect.y - 16, w: rect.w + 32, h: rect.h + 32 } : null, drift: { x: 0, y: -22 }, size: 2.4, life: 2, alpha: 0.75,
+      hold: { who: choice.seatId === selfSeat ? "self" : "other", code: choice.code, from: cardPoint(hold.cue.cardId) ?? undefined } });
   };
   const beat = (ms = BEAT_MS) => wait(ms);
   const show = (patch: Partial<ReturnType<typeof emptyShow>>) => store.set(s => ({ show: { ...s.show, ...patch } }));
@@ -390,7 +405,7 @@ export function createPresenter(store: Store, controller: Controller, hooks: Pre
         const hold = store.get().show.powerHold;
         if (hold && view.game?.choice?.id !== hold.choiceId) {
           setBusy(true);
-          hooks.fx()?.ambient(`hold:${hold.choiceId}`, null);
+          powerHoldGameId = null; releasePowerHold();
           const p = handPoint(hold.seatId) ?? centerOf(`[data-seat-plate="${esc(hold.seatId)}"]`);
           if (p) { hooks.sound("power-impact", `${hold.choiceId}:close`); hooks.fx()?.burst(p, familyFx(hold.cue.family), 1); await beat(420); if (gen !== generation) return; }
           show({ powerHold: null });
@@ -440,11 +455,9 @@ export function createPresenter(store: Store, controller: Controller, hooks: Pre
             // 能力需要某家选择：特效停在该家区域（持续粒子 + 标记），释放 busy 让面板出现；选择结算后在下一帧播收尾
             const choice = view.game?.choice;
             if (choice && (choice.sourceCardId === cue.cardId || view.game?.resolutionStack.some(step => step.status === "active" && step.sourceCardId === cue.cardId))) {
-              show({ powerHold: { cue, seatId: choice.seatId, choiceId: choice.id } });
-              const rect = handRect(choice.seatId);
-              const selfSeat = view.game && "selfSeatId" in view.game ? (view.game as SeatView).selfSeatId : null;
-              hooks.fx()?.ambient(`hold:${choice.id}`, { kind: familyFx(cue.family), rate: 3, area: rect ? { x: rect.x - 16, y: rect.y - 16, w: rect.w + 32, h: rect.h + 32 } : null, drift: { x: 0, y: -22 }, size: 2.4, life: 2, alpha: 0.75,
-                hold: { who: choice.seatId === selfSeat ? "self" : "other", code: choice.code, from: cardPoint(cue.cardId) ?? undefined } });
+              const hold = { cue, seatId: choice.seatId, choiceId: choice.id };
+              powerHoldGameId = view.game!.id; show({ powerHold: hold });
+              emitPowerHold(view, hold);
             }
           }
           await goldArcs(pres.gold, gen); if (gen !== generation) return;
@@ -496,6 +509,14 @@ export function createPresenter(store: Store, controller: Controller, hooks: Pre
   }
 
   return {
+    /** 新 FX owner 只接回仍有效的驻留能力，不重播演出队列或声音。 */
+    restorePowerHold() {
+      const state = store.get(), hold = state.show.powerHold, view = state.view, game = view?.game, displayed = state.display?.game;
+      const matches = (value: PublicView) => { const choice = value.choice; return !!choice && !!hold && choice.id === hold.choiceId && choice.seatId === hold.seatId && (choice.sourceCardId === hold.cue.cardId || value.resolutionStack.some(step => step.status === "active" && step.sourceCardId === hold.cue.cardId)); };
+      if (destroyed || state.suspended || !view?.connected || !hold || !game || !displayed || game.id !== powerHoldGameId || displayed.id !== powerHoldGameId || !matches(game) || !matches(displayed)) { releasePowerHold(); return; }
+      if (powerHoldFx === hooks.fx() && powerHoldKey === `hold:${hold.choiceId}`) return;
+      emitPowerHold(view, hold);
+    },
     /** 相邻、同一局、在线的投影走演出队列；其他一律直接替换画面。 */
     update(next: TableView, previous: TableView | null, live: boolean) {
       const prevGame = previous?.game ?? null, nextGame = next.game;
@@ -523,8 +544,7 @@ export function createPresenter(store: Store, controller: Controller, hooks: Pre
     },
     clear(next?: TableView, scopeChanged = false) {
       generation++; queue.length = 0; running = false;
-      const hold = store.get().show.powerHold;
-      if (hold) hooks.fx()?.ambient(`hold:${hold.choiceId}`, null);
+      powerHoldGameId = null; releasePowerHold();
       store.set(s => ({ show: emptyShow(), goldHold: null, flow: next ?? s.display, ...(next ? { display: next } : {}), ...(scopeChanged ? { inspect: null, selected: [], hovered: null, keyboardCard: null, keyboardHeld: false, drag: null } : {}) }));
       setBusy(false); controller.dismissPower();
     },
