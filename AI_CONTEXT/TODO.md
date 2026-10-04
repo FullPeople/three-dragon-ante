@@ -5,13 +5,16 @@
 
 ## 待办
 
+- [x] 驻留P2已有真实历史三类反例与最小修复e8cf0e5；原life9、新自造spec路由24、真实历史源码10和默认软件2D双客户端14实际通过；自造spec life1.2不是生产FieldLayer/presenter参数验收。见fx3d-ambient-recovery/fx3d-ambient-network-validation runbooks。
+- [ ] 实际生产FieldLayer/presenter驻留参数、active hold画质重建、真实双客户端3D绘制及完整精确CI/独立终审/0.9.2冻结与发布，保留历史失败和真实弱机/实体手机边界。
+
 - [x] pending-inspection独立复跑原第10TypeError修复：仅fixture第二socket view原apply后采点+原12秒等待，原assert不变，独立完整run-n6hs2e13/13/tool6d01bb0a。原run-LGF1Af前9过第10失败、run-wEZEPT失败及RAM定位run-5nn2mB保留，未证明生产权限复活；修后run-eiqneN12/13第13HTTPsetup TypeError无socket原因未确定，限定run-54w6A3不当完整。安全steps/错误名/cause.code诊断不含私payload，见pending-inspection runbook新增段。
 - [x] 连接权限 pending 跨断线自动重发 P2：FX候选同helper在真实 onclose、CLOSING手动retry换连接、stop时只取消 inspect/omniscient enable/disable 与commandTimer；正式 Node13/13（run-Y5WOQf）含原9、两个关闭迟到权限边界和相同入口的真实action保留，四action控制各仅一次重试/一次应用。原auth5/5、tsc0错；首次ignored7/9夹具错误、初版9通过和两条真实遗漏复现/新观察点失败均留存；见 `RUNBOOKS/2026-10-04_pending-inspection-reconnect.md`。
 - [ ] 根任务接入 `tools/website-pending-inspection-selftest.mjs` 至 package/CI（build:server后），独立复核本次客户端修复，并纳入最终FX候选完整CI/浏览器/冻结包与发布门槛。本Node控制不替代UI/公网；本次未改线上801、版本、推送或部署。
 
 - [x] 02eaaa FX候选独占串行：FX9/9、生命周期9/9、结构5/5；演出首8/13 TimeoutError留存，仅安全stage诊断后一次13/13，原34assert/20wait/13checks不变。旧超时具体原语/原因仍未确定；见 `RUNBOOKS/2026-10-04_fx3d-browser-validation.md`。
 - [x] 原npm8精确字节复核：5行mixed→CRLF可复原测试SHA5C与最终0733；第三代理RAM编译对照实际358732字节执行产物，双方可执行SHA97d706逐字一致，不重复unit。见controller-projection-sync runbook。
-- [ ] 独立审计驻留P2：既有Druid/Priest field/selection hold在真实双contextloss后2D回退与restore恢复尚待实际反例；原life9只覆盖loss中新能力/恢复后newburst，不能替代；当前优先真实composeFx/draw/Points/alpha复现，暂不改产品。
+- [x] 历史驻留P2反例和修后路由控制已完成，真实生产参数/画质切换验收单列；原life9保留且修后9/9，不把自造spec24当生产参数全测。
 - [ ] 当前FX真实联网3D（hardware与forced软件）双客户端实际air/ground/POINTS/alpha、lazy handoff与ACK不重播验收，完整CI/换模型终审/版本区分与发布决定仍待；默认软件演出13属于2D回退，不能冒称3D。
 
 - [x] 最新状态：根任务已确认热修复 `801daf5` / 0.9.1 上线；本 FX 候选仍未上线，下方8bce/552/7523失败与未发布记载保留为历史，不能用于覆盖当前状态。
@@ -39,6 +42,17 @@
 - [x] 0.9.1飞牌独立覆盖/几何10项、长名数字边界与金属点数材质实际浏览器21项。
 - [x] 0.9.1隐藏全能仅当前房主，键序不干扰输入/出牌；真实断网/超时/刷新/交接立即撤权，恢复后实际合法前注，13项。
 - [ ] 0.9.1完整回归/CI、冻结候选换模型审计、freshbaseline定向部署与公网验收，双落本轮runbook。
+
+<!-- 合入801线上留痕；前面的候选阶段记录保留，不覆盖线上事实。 -->
+- [x] 0.9.1默认GPU参数下公网全能完整8/8（run-JE9SZo，真实HTTP/WSS）：保留所有原assert/wait，刷新撤权和实际断线重连完成；独立审计通过，不把renderer分类当物理适配器验收。
+- [x] 正式公网工具新--gpu default模式实际8/8、exit0（run-y3SPEy），原8检查/14assert/21wait保持，reported-hardware仅驱动报告分类；线上仍801，无生产重建。
+- [ ] 强制SwiftShader历史gLOLN8刷新失败/dc4yGB201后JSON12秒aborted仍保留待查根因，不能用默认GPU控制或正式CLI的成功覆盖软件渲染问题；新FX候选软件门控/lazy资源与真实设备体验另验。见bug-hotfix-deploy runbook。
+
+- [x] 0.9.1本家能力/切换/结算和买牌先后实际非reduced网络专项13/13；首次加载超时保留且原因未证实，补安全诊断后原全部断言通过，不把失败算通过。见bug-hotfix-deploy runbook。
+- [x] 0.9.1飞牌独立覆盖/真实旧版遮挡阴性对照10/10；桌面/390px长名完整财务及金属点数材质21/21。
+- [x] 0.9.1隐藏全能实际网站/服务13/13，真实断网、8秒暂停超时、刷新、交接撤权与恢复后合法动作通过。
+- [x] 0.9.1/0.9.1-dev冻结801daf5已于16:07:25上线，仅双网站与必要server；原完整本地回归、认证超时5/5、刷新宽限3/3、精确CI37187336604、源码/包及真实freshbefore/after独立审核通过；一般公网12/12。Suite/card/nginx/unit/relay与保护服务内容/属性保留，不重发Suite/枭熊。原SSH本地等待exit-1不冒称applyexit0，真实远端receipt applied；回滚指针见bug-hotfix-deploy runbook。隐藏权限默认GPU全8项已通过，强制软件GL超时单独待查。
+- [ ] c3960047附件特效最新隔离候选c7b36be3已含hotfix801，build含tsc/build:server通过、认证Node5/5，但实际npm test 7/8（controller旁观handCount6 !== 5），首次run-KuUEel保留并停止完整回归；只读初查异步接收不同revision，未证实根因、不改断言凑数。未push/未部署，后续需实际单rAF/冷启动桌形/双context生命周期/性能、完整CI与独立终审；4174预览10/10只算本机预览。
 
 - [x] 第三方素材下载（用户 2026-10-03 同意）：Poly Haven dark_wood / medieval_wood / brown_leather / metal_plate，ambientCG Fabric034 / Paper006，Kenney Casino Audio；已压缩入库并登记 `docs/design/ASSETS.md`。
 - [ ] 持续效果（德鲁伊 / 祭司 / 龙巫妖…）的**持续音效**：需要 CC0 环境循环素材（Kenney 现有包没有），来源待用户批准；`FieldLayer` 已留位置。

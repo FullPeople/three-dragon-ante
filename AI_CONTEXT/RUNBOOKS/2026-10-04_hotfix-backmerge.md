@@ -59,3 +59,8 @@
 - 本轮实际验证：两新增/变更工具 `node --check`、`npm run typecheck`（tsc --noEmit零错误）、package script/CI去重合同及 `git diff --check` 通过；未build、未执行Node5或其它单元、未跑任何Playwright/browser。旧552/e347及更早失败证据原样保留。
 - 去重临时检查首次命令多一个引号而SyntaxError（未执行检查、未改源码），修正命令后实际exit0；不将此命令错误误归产品或藏作首次通过。
 - 后续FX应与独立热修复0.9.1区分版本，暂建议0.9.2-dev作为候选；真正改版本/构建发布元数据由根任务在FX完整回归与审计完成后决定。版本遗留同步TODO，完整FX仍未发布，公网热修复继续由根任务独占。
+
+
+## 合入701线上留痕与正式公网工具（2026-10-04 后续）
+
+根任务先fetch后合入701bc29804d093305e3353df607e5861b162f910，保留e8cf0e5/5506116/34f609e/01e5a23全部候选产品和测试。MEMORY/TODO两处文档冲突保留双方历史并补当前状态；README/GOAL/INDEX、801部署runbook和正式公网工具正常合入。本次不修改生产源码、版本、原断言、线上入口或服务器。新版公网工具真实default8/8在hotfix隔离仓库run-y3SPEy完成，不冒称FX候选已公网验收；所有当前候选验证见ambient/network/pending runbooks。尚待完整精确CI、生产参数/3D联网、版本区分、独立终审与定向发布，双落TODO。
