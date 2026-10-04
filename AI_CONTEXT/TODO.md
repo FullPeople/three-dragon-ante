@@ -6,7 +6,8 @@
 ## 待办
 
 - [x] 0.9.1默认GPU参数下公网全能完整8/8（run-JE9SZo，真实HTTP/WSS）：保留所有原assert/wait，刷新撤权和实际断线重连完成；独立审计通过，不把renderer分类当物理适配器验收。
-- [ ] 公网工具新显式--gpu default模式尚待正式执行；强制SwiftShader的历史gLOLN8刷新失败/dc4yGB201后JSON12秒aborted仍保留待查根因，不能用默认模式成功覆盖软件渲染问题。见bug-hotfix-deploy runbook。
+- [x] 正式公网工具新--gpu default模式实际8/8、exit0（run-y3SPEy），原8检查/14assert/21wait保持，reported-hardware仅驱动报告分类；线上仍801，无生产重建。
+- [ ] 强制SwiftShader历史gLOLN8刷新失败/dc4yGB201后JSON12秒aborted仍保留待查根因，不能用默认GPU控制或正式CLI的成功覆盖软件渲染问题；新FX候选软件门控/lazy资源与真实设备体验另验。见bug-hotfix-deploy runbook。
 
 - [x] 0.9.1本家能力/切换/结算和买牌先后实际非reduced网络专项13/13；首次加载超时保留且原因未证实，补安全诊断后原全部断言通过，不把失败算通过。见bug-hotfix-deploy runbook。
 - [x] 0.9.1飞牌独立覆盖/真实旧版遮挡阴性对照10/10；桌面/390px长名完整财务及金属点数材质21/21。

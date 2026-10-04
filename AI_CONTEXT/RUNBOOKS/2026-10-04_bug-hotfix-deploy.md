@@ -153,3 +153,9 @@ python3 /var/tmp/three-dragon-release/deploy-bug-hotfix-801daf5.py rollback --re
 强制SwiftShader下的历史JSON读取12秒超时与刷新失败继续保留，具体原因未确诊。正式工具新增显式 `--gpu default|software`，默认仍software，软件flags不变；默认模式只移除两个强制flags，真实getContext结果仅保存software/reported-hardware/unknown枚举，不落盘renderer文本，不新增GL context。Node/diff检查exit0，原断言与deadline保持；正式新CLI尚待浏览器窗口释放后验收，不把ignored控制当作新CLI已运行。新FX默认软件GL/减少动态门控与lazy资源的效果仍待候选专项/完整CI/实际发布验证。
 
 遗留双落TODO：完成正式CLI默认模式验证；查证强制软件GL超时，勿扩大deadline凑数；完整FX回归/独立终审/精确CI与发布继续推进。普通默认GPU公网全8已完成，旧“前5/8待验”是更早阶段记录。
+
+### 正式 CLI 默认模式实际完成
+
+随后正式tracked工具 `tools/website-omniscient-live.mjs` SHA `3d24256e05057dea39e322437b766130a84d938e18232a179c1257d5f5e17f90` 亦实际执行：`node tools/website-omniscient-live.mjs --origin https://obr.dnd.center --gpu default`，exit0、原 **8/8** 全通过。证据 `.local-evidence/website-omniscient-live/run-y3SPEy/result.json`，完整日志 `.local-evidence/hotfix-deploy/public-hidden-default-cli-34ac8de.log`。两浏览器均观测3个reported-hardware类别，原刷新保留主持/inspection关闭、真实socket关闭清DOM再恢复、普通玩家无privileged命令或泄露均实际完成；脚本/外域0。类别仅代表驱动报告，仍不宣称物理设备/手机验收。
+
+该选项此前的独立只读审核通过（gpt-6.1-sol）：8检查/14原assert/21wait逐项保持，非法模式在launch前拒绝，原software分支4flags保持，default只去两个SwiftShader flags，不新建GL上下文、不落renderer/凭据/房码/name/payload。正式CLI尚未执行的遗留现已完成；强制SwiftShader历史超时与新FX的软件门控回归、实体设备体验仍待，不改变801线上源。

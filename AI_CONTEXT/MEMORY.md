@@ -80,3 +80,5 @@
 - 后续默认GPU参数控制真实公网全能8/8（JE9SZo），原刷新/WSclose清场重连与普通玩家拒绝均执行、错误/外域0，独立复核通过；renderer只记录类别，不独立确认物理GPU。强制SwiftShader的历史超时仍待查，正式tool显式--gpu default模式待释放browser后执行，生产仍801；详见热修复runbook后续段。
 - 最新FX隔离候选c7b36be3已含hotfix801，build/tsc及build:server通过，npm test 7/8（controller旁观handCount6 !== 5）停止完整回归，原失败run-KuUEel保留、根因待查；未push/未部署。该候选失败不替代线上801完整CI成功证据，见主工作区fx3d-refresh runbook与TODO。
 - 最新实际组件的41家族特效预览 `http://127.0.0.1:4174/?fx3d=1`，预览验证10/10、零脚本/资源/外域错误；预览不连接服务或创建牌局。相机/生命周期/实际单rAF与冷启动桌形回归、弱设备/实体手机仍须完成，见热修复runbook遗留。
+
+- 正式公网CLI `--gpu default` 也真实8/8（run-y3SPEy），原检查/等待保持、错误/外域0，GPU仅reported-hardware分类；此前新CLI未验状态是历史。强制软件GL超时仍待查，生产801未重新构建；正本见热修复runbook末节。
