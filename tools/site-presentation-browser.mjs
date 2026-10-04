@@ -1,6 +1,7 @@
 // Real React website, real WebSocket receipts and finite animations. Every room and database is synthetic.
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
+import { EventEmitter } from 'node:events';
 import { existsSync, readFileSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { join, resolve, extname, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -8,12 +9,19 @@ import { execFileSync } from 'node:child_process';
 import { build as buildSite } from 'vite';
 import { build as buildServer } from 'rolldown';
 import { chromium, browserLaunchOptions } from './browser-runtime.mjs';
+import { traceWebSocketFrames } from './site-websocket-fixture.mjs';
 
 const root = resolve(import.meta.dirname, '..'), base = '/three-dragon-ante-dev/';
 const baseline = process.argv.includes('--baseline-presenter');
 const evidenceRoot = join(root, '.local-evidence/site-presentation'); mkdirSync(evidenceRoot, { recursive: true });
 const out = mkdtempSync(join(evidenceRoot, baseline ? 'baseline-' : 'run-')), dist = join(out, 'site');
 const checks = [], measurements = [], errors = [], external = [], actors = [];
+const transportDiagnostics = []; let nextConnectionId = 0, droppedTransportDiagnostics = 0;
+const traceTransport = value => {
+  if (transportDiagnostics.length < 64) transportDiagnostics.push({ ms: Date.now(), ...value });
+  else droppedTransportDiagnostics++;
+};
+const safeErrorKind = error => ['TimeoutError', 'AssertionError', 'Error', 'TypeError', 'SyntaxError', 'TargetClosedError'].includes(error?.name) ? error.name : 'OtherError';
 let service, failure, stage = 'build';
 const pass = label => { checks.push(label); console.log('PASS ' + label); };
 const wait = async (check, label, timeout = 30000) => {
@@ -40,7 +48,24 @@ const server = createServer((req, res) => {
 await new Promise(done => server.listen(0, '127.0.0.1', done));
 const origin = 'http://127.0.0.1:' + server.address().port;
 service = createTableService({ database: ':memory:', origin });
-server.on('upgrade', (req, socket, head) => service.server.emit('upgrade', req, socket, head));
+server.on('upgrade', (req, socket, head) => {
+  const connectionId = ++nextConnectionId, outgoing = new EventEmitter();
+  traceTransport({ connectionId, kind: 'upgrade', headBytes: head.length });
+  socket.once('data', () => traceTransport({ connectionId, kind: 'first-client-data' }));
+  traceWebSocketFrames(socket, frame => traceTransport({ connectionId, kind: 'client-frame', ...frame }), head);
+  traceWebSocketFrames(outgoing, frame => traceTransport({ connectionId, kind: 'server-write-frame', ...frame }));
+  // Observe existing writes; preserve all native arguments, callbacks and return values.
+  // A write timestamp is not evidence of browser delivery or authentication decoding.
+  const nativeWrite = socket.write; let upgraded = false;
+  socket.write = function(...args) {
+    const result = Reflect.apply(nativeWrite, this, args), chunk = args[0];
+    if (!upgraded) { if (typeof chunk === 'string' && chunk.startsWith('HTTP/1.1 101')) upgraded = true; }
+    else outgoing.emit('data', Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, typeof args[1] === 'string' ? args[1] : undefined));
+    return result;
+  };
+  socket.once('close', () => { traceTransport({ connectionId, kind: 'close' }); socket.write = nativeWrite; outgoing.removeAllListeners(); });
+  service.server.emit('upgrade', req, socket, head);
+});
 const browser = await chromium.launch({ ...browserLaunchOptions(), headless: true, args: ['--no-proxy-server', '--enable-webgl', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const post = async (path, value) => {
   const response = await fetch(origin + '/three-dragon-api/v1' + path, { method: 'POST', headers: { Origin: origin, 'Content-Type': 'application/json' }, body: JSON.stringify(value) });
@@ -94,6 +119,25 @@ async function actor(admission) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'zh-CN', reducedMotion: 'no-preference' });
   await context.addInitScript(saved => {
     sessionStorage.setItem('three-dragon-site-active.v1', JSON.stringify(saved));
+    const socketDiagnostics = window.__presentationSocketDiagnostics = { events: [], dropped: 0 };
+    const recordSocket = value => { if (socketDiagnostics.events.length < 16) socketDiagnostics.events.push({ ms: Date.now(), ...value }); else socketDiagnostics.dropped++; };
+    const NativeSocket = window.WebSocket; let socketId = 0;
+    window.WebSocket = class extends NativeSocket {
+      constructor(...args) {
+        super(...args); this.diagnosticId = ++socketId;
+        this.addEventListener('open', () => recordSocket({ socketId: this.diagnosticId, kind: 'open' }));
+        this.addEventListener('close', event => {
+          const allowed = ['authenticationRequired', 'notAllowed', 'sessionReplaced', 'roomMissing', 'protocolMismatch', 'slowConsumer', 'publicationFailed', 'temporarilyUnavailable'];
+          recordSocket({ socketId: this.diagnosticId, kind: 'close', code: event.code, wasClean: event.wasClean, reason: !event.reason ? '' : allowed.includes(event.reason) ? event.reason : 'other' });
+        });
+      }
+      send(...args) {
+        let auth = false; try { auth = typeof args[0] === 'string' && JSON.parse(args[0]).type === 'auth'; } catch {}
+        const result = super.send(...args);
+        if (auth) recordSocket({ socketId: this.diagnosticId, kind: 'auth-send', sent: true });
+        return result;
+      }
+    };
     const probe = window.__presentationProbe = { active: false, events: [], seen: {}, fxDraws: 0 };
     const nativeDraw = CanvasRenderingContext2D.prototype.drawImage;
     CanvasRenderingContext2D.prototype.drawImage = function(...args) { if (probe.active && this.canvas.classList.contains('tda-fx')) probe.fxDraws++; return Reflect.apply(nativeDraw, this, args); };
@@ -109,21 +153,24 @@ async function actor(admission) {
     };
     new MutationObserver(scan).observe(document, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'data-busy', 'data-phase'] });
   }, admission);
-  const page = await context.newPage(), actor = { context, page, acknowledgements: 0, actionFrames: [], lastRevision: 0, loadStep: 'navigation', closes: [] }; actors.push(actor);
+  const page = await context.newPage(), actor = { context, page, acknowledgements: 0, actionFrames: [], lastRevision: 0, loadStep: 'navigation', waitingFor: 'navigation-load', closes: [], authSent: false, authSentMs: null, viewCount: 0, viewPresence: [] }; actors.push(actor);
   context.on('request', request => { if (!request.url().startsWith(origin + '/')) external.push('unexpected-origin'); });
   await context.route('**/*', route => route.request().url().startsWith(origin + '/') ? route.continue() : route.abort());
   page.on('pageerror', () => errors.push('script-error')); page.on('dialog', dialog => dialog.type() === 'beforeunload' ? dialog.accept() : dialog.dismiss());
-  page.on('websocket', socket => { if (!socket.url().startsWith(origin.replace('http:', 'ws:') + '/')) external.push('unexpected-websocket-origin'); socket.on('close', () => { if (actor.closes.length < 8) actor.closes.push({ ms: Date.now(), loadStep: actor.loadStep }); }); socket.on('framereceived', event => {
+  page.on('websocket', socket => { if (!socket.url().startsWith(origin.replace('http:', 'ws:') + '/')) external.push('unexpected-websocket-origin'); socket.on('close', () => { if (actor.closes.length < 8) actor.closes.push({ ms: Date.now(), loadStep: actor.loadStep }); }); socket.on('framesent', event => {
+    try { if (JSON.parse(event.payload.toString()).type === 'auth') { actor.authSent = true; actor.authSentMs ??= Date.now(); } } catch {}
+  }); socket.on('framereceived', event => {
     const packet = JSON.parse(event.payload.toString());
+    if (packet.type === 'view') { actor.viewCount++; if (actor.viewPresence.length < 8) actor.viewPresence.push({ ms: Date.now(), gamePresent: !!packet.view?.game }); }
     if (packet.type === 'ack' && packet.actionReceipt?.ok) { actor.acknowledgements++; actor.actionFrames.push('ack'); }
     else if (packet.type === 'view' && packet.view.game) { actor.lastRevision = packet.view.game.revision; actor.actionFrames.push('view'); }
     else if (packet.type === 'patch') { if (packet.gamePatch?.set?.revision) actor.lastRevision = packet.gamePatch.set.revision; actor.actionFrames.push('view'); }
   }); });
-  await page.goto(origin + base + '?room=' + admission.room.code); actor.loadStep = 'connected'; await page.locator('.site-online-match[data-connected=true]').waitFor();
-  actor.loadStep = 'own-hand';
+  await page.goto(origin + base + '?room=' + admission.room.code); actor.loadStep = 'connected'; actor.waitingFor = 'authority-connected'; await page.locator('.site-online-match[data-connected=true]').waitFor();
+  actor.loadStep = 'own-hand'; actor.waitingFor = 'own-hand-visible';
   await page.locator('.tda-card--hand[data-card]').first().waitFor();
   assert.equal(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches), false);
-  actor.loadStep = 'ready'; return actor;
+  actor.loadStep = 'ready'; actor.waitingFor = null; return actor;
 }
 async function scenario(kind) {
   stage = kind + '-fixture';
@@ -246,13 +293,17 @@ try {
   assert.deepEqual(errors, []); assert.deepEqual(external, []); pass('actual animated website scenarios complete with no script errors and no external requests');
 } catch (error) {
   const publicDiagnostics = [];
-  for (const actor of actors) try { publicDiagnostics.push(await actor.page.evaluate(() => ({ busy: document.querySelector('.tda-shell')?.getAttribute('data-busy'), phase: document.querySelector('.tda-shell')?.getAttribute('data-phase'), powerCount: document.querySelectorAll('.tda-spotlight').length, ghostCount: document.querySelectorAll('.tda-ghost').length, coinCount: document.querySelectorAll('.tda-fx-coin').length, probe: window.__presentationProbe ? { events: window.__presentationProbe.events, fxDraws: window.__presentationProbe.fxDraws } : null }))); } catch {}
-  failure = { stage, kind: error.name, publicDiagnostics, loadDiagnostics: actors.map(actor => ({ loadStep: actor.loadStep, closes: actor.closes, authoritativeFrameCount: actor.actionFrames.length })), message: 'Real website presentation assertion failed; no private projection or selector is written to evidence.' };
+  for (const actor of actors) try { publicDiagnostics.push(await actor.page.evaluate(() => {
+    const status = document.querySelector('.site-room-identity [role="status"]')?.textContent?.trim();
+    const allowedStatus = ['已连接', 'Connected', '重连中', 'Reconnecting', '连接失败', 'Connection failed', '座位已在其他窗口连接', 'Seat connected in another window', '连接已失效，请返回首页重连', 'Session expired; return home to reconnect'];
+    return { busy: document.querySelector('.tda-shell')?.getAttribute('data-busy'), phase: document.querySelector('.tda-shell')?.getAttribute('data-phase'), status: status == null ? null : allowedStatus.includes(status) ? status : 'other', powerCount: document.querySelectorAll('.tda-spotlight').length, ghostCount: document.querySelectorAll('.tda-ghost').length, coinCount: document.querySelectorAll('.tda-fx-coin').length, socketDiagnostics: window.__presentationSocketDiagnostics || null, probe: window.__presentationProbe ? { events: window.__presentationProbe.events, fxDraws: window.__presentationProbe.fxDraws } : null };
+  })); } catch {}
+  failure = { stage, kind: safeErrorKind(error), publicDiagnostics, loadDiagnostics: actors.map(actor => ({ loadStep: actor.loadStep, waitingFor: actor.waitingFor, closes: actor.closes, authSent: actor.authSent, authSentMs: actor.authSentMs, viewCount: actor.viewCount, viewPresence: actor.viewPresence, authoritativeFrameCount: actor.actionFrames.length })), message: 'Real website presentation assertion failed; no private projection or selector is written to evidence.' };
 }
 finally {
   await browser.close(); await service.close(); await new Promise(done => server.close(done));
   const stats = { checks: checks.length, completed: !failure, mode: baseline ? 'historical-presenter-regression-proof' : 'current-production-source', reducedMotion: 'no-preference', scope: 'Real loopback website and authoritative receipts. Synthetic legal engine fixtures seeded only before authentication.' };
-  writeFileSync(join(out, 'result.json'), JSON.stringify({ checks, stats, measurements, errors, external, ...(failure ? { failure } : {}) }, null, 2));
+  writeFileSync(join(out, 'result.json'), JSON.stringify({ checks, stats, measurements, errors, external, transportDiagnostics, droppedTransportDiagnostics, ...(failure ? { failure } : {}) }, null, 2));
   console.log(JSON.stringify(stats)); console.log(out);
 }
 if (failure) throw Error(failure.stage + ': ' + failure.message);

@@ -65,6 +65,12 @@ gpt-6.1-sol最初只读产品与发布工具增量审计通过：当时产品相
 
 ## 仅网站发布与回滚
 
+### 55218ea 两次 Linux 演出连接失败
+
+冻结55218ea673d388003bffa2ac554e033f048f35c0的CI37185442912两次完整attempt均失败，除最后site-presentation外全部原检查通过。attempt1 run-WxGoJy与attempt2 run-XhRZFl均0项：第一合成浏览器ready/play且1游戏view，第二page.goto已返回，但在等网站connected UI超时，尚未进入手牌等待；第二游戏帧计数0、一次WebSocket close、初始lobby，无脚本/外域错误。不能称导航超时、不能由0游戏帧计数断言全部view为0；旧工具未记录close码与认证发送时刻，认证超时/拒绝的原因未证实。两次失败分别保存在`.local-evidence/ci-37185442912-artifact/`与`ci-37185442912-attempt2-artifact/`，没有把失败或未执行的13项算通过。
+
+该包tar SHA f944b8c3493aa9bb90338619d069bd85a0e6550e8fe944a5b1f3502d161526ee仅上传暂存，**未apply、不得部署**。两次换模型包核验通过不能替代CI门槛。下一步仅补有界公开WS/TCP认证/close/view诊断，把原13项演出检查提前执行以更早取得失败证据；不改生产认证定时器、默认宽限、规则/私牌或等待/断言阈值，不继续无诊断盲重跑。取得完整成功的新冻结head后须重新打源码包和核验部署前基线。
+
 发布准备新增显式 `--website-only`，和 `--overlay` 互斥。manifest 必须声明 `scope=website-only`，只可选择两个独立网站目标且 `hostOverlay=null`；缺 scope 的历史包/回执仍按原四目标处理，不能用省略字段绕过目标限制。
 
 上线前仍捕获四目标及保护文件完整 fresh baseline；仅为两个独立网站备份、暂存、切换和验证。未选择的 Suite stable/dev 在切换前后、回滚和中断恢复时核验完整树 SHA、mode、uid、gid；漂移即停止，不能覆盖他人部署。服务 bundle 需要更新以实现当前网站房主主动启用全能的授权；沿用原同域 API、WSS、端口、unit 与 nginx，不改 .env。

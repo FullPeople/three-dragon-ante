@@ -23,6 +23,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run test:nameplate
       - run: npm run test:website-omniscient
+      - run: npm run test:site-presentation
       - run: npm test
       - run: npm run test:server
       - run: npm run test:guest-server
@@ -36,7 +37,6 @@ jobs:
       - run: npm run test:site-multiplayer
       - run: npm run test:fx3d
       - run: npm run test:flight-layer
-      - run: npm run test:site-presentation
       - uses: actions/upload-artifact@v4
         if: always()
         with:
