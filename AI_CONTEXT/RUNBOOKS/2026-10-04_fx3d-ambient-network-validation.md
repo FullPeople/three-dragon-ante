@@ -70,3 +70,40 @@ nodecheck 和 diffcheck 已通过；ignored AST 对照 `.local-evidence/fx-integ
 根代理复核新 producer 工具发现，restore 回 3D 后直接 null、只断言 2D 为零缺少同段 2D 阳性前置。仅加强此新工具：在实际恢复 3D 阳性之后，再次真实双上下文 loss，确认两原生 context.isContextLost、stage 不可用，以及实际 2D draw/alpha/visible 均阳性，再调用 null 和原 life×1.3+900ms 尾等待、原 450ms 观察。原质量切换反例、checks、原断言和期限保持。该 null 明确调用真实 composition API，是路由清理控制，未验真实 presenter choice 解除路径；不会以它冒称能力选择实际提交或联机行为。此增强目前仅 nodecheck/diffcheck，未运行浏览器，旧失败使用的工具 SHA 与证据保持独立。
 
 增强后的 source boundary 在原五产品文件之外加入第六个 `mount.ts` 的前后 SHA256，覆盖实际 FX 发布接线；首次失败仍如实只有当时五文件的记录，不追补不存在的当时 hash。
+
+## 画质驻留修复后的首次生产参数验证
+
+画质 owner 接线修复由另一代理提交 `c1752f75`，统一冻结 `d580cc2a1236b7bddbc2e2a53c0928ac78e49203`。根代理授权独占浏览器与 CPU，先只验证 hold；通过后首次执行三类完整生产 producer 套件。没有盲重跑旧失败，也没有修改工具、原期限或产品。
+
+| 命令 | 实际结果 | 证据 | 目的 |
+| --- | --- | --- | --- |
+| `node tools/fx3d-producer-browser.mjs --hold-only` | 6/6，exit 0，40.261s | `.local-evidence/fx3d-producer/run-lxbozm/result.json` | 修复首场：真实用户画质按钮、新阶段驻留、双上下文 loss/restore，以及实际 2D 阳性后的 tail 清理 |
+| `node tools/fx3d-producer-browser.mjs` | 14/14，exit 0，95.002s | `.local-evidence/fx3d-producer/run-qqkx56/result.json` | 首次完整 hold/druid/priest 生产参数；包含 hold 重复是完整套验证的必要范围 |
+
+两次工具 SHA256 均为 `B45AEB5E1E680C6B9F693846BD61C707E87FA927C46C217C28C4BDF418D7E71C`，source 始终 d580，六个产品文件前后 hash 相同。实际 presenter SHA256 `96613B969B1896C26C4B93E76DBFE5695446157DC4E7E2F0F9659C761BB839C8`、mount `F2AA19CE64DA417470CBB790BFD9C3B0160846CD3DA35B54909A206619B2178E`；其余四文件与前述 hash 相同。脚本/console/外域/资源错误均为 0，finally 浏览器/静态服务全部关闭，包装日志源边界在 `.local-evidence/fx-integration-validation/run-ambient-network-6b63f355/producer-hold-fixed-d580-result.json` 和 `producer-full-fixed-d580-result.json`。
+
+首次 hold-only 真实 quality 后 generation 2、specCalls 3/nullCalls 2，对应临时 2D 和随后 3D 的 owner 迁移；choice 仍 true、busy false。新阶段实际 POINTS 20、POINTS 改变非透明像素 2987、ground draw 20/改变非透明像素 27020，确认首轮缺陷已修复，而非只看 stage stats。工具没有再次关闭说明，quality 后仍已释放 busy；此工具不把持续 spec 重发次数当作公开能力事件重播计数。旧实际失败 `run-39HGpC` 保留。
+
+完整套捕获的实际 producer 参数与第二次 dual loss 的真实 2D 阳性、清理结果如下。参数由真实 producer 返回同一 spec 观察取得，不抄常数；生产尾期限为 `ceil(life×1.3×1000)+900`，再按原 450ms 观察。
+
+| producer | rate / life / size / alpha | drift | tail 前实际 2D draw / alpha / visible | tail 等待 ms | 尾后 draw / alpha / visible |
+| --- | --- | --- | --- | --- | --- |
+| actual presenter hold | 3 / 2 / 2.4 / 0.75 | 0,-22 | 162 / 1261 / true | 3500 | 0 / 0 / false |
+| actual FieldLayer druid | 5 / 4 / 3.2 / 0.6 | -14,26 | 455 / 5816 / true | 6100 | 0 / 0 / false |
+| actual FieldLayer priest | 3 / 3.5 / 2.2 / 0.55 | 0,-18 | 286 / 1910 / true | 5450 | 0 / 0 / false |
+
+三类均从引擎合法 fixture 的实际 producer 先取得非空 POINTS/ground 改变像素，再验证 loss 转 2D、full restore 恢复实际 3D。该清理 null 仍是实际 composition API 路由控制，不是选择提交结束路径，不冒称联网或公网人类验收。此前未执行的生产参数和真实寿命 tail 范围现已实际完成；整体部署与新冻结 CI 状态由根代理记录。
+
+## 当前软件渲染组件性能对照（首次完整 18 样本）
+
+根代理另行授权在上述全部成功后、同一 d580 冻结 source 首次执行 `npm run test:performance-compare`，填此前登记的原始性能验证，不再重复已通过的 structure-only。exit 0，5/5 结构/采样检查，114.463s；工具 SHA256 `58A9B5CBF2C177012408EDA8A47E306AF295815A69A43C39A66C908703B68273` 前后不变，源码未改、无 FPS 通过阈值。
+
+完整原始 18 个 sample 与逐帧 intervals 在 `.local-evidence/performance-compare/run-MWt1Sc/result.json`，JSON SHA256 `1151822C1B84294F570607A476A6B2F45A26757FAE3F277949C2812EB19B2B2A`；调用/日志 `.local-evidence/fx-integration-validation/performance-full-d580-81d2470e/`。真实历史 control 为 `4f6fc6a7263237c48afbc55c75dce4b83d0fa1d2` 的 CoinStack、scene.css、particles、TableScene 四模块替换，其余均当前代码。两 variant 使用同一合法六座 fixture hash `f8705d19fc9d58c783c919ca54491900fee651bf2574cc680c3d62b633bdcecc`、12 张牌阵、8 张可操作手牌、8 金币堆；原图元 256 个 filtered coin image 与新 8 个已绘制 canvas 差异属于待比较组件变化。共享 `fx3d=0` 生产 gate，WebGL2 桌面材质仍开、SwiftShader 实际 renderer 相同。每模式 3 次交错，每次原 2000ms rAF 窗口；没有截图/特效 readback 插入采样窗口。
+
+| 模式 | control / candidate median FPS | 比值 | control / candidate median p95 ms |
+| --- | --- | --- | --- |
+| idle | 43.00 / 60.00 | 1.40× | 16.8 / 16.8 |
+| hover | 3.36 / 9.42 | 2.80× | 366.7 / 366.7 |
+| drag | 3.11 / 22.50 | 7.23× | 333.4 / 333.2 |
+
+原始 intervals 数与每样本 frame 数逐项相符，18 项完备；真实 pointerMoveEvents 与 drag 无命令提交控制完整。错误/外域 0、finally 浏览器/服务关闭、git status 干净。结果显示受控组件改善，同时软件交互长帧仍明显，不能宣称整体流畅、移植附件旧报告 5→56 为当前数据、整版基准、3D FX 性能或实体弱机 UAT。该限制须保持在后续留痕/用户汇报中；不为更漂亮数字重复采样。
