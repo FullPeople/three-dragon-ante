@@ -23,7 +23,7 @@
 
 ## B. 当前状态（最近为真；过时即更新）
 
-- **19时续轮诊断准备**：前轮真实修复/采证/新CI失败改变下一动作，属于实质进展；本轮继续完整目标。只给原fx3d-alignment工具增加同帧公开诊断，独立AST核原28断言/7等待/6pass和取点、fixture全保持，9a2c1064获准备审查通过。新本机真实构建与Linux同帧诊断/完整CI尚待，旧合取失败原语仍未知，线上仍801/0.9.1，0.9.2不部署；见同日fx3d-pointer-diagnostic runbook。
+- **19:30续轮当前**：冻结6d2本机构建/服务端构建均exit0，首次FX同帧诊断9/9；Linux首次CI37197852779两个屏幕airShown/hitIsCard均true、前7项通过，随后原baseline/candidate ticks >20合取失败，原comparison写入晚于断言使两计数缺失，不能猜原因。仅原样提前保存comparison及安全数字输出，tool6e4c43cf获换模型AST审查，原28断言/7等待/900及1250ms采样/门槛保持，等待新Linux首次计数采证；两个历史失败均保留。线上仍801/0.9.1，0.9.2不部署，完整目标继续；见fx3d-pointer-diagnostic runbook。
 
 
 - **2026-10-04 最新状态**：线上仍801/0.9.1(-dev)，一般公网12/默认GPU隐藏8完整通过；Suite/枭熊维持网站链接不重发。附件d580独立分支已推送，真实hold画质6/生产参数14通过且包审查通过，但精确CI37196321804特效合取断言失败、后六CI检查跳过，停止0.9.2发布。两个boolean未记录，根因未证实，未改断言期限凑数。软件hover/drag长帧仍在；正本RUNBOOKS/2026-10-04_website-release-status.md。

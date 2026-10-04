@@ -35,3 +35,13 @@
 首次两个公开快照 `.local-evidence/fx3d-alignment/run-zQf9QK/desktop-public-diagnostic.json` 和 `narrow-public-diagnostic.json` 均为 airShown=true、hitIsCard=true、stageAvailable=true、effects=1；entering/arriving、transform running/pending、busy 与 power/reveal/choice/score/confirmation/help 全为 false。FX 两画布 pointerEventsNone=true，命中类别 card，取点位于视口及桌内；桌面/窄屏 camera 误差 0.009/0.004px，历史单链阴性为 4 renders/tick，新源为 1，原其余检查均通过。finally 浏览器、SQLite memory service 和 HTTP 服务全部关闭，无重复运行。
 
 本地首诊断通过并未复现旧 Linux 失败，不能据此称旧因已查明或清除发布限制。新的 exact Linux CI 及其同帧诊断仍待根代理取证。只读另发现：建桌 helper 等的是 `.tda-card--hand[data-card]`，实际取点却为首个 `.tda-card--hand`；后者也包含先渲染的桌面层对手匿名牌背，前置并非取点节点的进场确认。本次快照 rect 桌面 (730.97,220.59,43.76,54.26)、窄屏 (201.57,283.70,26.00,33.82)，均在顶部桌面区域；不拿该范围差异推断旧失败，也未擅自更改原取点或断言。遗留保持：Linux 分别两个操作数和节点当时几何/活动/动画证据，取得后才决定需要修产品还是前置，仍禁止盲重跑凑过。TODO 由根代理统一记录。
+
+## 首次 Linux 诊断：新的取样数量失败，计数尚缺
+
+新的 exact Linux CI `37197852779` 对冻结 6d2 首次执行已加诊断的工具：desktop 与 narrow 的 PUBLIC 均 airShown=true、hitIsCard=true，原前 7 checks 通过。随后在原 `comparison.baseline.ticks > 20 && comparison.candidate.ticks > 20` 的合取断言失败；日志 `.local-evidence/fx-release/ci-6d2de06-failed.log` 已读取查证。它不同于此前桌面 pointer/可见性的合取失败；当前仍缺 baseline/candidate 各自真实计数，不能猜是哪一侧、缺多少或来源。此前本机 9/9 不作为该 Linux 失败的替代，0.9.2 继续未发布。
+
+原 `render-chain.json` 写入位于所有 comparison assertions 之后，导致此断言失败时实际 comparison 尚未落证据。根代理授权仅把该已有 `writeFileSync` 行逐字移到原 `page.evaluate` 返回后、第一条 comparison 断言之前，并输出 baseline/candidate/workload 已有的数字计数（旧源缺失的 frameStats 保留 null，不能伪造为 0）。不新增计时或采样，不改 900ms 活动期、1250ms 等待、triggered 3、ticks >20、次数、取样顺序、assert/pass 或产品，也不增加 warmup。前述两个屏幕的安全诊断继续保留。
+
+这次仅准备计数保全，不再重跑本机 FX9；未来新的首次 Linux 计数 probe 才能给出真实失败计数。原两次 CI 失败与启动/本地证据均保留，不把诊断覆盖缺失计数称为产品整改或通过。
+
+准备验证：nodecheck/diffcheck exit 0，工具 SHA256 `6E4C43CFD5E8149DF982172027D7E828307D5B8A85F98656F1EFFEBF7E45E64E`。RAM AST 与 088e02e 原工具比较：28 assert、7 wait（含 locator）、4 setTimeout、6 pass、startOnline 完整函数/三调用、原四个几何变量、完整 comparison 取样函数及既有 render-chain 写入表达式均精确相同；只有写入顺序移到断言前。证明 `.local-evidence/fx-release/alignment-renderchain-preservation-ast.json`，未运行浏览器或修改产品。

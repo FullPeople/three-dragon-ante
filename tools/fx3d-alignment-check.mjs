@@ -163,6 +163,12 @@ try {
         finally { old?.destroy(); air.remove(); ground.remove(); }
       } finally { window.requestAnimationFrame = nativeRaf; }
     }, origin + base + '__fx-control/control.js');
+    writeFileSync(resolve(evidence, 'render-chain.json'), JSON.stringify(comparison, null, 2));
+    console.log('PUBLIC render-chain', JSON.stringify({
+      baseline: { triggered: comparison.baseline.triggered, updates: comparison.baseline.updates, ticks: comparison.baseline.ticks, maxRendersPerTick: comparison.baseline.maxRendersPerTick, frames: comparison.baseline.frames, renders: comparison.baseline.renders, effectsAfter: comparison.baseline.effectsAfter },
+      candidate: { triggered: comparison.candidate.triggered, updates: comparison.candidate.updates, ticks: comparison.candidate.ticks, maxRendersPerTick: comparison.candidate.maxRendersPerTick, frames: comparison.candidate.frames, renders: comparison.candidate.renders, effectsAfter: comparison.candidate.effectsAfter },
+      workload: { frames: comparison.workload.frames, renders: comparison.workload.renders, maxRendersPerTick: comparison.workload.maxRendersPerTick, effectsAfter: comparison.workload.effectsAfter }
+    }));
     assert.equal(comparison.baseline.triggered, 3); assert.equal(comparison.candidate.triggered, 3);
     assert.ok(comparison.baseline.ticks > 20 && comparison.candidate.ticks > 20, 'both real renderers sample enough browser ticks');
     assert.ok(comparison.baseline.maxRendersPerTick > 1, 'historical real source reproduces multiple renders in one browser frame');
@@ -171,7 +177,6 @@ try {
     assert.ok(comparison.workload.frames > 20); assert.ok(comparison.workload.renders <= comparison.workload.frames + 1);
     assert.equal(comparison.workload.maxRendersPerTick, 1); assert.equal(comparison.workload.effectsAfter, 0);
     assert.equal(errors.length, 0, errors.join(' | ')); assert.equal(external.length, 0);
-    writeFileSync(resolve(evidence, 'render-chain.json'), JSON.stringify(comparison, null, 2));
     pass(`high tier nested add/wake: historical ${comparison.baseline.maxRendersPerTick} renders/tick, candidate ${comparison.candidate.maxRendersPerTick}`);
     await context.close();
   }
