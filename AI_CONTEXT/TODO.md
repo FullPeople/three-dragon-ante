@@ -22,6 +22,7 @@
 - [ ] 帧率：探针 `.local-evidence/perf-probe.mjs` 移进 tools/ 自带静态服务；弱机"画质"开关与自动降档随 fx3d 做；真实弱机复测由用户完成（runbook `2026-10-04_perf-compositing.md`）。
 - [x] fx3d 设计评审工作流：合成稿已落地 `RUNBOOKS/2026-10-04_fx3d-design.md`（2026-10-04）。
 - [x] fx3d P3 / P4（2026-10-04）：W 等待变体、G / E 场地按种类、牌阵 / 传说到场法阵形态、Shell / Collar、画质开关、自适应降档（runbook kickoff §2.4–§2.5）。
+- [ ] **fx3d 审计复查未完成**（用户 2026-10-04 叫停）：整改在 `c3f67fc`，需换模型重新审计（`HANDOFF_FX3D.md` §5 第 8 条）。
 - [ ] **fx3d 收尾**：落牌尘土按牌类分档（传说 1.3 / 标准 1.0 / 凡人 0.8）、飘带头部粒子、Wisps 丝带（可选）、Volume 气柱（仅 high + 传说，可选）；署名登记（Elemental Sandbox MIT）与 `VISUAL_SPEC.md` §5 口径；真实弱机复测；换模型独立审计。
 - [ ] **three.js 特效层 fx3d（用户 2026-10-03 批准）**：地基已交付（runbook `2026-10-03_fx3d-kickoff.md` §2）；待办：设计定稿 → 图元工具箱 → 家族签名 → 单牌变体 → 传说牌定制 → 持续 / 环境 → 尘土与手；MIT 署名文件待随首个移植图元一起加入 `docs/design/ASSETS.md` 与 THIRD_PARTY 说明。
 - [ ] 字体子集化：vendor CSS 约 500 kB 来自 fontsource 全部 unicode-range 子集声明；可改为只保留 chinese-simplified + latin 子集或自建子集。
