@@ -1,15 +1,15 @@
 # AI_CONTEXT/INDEX.md — 三龙牌 冷启动中枢
 
 > `AI_CONTEXT/` = 本项目跨 AI 事实源**薄指针层**。通用纪律见全局（自动加载）。本文件是项目侧冷启动第一读。
-> 第二读：`AI_CONTEXT/GOAL.md`（当前总目标见 §10：仅在线网站；本轮演出/铭牌/隐藏全能反馈见 §11）。2026-10-04 用户已授权实现、推送、服务与定向部署，无需逐步确认；旧范围以 GOAL §10–11 和 DOMAIN §5–6 为准。新附件特效/性能交接按用户明确要求读取其 AI_CONTEXT 后核验整合。
+> 第二读：`AI_CONTEXT/GOAL.md`（当前总目标见 §10：仅在线网站；本轮演出/铭牌/隐藏全能反馈见 §11；网站热修复发布见 §12）。2026-10-04 用户已授权实现、推送、服务与定向部署，无需逐步确认；旧范围以 GOAL §10–12 和 DOMAIN §5–6 为准。新附件特效/性能交接按用户明确要求读取其 AI_CONTEXT 后核验整合。
 
 ## 1. 项目身份
 
 - **三龙牌 Three-Dragon Ante** = D&D 桌游《三龙牌·传奇版》的在线网站：纯规则引擎 + 无账号多人 + 权威游戏服务。删除本地机器人模式；枭熊与 Suite 只提供网站跳转，不运行新牌桌。
 - 2026-10-03 定调：**独立运行网站为核心，枭熊内置为次要适配**；表现层整体重写为写实风 2.5D，规则/协议/控制器/服务端不动。
 - repo `https://github.com/FullPeople/three-dragon-ante`（GPL-3.0；2026-10-03 从 `FullPeople/obr-suite` dev `5476630` 拆出）。
-- 线上旧入口 `https://obr.dnd.center/three-dragon-ante-dev/`（由 Suite 另行部署，**本仓库 push 不等于上线**）。
-- 当前工作分支：`rebuild/presentation`；`main` 保持拆分时的基线。
+- 当前独立网站 stable `https://obr.dnd.center/three-dragon-ante/`、dev `https://obr.dnd.center/three-dragon-ante-dev/`；Suite只提供链接，**本仓库 push 不等于上线**。
+- 当前工作分支：`rebuild/presentation`；线上热修复分支 `release/feedback-hotfix-20261004`，冻结源801daf5，0.9.1(-dev)已发布双网站+必要server。最新FX在另一隔离分支，未部署；`main` 保持拆分时的基线。发布/失败/回退见 `RUNBOOKS/2026-10-04_bug-hotfix-deploy.md`。
 
 ## 2. 运行环境（real）
 

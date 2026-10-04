@@ -13,7 +13,9 @@
 - [x] 2026-10-04 0.9.1反馈：本家回执不取消能力/切换/结算，购买提示先翻牌补牌，真实非reduced网络四场13项；见4f6fc6a/893e6c4与presentation-feedback runbook。
 - [x] 0.9.1飞牌独立覆盖/几何10项、长名数字边界与金属点数材质实际浏览器21项。
 - [x] 0.9.1隐藏全能仅当前房主，键序不干扰输入/出牌；真实断网/超时/刷新/交接立即撤权，恢复后实际合法前注，13项。
-- [ ] 0.9.1完整回归/CI、冻结候选换模型审计、freshbaseline定向部署与公网验收，双落本轮runbook。
+- [x] 0.9.1(-dev) 热修复冻结801daf580e9505a377dc97a544c4ad051ea029ac，完整CI37187336604成功、换模型最终包/独立远端核验通过；2026-10-04 16:07:25已发布双网站与必要server，不重部署Suite/枭熊，公网对局12/12。详见bug-hotfix-deploy runbook。
+- [ ] 公网全能8项专项尚未完整通过：run-gLOLN8前5项真实通过，刷新阶段超时；run-dc4yGB加入已收201响应头但12秒内JSON未完成，原因待查，原断言/超时不改。
+- [ ] 最新FX隔离候选c7b36be3（含附件c3960047和hotfix801）：build/tsc、build:server通过，但npm test 7/8（controller 6 !== 5），停止完整回归，保留run-KuUEel；未push/未部署，不把本地特效预览算生产验收。
 
 - [x] 第三方素材下载（用户 2026-10-03 同意）：Poly Haven dark_wood / medieval_wood / brown_leather / metal_plate，ambientCG Fabric034 / Paper006，Kenney Casino Audio；已压缩入库并登记 `docs/design/ASSETS.md`。
 - [ ] 持续效果（德鲁伊 / 祭司 / 龙巫妖…）的**持续音效**：需要 CC0 环境循环素材（Kenney 现有包没有），来源待用户批准；`FieldLayer` 已留位置。
