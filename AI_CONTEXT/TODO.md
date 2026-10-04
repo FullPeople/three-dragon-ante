@@ -5,6 +5,9 @@
 
 ## 待办
 
+- [x] 连接权限 pending 跨断线自动重发 P2：FX候选同helper在真实 onclose、CLOSING手动retry换连接、stop时只取消 inspect/omniscient enable/disable 与commandTimer；正式 Node13/13（run-Y5WOQf）含原9、两个关闭迟到权限边界和相同入口的真实action保留，四action控制各仅一次重试/一次应用。原auth5/5、tsc0错；首次ignored7/9夹具错误、初版9通过和两条真实遗漏复现/新观察点失败均留存；见 `RUNBOOKS/2026-10-04_pending-inspection-reconnect.md`。
+- [ ] 根任务接入 `tools/website-pending-inspection-selftest.mjs` 至 package/CI（build:server后），独立复核本次客户端修复，并纳入最终FX候选完整CI/浏览器/冻结包与发布门槛。本Node控制不替代UI/公网；本次未改线上801、版本、推送或部署。
+
 - [x] 02eaaa FX候选独占串行：FX9/9、生命周期9/9、结构5/5；演出首8/13 TimeoutError留存，仅安全stage诊断后一次13/13，原34assert/20wait/13checks不变。旧超时具体原语/原因仍未确定；见 `RUNBOOKS/2026-10-04_fx3d-browser-validation.md`。
 - [x] 原npm8精确字节复核：5行mixed→CRLF可复原测试SHA5C与最终0733；第三代理RAM编译对照实际358732字节执行产物，双方可执行SHA97d706逐字一致，不重复unit。见controller-projection-sync runbook。
 - [ ] 独立审计驻留P2：既有Druid/Priest field/selection hold在真实双contextloss后2D回退与restore恢复尚待实际反例；原life9只覆盖loss中新能力/恢复后newburst，不能替代；当前优先真实composeFx/draw/Points/alpha复现，暂不改产品。
