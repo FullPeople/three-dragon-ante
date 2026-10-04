@@ -6,7 +6,7 @@
 
 发布准备前 git fetch origin 成功，远端 rebuild/presentation 为 d337588。当前线上两个独立网站为 0.9.0 / 0.9.0-dev，冻结源 7555f99e05a2853f495422d5b3c0f62a1a74c990；本机新版特效整合不是已上线版本。
 
-热修复在隔离 worktree `U:/CodexWork/2026-10-04/three-dragon-feedback-hotfix-4f6fc6a`、分支 `release/feedback-hotfix-20261004` 从反馈产品检查点 4f6fc6a7263237c48afbc55c75dce4b83d0fa1d2 建立。它含买牌说明先后、本家 view/ack 演出、飞牌覆盖、铭牌与隐藏全能。**不包含附件 2afca326 的 P2–P5 特效/性能改动或 c3960047 新修订**，不会因附件整合尚未回归而拖延这些 bug 的发布。相对线上基线，rules/protocol/wire/private-channel/art/旧稳定频道/fx3d 目录零差异，TableScene 仅飞牌层接缝。
+热修复在隔离 worktree `U:/CodexWork/2026-10-04/three-dragon-feedback-hotfix-4f6fc6a`、分支 `release/feedback-hotfix-20261004` 从反馈产品检查点 4f6fc6a7263237c48afbc55c75dce4b83d0fa1d2 建立。它含买牌说明先后、本家 view/ack 演出、飞牌覆盖、铭牌与隐藏全能；追加本节实际Linux CI查证的姓名缩放后实测收敛修复。**不包含附件 2afca326 的 P2–P5 特效/性能改动或 c3960047 新修订**，不会因附件整合尚未回归而拖延这些 bug 的发布。相对线上基线，rules/protocol/wire/private-channel/art/旧稳定频道/fx3d 目录零差异，TableScene 仅飞牌层接缝。
 
 ## 验证工具与证据修正
 
@@ -43,7 +43,17 @@ Windows Node 22.17.1，使用已装 Edge。所有命令在隔离仓库根目录�
 
 网络演出首次 `site-presentation/run-kDCygD` 在score-website-load超时，5项已通过；第二页面是lobby，零脚本/外域错。直接用本次生成的原规则模块复算原score fixture：seed1、双方6/5张手牌，状态合法，排除无手牌假说。仅添加有界加载步骤/关闭时间/权威帧计数诊断，无产品、断言、阈值变化；完整复测 `site-presentation/run-tZq0H9` 原13项全过：两页说明→价牌1807/1810ms，价牌→翻面280/285ms，翻面→补牌1257/1263ms。首次超时具体原因仍未证实，保留失败JSON/log，未将该失败冒称通过或归因于网络/软件GL。最终Linux CI和实际公网另验。
 
-gpt-6.1-sol只读产品与发布工具增量审计通过：产品相对4f6fc6a零增量、静态组件原断言保留、双网站目标/未选Suite保护/历史receipt兼容与不回退DB成立。冻结SHA、真实最终包及绿色精确提交CI后还须最终包终裁。并发Suite漂移时自动恢复亦拒绝并保留preparing/partial switched receipt，不能写作“已自动回滚”。
+gpt-6.1-sol最初只读产品与发布工具增量审计通过：当时产品相对4f6fc6a零增量、静态组件原断言保留、双网站目标/未选Suite保护/历史receipt兼容与不回退DB成立。并发Suite漂移时自动恢复亦拒绝并保留preparing/partial switched receipt，不能写作“已自动回滚”。
+
+### Linux铭牌失败及产品整改
+
+首次冻结70e7aced4c385f7ee4c5b846ef45e12b5b00a647正常push隔离release分支，真实双渠道构建包tar SHA `ef8b1a6cca0d3921858076411f0c10b8b8e089e61a6569805f6384a5df82a789`、源码ZIP393文件与git archive完全一致、tar1943条目全部SHA通过独立审计。仅上传服务器暂存目录，**没有apply**：精确head CI37183650315在nameplate原“正常长名字不能裁切”断言失败，run-qN7U2f/failure.json原工具测量在assert后所以为空；该冻结包不得部署。
+
+诊断提交d7fdc89760b4b8c71869a5a0215884734fa7fea3只把公开测量移到assert前并在CI较早运行原nameplate，保留全部原测试。CI37184050832实际再次复现：desktop2 Chinese font14.75/clipped=true、English15.0652/clipped=true、金币仍完整且所有资源/脚本/外域失败0；证据 `.local-evidence/ci-37184050832-artifact/nameplate/`。确认按原比例计算的候选字号缩小后仍不满足实际scrollWidth<=clientWidth；不猜“字体没加载”或声称证明某底层1px机制。
+
+生产只改SeatName：保留原比例候选、字号12–18和生命周期；缩放后测实际宽度，若仍溢出则在能容纳的12px下界与候选之间做最多8次二分，每次读取实际宽度并保持一个已实测能容纳的lower，最终采用该lower；12px仍不够的极长名继续省略但保留完整DOM/title。无CSS布局、资金数字、材质、计时器或其他产品改动。tool只补实际内外client/scroll宽度、CSS小数宽度和字体状态，原21严格断言不放宽。Windows实际21/21，`nameplate/run-qnHo1c`；最终新head Linux CI/新包/复审须再单独通过。
+
+该整改本地再跑build含typecheck exit0、npm test8/8；日志build-measured-fit/rules-measured-fit。gpt-6.1-sol独立复核通过：已实测可容纳的lower保证退出采用合格尺寸、不依赖严格线性；RO观测固定高度/宽度outer不会因inner字号缩小而自循环；字体ready/observer/listener/alive清理保持。最终冻结包与精确新head完整Linux CI仍为发布门槛。
 
 ## 仅网站发布与回滚
 

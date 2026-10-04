@@ -72,7 +72,8 @@ try {
         const name = plate.querySelector('.tda-seat-name'), text = name.querySelector('.tda-seat-name-text'), gold = plate.querySelector('.tda-seat-gold'), row = plate.querySelector('.tda-seat-funds');
         const rect = plate.getBoundingClientRect();
         const contained = [...row.children].every(child => { const r = child.getBoundingClientRect(); return r.left >= rect.left - 1 && r.top >= rect.top - 1 && r.right <= rect.right + 1 && r.bottom <= rect.bottom + 1; });
-        return {name: text.textContent, title: name.title, font: parseFloat(getComputedStyle(text).fontSize), clipped: text.scrollWidth > text.clientWidth, gold: gold.textContent, contained, height:plate.offsetHeight, width:plate.offsetWidth, fundsWidth:row.scrollWidth, availableWidth:row.clientWidth};
+        const style = getComputedStyle(text);
+        return {name: text.textContent, title: name.title, font: parseFloat(style.fontSize), clipped: text.scrollWidth > text.clientWidth, outerWidth:name.clientWidth, innerWidth:text.clientWidth, textWidth:text.scrollWidth, cssWidth:style.width, fontFamily:style.fontFamily, fontWeight:style.fontWeight, letterSpacing:style.letterSpacing, fontStatus:document.fonts.status, gold: gold.textContent, contained, height:plate.offsetHeight, width:plate.offsetWidth, fundsWidth:row.scrollWidth, availableWidth:row.clientWidth};
       }));
       measurements.push({layout, count, values});
       assert.equal(values.length, count);

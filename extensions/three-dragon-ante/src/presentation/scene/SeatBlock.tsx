@@ -24,7 +24,23 @@ function SeatName({ name }: { name: string }) {
       if (!alive || !outer.clientWidth) return;
       inner.style.fontSize = "18px";
       const naturalWidth = inner.scrollWidth;
-      inner.style.fontSize = `${Math.max(12, Math.min(18, 18 * outer.clientWidth / Math.max(1, naturalWidth)))}px`;
+      const candidate = Math.max(12, Math.min(18, 18 * outer.clientWidth / Math.max(1, naturalWidth)));
+      inner.style.fontSize = `${candidate}px`;
+      // Font shaping can leave the estimated size clipped. Keep a measured
+      // fitting lower bound; exceptionally long names retain the readable floor.
+      if (candidate > 12 && inner.scrollWidth > inner.clientWidth) {
+        let lower = 12, upper = candidate;
+        inner.style.fontSize = "12px";
+        if (inner.scrollWidth <= inner.clientWidth) {
+          for (let attempt = 0; attempt < 8; attempt++) {
+            const middle = (lower + upper) / 2;
+            inner.style.fontSize = `${middle}px`;
+            if (inner.scrollWidth <= inner.clientWidth) lower = middle;
+            else upper = middle;
+          }
+          inner.style.fontSize = `${lower}px`;
+        }
+      }
     };
     fit(); const observer = new ResizeObserver(fit); observer.observe(outer);
     void document.fonts.ready.then(fit); document.fonts.addEventListener("loadingdone", fit);
