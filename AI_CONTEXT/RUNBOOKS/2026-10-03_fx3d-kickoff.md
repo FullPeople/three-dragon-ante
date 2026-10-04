@@ -92,7 +92,18 @@
 
 证据：真实 GPU 浏览器里按钮循环后 `data-fx` 依次 three-high / three-high / three-medium / three-low / canvas2d / three-high；`shots/fx3d-script-bahamut.png`（法阵 + 光柱 + 光环 + 壳）、`fx3d-gallery-1.png`（奖池上的传说到场光环）。测试：冒烟 20/20、`test:fx3d` 7/7、`npm test` 8/8。
 
-## 3. 下一步（设计评审工作流 `fx3d-understand-design` 的产出落地后填写）
+## 2.6 P5 收尾：尘土分档、飘带火星、署名与口径（2026-10-04）
+
+- 落牌尘土按牌类分档：传说 1.3（震动 260 ms）/ 标准 1.0 / 凡人 0.8（`TableScene.onCardLand` 用公开的牌 id 查牌库；牌背按 1.0）。
+- 飘带行进期间每 120 ms 在头部撒 3 颗掉落火星（低档不撒）。
+- 署名：`docs/design/ASSETS.md` 新增"技术移植"表（Elemental Sandbox，MIT），许可全文 `docs/design/THIRD_PARTY-elemental-sandbox.md`；`docs/design/VISUAL_SPEC.md` §3.1 透视原点改为代码实况 50% 30%、手牌立板口径、§5 加 fx3d 说明。
+- 测试：冒烟 20/20、`test:fx3d` 7/7、`npm test` 8/8、`test:server-browser` 4/4。
+
+## 3. 下一步
+
+- 独立审计（换模型，范围 `8d23298..HEAD`：帧率修复 + fx3d P0–P5）→ 必修项整改 → 终裁记入 §4。
+- 可选：Wisps 丝带、Volume 气柱（仅 high + 传说）、真实手掌照片（拍桌）。
+- 真实弱机复测由用户完成。
 
 - §4 设计定稿（画布 / 渲染策略 / 图元工具箱 / 脚本相位机 / 家族签名表 / 分期）
 - §5 各期实施记录与证据

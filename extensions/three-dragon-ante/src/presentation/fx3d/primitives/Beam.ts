@@ -4,6 +4,7 @@ import { BufferGeometry, DoubleSide, Float32BufferAttribute, Mesh, ShaderMateria
 import type { Effect, FxStage } from "../FxStage";
 import { GLSL_COMMON } from "../shaders/lib";
 import { palette } from "../palette";
+import { Burst } from "./Burst";
 import type { FxKind } from "../../fx/particles";
 
 const VERT = /* glsl */`
@@ -42,11 +43,13 @@ void main(){
 export class Beam implements Effect {
   readonly mesh: Mesh<BufferGeometry, ShaderMaterial>;
   private readonly start: number; private readonly duration: number;
+  private readonly stage: FxStage; private readonly kind: FxKind; private readonly a: Vector3; private readonly b: Vector3; private readonly c: Vector3; private lastDrop = 0;
   constructor(stage: FxStage, from: { x: number; y: number; z?: number }, to: { x: number; y: number; z?: number }, o: { kind: FxKind; duration: number; lift?: number; width?: number; tail?: number }) {
-    this.start = performance.now(); this.duration = o.duration;
+    this.start = performance.now(); this.duration = o.duration; this.stage = stage; this.kind = o.kind;
     const p = palette(o.kind);
     const a = stage.local(from.x, from.y, from.z ?? 30), b = stage.local(to.x, to.y, to.z ?? 30);
     const c = new Vector3().addVectors(a, b).multiplyScalar(0.5); c.z += o.lift ?? 90 + a.distanceTo(b) * 0.18;
+    this.a = a; this.b = b; this.c = c;
     const N = 48, pos: number[] = [], at: number[] = [], side: number[] = [], idx: number[] = [];
     for (let i = 0; i <= N; i++) { const t = i / N; for (const s of [-1, 1]) { pos.push(0, 0, 0); at.push(t); side.push(s); } }
     for (let i = 0; i < N; i++) { const k = i * 2; idx.push(k, k + 1, k + 2, k + 1, k + 3, k + 2); }
@@ -62,6 +65,13 @@ export class Beam implements Effect {
     // 头部在 70% 时到达，余下时间尾巴追上并淡出
     u.uProgress.value = Math.min(1, k / 0.7) + Math.max(0, (k - 0.7) / 0.3) * u.uTail.value;
     u.uFade.value = 1 - Math.max(0, (k - 0.85) / 0.15); u.uTime.value = now / 1000;
+    // 头部掉落火星：行进期间每 120 ms 在头部位置撒 3 颗（低档不撒）
+    if (k < 0.7 && now - this.lastDrop > 120 && this.stage.tier !== "low") {
+      this.lastDrop = now; const t = Math.min(1, k / 0.7), u1 = 1 - t;
+      const hx = u1 * u1 * this.a.x + 2 * u1 * t * this.c.x + t * t * this.b.x, hy = u1 * u1 * this.a.y + 2 * u1 * t * this.c.y + t * t * this.b.y, hz = u1 * u1 * this.a.z + 2 * u1 * t * this.c.z + t * t * this.b.z;
+      const m = this.stage.metrics();
+      new Burst(this.stage, hx + m.planeW / 2, m.planeH / 2 - hy, hz, { kind: this.kind, count: 3, speed: 40, up: 0.2, gravity: 700, drag: 1.5, size: 16, life: 0.45, sprites: ["spark_01"] });
+    }
     return k < 1;
   }
   dispose() { this.mesh.parent?.remove(this.mesh); this.mesh.geometry.dispose(); this.mesh.material.dispose(); }

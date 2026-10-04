@@ -69,11 +69,11 @@
 
 ### 3.1 2.5D 平面
 
-- `.table-viewport`：`perspective: 1600px; perspective-origin: 50% 32%`。
+- `.tda-viewport`：`perspective: 1600px; perspective-origin: 50% 30%`（代码实况；three.js 特效层的相机按同一链推导，见 `fx3d/stage.ts`）。
 - `.table-plane`：虚拟坐标 **1800 × 1100**（桌面坐标，原点左上），`transform: rotateX(28deg)`，`transform-style: preserve-3d`；按视口 `--scale = min(vw / 1800, vh_available / 1100)` 等比缩放并居中。
 - 桌面：橡木桌 1800×1100，毛毡内嵌，皮革包边 26。**桌形随人数**（继承原 3D 舞台）：2–3 人椭圆圆桌；4 人以上圆角方桌（圆角 230 / 毛毡 170）。着色器 `uShape` 切换 SDF，CSS 兜底用 `border-radius`。
 - 桌外：酒馆全景照片（Poly Haven `cowboy_town_saloon` CC0，吧台一侧裁图，压暗 + 轻虚化）做天空盒式背景，桌面在前景。
-- 卡牌尺寸（平面单位）：**140 × 247**（比例 1250:2208）。对手牌 0.78 倍；本家牌阵 1.0；手牌 1.15 倍并 `rotateX(-28deg)` 立起。
+- 卡牌尺寸（平面单位）：**140 × 247**（比例 1250:2208）。对手牌 0.78 倍；本家牌阵 1.0；本家手牌画在 `.tda-viewport` 下独立的屏幕对齐立板（`.tda-hand-layer`，`transform-style: flat`），不在桌面的 3D 上下文里。
 - 平放卡牌有厚度：`::after` 画 4 单位暗边模拟牌边；投影随 Z 高度变化（飞行时投影放大变淡）。
 
 ### 3.2 座位布局（本家永远底部居中，顺时针）
@@ -118,6 +118,8 @@
 - **阶段横幅**：阶段变更时一条羊皮纸横幅从左扫入、停 1.2 s、向右扫出（共 1.8 s），内容 `第 2 轮 · 余烬 领出`。横幅永不遮住手牌与行动栏。
 
 ## 5. 特效规格（显著但有限时长）
+
+> 2026-10-04 起特效层 = 2D 贴图粒子层（`fx/particles.ts`，金币 / 拍桌 / 回退）+ three.js 两张透明画布（`fx3d/`：地面画布在卡牌之下、空中画布在卡牌之上；相机与 CSS 透视链对齐 0.01 px）。每个家族一段独一份的脚本（`fx3d/scripts/families.ts`），相位 发动 / 等待 / 结算 / 持续 / 环境；档位 high / medium / low 与用户开关 `localStorage["tda.fx"]`；减少动态 / 软件 GL / 紧凑弹窗自动退回 2D。设计定稿 `AI_CONTEXT/RUNBOOKS/2026-10-04_fx3d-design.md`。
 
 | 事件 | 表现 | 时长 |
 |---|---|---|

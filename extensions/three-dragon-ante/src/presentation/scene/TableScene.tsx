@@ -13,6 +13,7 @@ import { FieldLayer } from "./FieldLayer";
 import { GhostLayer } from "./GhostLayer";
 import { t } from "../i18n";
 import { mountFx, type FxLayer } from "../fx/particles";
+import { card } from "../../game/rules/cards";
 import { mountFxStage, type FxStage } from "../fx3d/FxStage";
 import { composeFx } from "../fx3d/composeFx";
 import { debugMarkers } from "../fx3d/debug";
@@ -162,7 +163,9 @@ export function TableScene({ state, controller, onFx, onFx3d, onOrientation, onL
   // 落地：尘土（横向铺开）+ 轻震 + 声音（声音由宿主层播放）
   function onCardLand(key: string, el: HTMLElement, zone: string) {
     const fx = fxRef.current; const r = el.getBoundingClientRect();
-    if (fx && r.width) { fx.dust({ x: r.left + r.width / 2, y: r.top + r.height * 0.72 }, zone === "flight" ? 1.1 : 0.9); fx.shake(180); }
+    // 尘土按牌类分档：传说 1.3 / 标准 1.0 / 凡人 0.8（牌背等匿名节点按 1.0）
+    let byCard = 1; try { const cat = card(key).category; byCard = cat === "legendary" ? 1.3 : cat === "mortal" ? 0.8 : 1; } catch { byCard = 1; }
+    if (fx && r.width) { fx.dust({ x: r.left + r.width / 2, y: r.top + r.height * 0.72 }, (zone === "flight" ? 1.1 : 0.9) * byCard); fx.shake(byCard >= 1.3 ? 260 : 180); }
     onLand?.(key, zone);
   }
 
