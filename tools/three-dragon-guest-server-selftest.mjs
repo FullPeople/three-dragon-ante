@@ -402,7 +402,9 @@ try {
   await service.close(); service = null;
   port = undefined;
   await start({database: join(evidence, 'auth-capacity.sqlite'), maxRooms: 1});
-  const capacityFirst = await post('/guest/rooms', {name: 'Capacity first'});
+  // Website room issuance is now bounded too. A retained historical room can
+  // occupy the live capacity while the one permitted guest room awaits auth.
+  const capacityFirst = await post('/rooms', {name: 'Capacity first', externalId: 'historical-capacity'});
   const capacitySecond = await post('/guest/rooms', {name: 'Capacity second'});
   assert.equal(capacityFirst.status, 201); assert.equal(capacitySecond.status, 201);
   const firstCapacityClient = await connect(capacityFirst.data.session);

@@ -23,7 +23,8 @@ const guestName=value=>{
  return {name,key:name.toLowerCase()};
 };
 const guestCode=()=>{const alphabet='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';return [...randomBytes(8)].map(n=>alphabet[n%alphabet.length]).join('');};
-export function createTableService({database,origin='https://obr.dnd.center',maxRooms=20,maxSockets=180,injectFailure,hostGraceMs=8000,guestClaimMs=30000}={}){
+export function createTableService({database,origin='https://obr.dnd.center',maxRooms=20,maxSockets=180,injectFailure,hostGraceMs=8000,guestClaimMs=30000,emptyRoomGraceMs=60000,emptyRoomSweepMs=5000}={}){
+ if(!Number.isFinite(emptyRoomGraceMs)||emptyRoomGraceMs<=0||!Number.isFinite(emptyRoomSweepMs)||emptyRoomSweepMs<=0)throw Error('invalidEmptyRoomPolicy');
  if(database!==':memory:')mkdirSync(dirname(database),{recursive:true,mode:0o700});
  const db=new DatabaseSync(database);db.exec(`PRAGMA journal_mode=WAL;PRAGMA synchronous=FULL;PRAGMA foreign_keys=ON;
  CREATE TABLE IF NOT EXISTS rooms(id TEXT PRIMARY KEY,join_hash TEXT NOT NULL,state TEXT NOT NULL,updated INTEGER NOT NULL);
@@ -32,17 +33,38 @@ export function createTableService({database,origin='https://obr.dnd.center',max
  CREATE TABLE IF NOT EXISTS receipts(room TEXT NOT NULL,member TEXT NOT NULL,id TEXT NOT NULL,fingerprint TEXT NOT NULL,response TEXT NOT NULL,PRIMARY KEY(room,member,id));
  CREATE TABLE IF NOT EXISTS history(room TEXT NOT NULL,game TEXT NOT NULL,sequence INTEGER NOT NULL,entry TEXT NOT NULL,PRIMARY KEY(room,game,sequence));
  CREATE TABLE IF NOT EXISTS guest_rooms(room TEXT PRIMARY KEY REFERENCES rooms(id) ON DELETE CASCADE,code TEXT UNIQUE NOT NULL);
- CREATE TABLE IF NOT EXISTS guest_members(member TEXT PRIMARY KEY REFERENCES members(id) ON DELETE CASCADE,room TEXT NOT NULL REFERENCES guest_rooms(room) ON DELETE CASCADE,name_key TEXT NOT NULL,claimed_until INTEGER NOT NULL DEFAULT 0,UNIQUE(room,name_key));`);
+ CREATE TABLE IF NOT EXISTS guest_members(member TEXT PRIMARY KEY REFERENCES members(id) ON DELETE CASCADE,room TEXT NOT NULL REFERENCES guest_rooms(room) ON DELETE CASCADE,name_key TEXT NOT NULL,claimed_until INTEGER NOT NULL DEFAULT 0,UNIQUE(room,name_key));
+ CREATE TABLE IF NOT EXISTS guest_room_lifecycle(room TEXT PRIMARY KEY REFERENCES guest_rooms(room) ON DELETE CASCADE,empty_since INTEGER NOT NULL);`);
  if(!db.prepare('PRAGMA table_info(members)').all().some(c=>c.name==='gm_until'))db.exec('ALTER TABLE members ADD COLUMN gm_until INTEGER NOT NULL DEFAULT 0');
+ // Every browser gets a fresh reconnect grace after a service restart.
+ // Legacy Owlbear rooms are deliberately outside this website-only policy.
+ // Keep guest_rooms' original two-column schema so code rollback stays usable.
+ db.prepare('INSERT OR REPLACE INTO guest_room_lifecycle SELECT room,? FROM guest_rooms').run(Date.now());
  const sockets=new Map(),rooms=new Map(),rates=new Map(),hostTimers=new Map();let closing=false;
  const stmt={room:db.prepare('SELECT * FROM rooms WHERE id=?'),member:db.prepare('SELECT m.* FROM members m JOIN credentials c ON c.member=m.id WHERE c.room=? AND c.token_hash=?'),members:db.prepare('SELECT * FROM members WHERE room=?'),save:db.prepare('UPDATE rooms SET state=?,updated=? WHERE id=?'),receipt:db.prepare('SELECT * FROM receipts WHERE room=? AND member=? AND id=?'),saveReceipt:db.prepare('INSERT INTO receipts VALUES(?,?,?,?,?)'),history:db.prepare('INSERT OR REPLACE INTO history VALUES(?,?,?,?)')};
- const guest={room:db.prepare('SELECT * FROM guest_rooms WHERE room=?'),code:db.prepare('SELECT * FROM guest_rooms WHERE code=?'),name:db.prepare('SELECT m.*,g.claimed_until FROM guest_members g JOIN members m ON m.id=g.member WHERE g.room=? AND g.name_key=?'),claimed:db.prepare('UPDATE guest_members SET claimed_until=? WHERE member=?')};
+ const guest={room:db.prepare('SELECT g.*,l.empty_since FROM guest_rooms g LEFT JOIN guest_room_lifecycle l ON l.room=g.room WHERE g.room=?'),code:db.prepare('SELECT * FROM guest_rooms WHERE code=?'),name:db.prepare('SELECT m.*,g.claimed_until FROM guest_members g JOIN members m ON m.id=g.member WHERE g.room=? AND g.name_key=?'),claimed:db.prepare('UPDATE guest_members SET claimed_until=? WHERE member=?'),empty:db.prepare('UPDATE guest_room_lifecycle SET empty_since=? WHERE room=?'),count:db.prepare('SELECT count(*) n FROM guest_rooms')};
  function rate(key,max,interval=60000){const now=Date.now();let r=rates.get(key);if(!r||now-r.at>interval){r={at:now,n:0};rates.set(key,r);}if(++r.n>max)fail('rateLimited');}
  function load(id){const row=stmt.room.get(id);if(!row)fail('roomMissing');return rooms.get(id)||JSON.parse(row.state);}
  function member(room,token){if(!text(token,64)||!/^[a-f0-9]{64}$/.test(token))fail('notAllowed');const m=stmt.member.get(room,hash(token));if(!m)fail('notAllowed');return m;}
  function transaction(run){db.exec('BEGIN IMMEDIATE');try{const result=run();injectFailure?.();db.exec('COMMIT');return result;}catch(e){db.exec('ROLLBACK');throw e;}}
  const roleOf=m=>m.role==='GM'&&m.gm_until>Date.now()?'GM':'PLAYER';
  const isGuest=room=>!!guest.room.get(room);
+ const hasOnline=room=>[...sockets.values()].some(c=>c.room===room&&c.ws.readyState===WebSocket.OPEN);
+ function noteEmpty(room){if(isGuest(room)&&!hasOnline(room)&&!guest.room.get(room).empty_since)guest.empty.run(Date.now(),room);}
+ function collectEmptyRooms(){
+  if(closing)return;
+  for(const {room} of db.prepare('SELECT room FROM guest_room_lifecycle WHERE empty_since>0 AND empty_since<=?').all(Date.now()-emptyRoomGraceMs)){
+   if(hasOnline(room)){guest.empty.run(0,room);continue;}
+   try{
+    const members=stmt.members.all(room);
+    // History and receipts predate foreign-key cascades; delete all room state
+    // in one commit before releasing cached state or its host timer.
+    transaction(()=>{db.prepare('DELETE FROM receipts WHERE room=?').run(room);db.prepare('DELETE FROM history WHERE room=?').run(room);db.prepare('DELETE FROM rooms WHERE id=?').run(room);});
+    rooms.delete(room);clearTimeout(hostTimers.get(room));hostTimers.delete(room);
+    for(const m of members)rates.delete('ws:'+m.id);
+   }catch{console.warn('[three-dragon] empty room cleanup will retry');}
+  }
+ }
  const admin=(state,m)=>!isGuest(m.room)&&(state.table.hostPlayerId===m.id||roleOf(m)==='GM');
  function send(ws,value,compress=true){if(ws.readyState!==WebSocket.OPEN)return;if(ws.bufferedAmount>512000){ws.close(1013,'slowConsumer');return;}ws.send(JSON.stringify(value),{compress});}
  function view(ctx){
@@ -70,7 +92,7 @@ export function createTableService({database,origin='https://obr.dnd.center',max
   return members.find(m=>roleOf(m)==='GM')||state.table.seats.map(s=>members.find(m=>m.id===s.playerId)).find(Boolean);
  }
  function checkHost(id){
-  if(closing)return;
+  if(closing||!stmt.room.get(id))return;
   const state=load(id),online=[...sockets.values()].some(c=>c.room===id&&c.member===state.table.hostPlayerId&&c.ws.readyState===WebSocket.OPEN);
   if(online){clearTimeout(hostTimers.get(id));hostTimers.delete(id);return;}
   if(hostTimers.has(id)||!successor(id,state,state.table.hostPlayerId))return;
@@ -153,8 +175,10 @@ export function createTableService({database,origin='https://obr.dnd.center',max
   let code;do{code=guestCode();}while(guest.code.get(code));
   const state={table:{version:1,id,hostPlayerId:memberId,hostConnectionId:'server',hostName:name,stage:'lobby',seats:[{playerId:memberId,seatId:memberId,name}],revision:1},game:null};
   transaction(()=>{
+   if(guest.count.get().n>=maxRooms)fail('roomFull');
    db.prepare('INSERT INTO rooms VALUES(?,?,?,?)').run(id,hash(joinKey),JSON.stringify(state),Date.now());
    db.prepare('INSERT INTO guest_rooms VALUES(?,?)').run(id,code);
+   db.prepare('INSERT INTO guest_room_lifecycle VALUES(?,?)').run(id,Date.now());
    db.prepare('INSERT INTO members(id,room,token_hash,name,external_id,role,challenge) VALUES(?,?,?,?,?,?,?)').run(memberId,id,hash(token),name,'','PLAYER',challenge);
    db.prepare('INSERT INTO credentials VALUES(?,?,?)').run(id,hash(token),memberId);
    db.prepare('INSERT INTO guest_members VALUES(?,?,?,?)').run(memberId,id,key,Date.now()+guestClaimMs);
@@ -189,6 +213,7 @@ export function createTableService({database,origin='https://obr.dnd.center',max
     db.prepare('INSERT INTO guest_members VALUES(?,?,?,?)').run(memberId,room.room,key,Date.now()+guestClaimMs);
    }
    db.prepare('INSERT INTO credentials VALUES(?,?,?)').run(room.room,hash(token),memberId);
+   if(!hasOnline(room.room))guest.empty.run(Date.now(),room.room);
    if(!seated)stmt.save.run(JSON.stringify(next),Date.now(),room.room);
   });
   if(rooms.has(room.room))rooms.set(room.room,next);
@@ -232,7 +257,7 @@ export function createTableService({database,origin='https://obr.dnd.center',max
     if(existing){db.prepare('UPDATE credentials SET member=? WHERE member=?').run(existing.id,target.id);db.prepare('DELETE FROM members WHERE id=?').run(target.id);}
     db.prepare('UPDATE members SET role=?,gm_until=? WHERE id=?').run(b.role,b.role==='GM'?Date.now()+60000:0,(existing||target).id);
    });for(const ctx of sockets.values())if(ctx.room===id)try{publish(ctx,true);}catch{ctx.ws.close(1011,'publicationFailed');}json(res,200,{ok:true});
-  }catch(error){const code=['notAllowed','roomMissing','invalidCommand','invalidName','nameTaken','memberMissing','gameStarted','payloadTooLarge','rateLimited','tableFull'].includes(error.message)?error.message:'requestFailed';const guestRequest=/^\/(?:three-dragon-api\/v1\/)?guest\//.test(req.url);const status=['notAllowed','roomMissing'].includes(code)?403:guestRequest&&['nameTaken','gameStarted','tableFull'].includes(code)?409:guestRequest&&code==='memberMissing'?404:400;json(res,status,{error:code});}
+  }catch(error){const code=['notAllowed','roomMissing','invalidCommand','invalidName','nameTaken','memberMissing','gameStarted','payloadTooLarge','rateLimited','tableFull','roomFull'].includes(error.message)?error.message:'requestFailed';const guestRequest=/^\/(?:three-dragon-api\/v1\/)?guest\//.test(req.url);const status=code==='roomFull'?503:['notAllowed','roomMissing'].includes(code)?403:guestRequest&&['nameTaken','gameStarted','tableFull'].includes(code)?409:guestRequest&&code==='memberMissing'?404:400;json(res,status,{error:code});}
  });
  const wss=new WebSocketServer({noServer:true,maxPayload:16000,perMessageDeflate:{threshold:1024,serverNoContextTakeover:true,clientNoContextTakeover:true,concurrencyLimit:2,zlibDeflateOptions:{level:3,memLevel:4}}});
  server.on('upgrade',(req,socket,head)=>{
@@ -248,7 +273,7 @@ export function createTableService({database,origin='https://obr.dnd.center',max
      if(message.type!=='auth'||!text(message.room,32))fail('notAllowed');const m=member(message.room,message.token);
      if(!rooms.has(m.room)&&rooms.size>=maxRooms)fail('roomFull');
      if(isGuest(m.room)){
-      transaction(()=>guest.claimed.run(0,m.id));
+      transaction(()=>{guest.claimed.run(0,m.id);guest.empty.run(0,m.room);});
       for(const other of [...sockets.values()])if(other.room===m.room&&other.member===m.id){sockets.delete(other.ws);other.ws.close(4001,'sessionReplaced');}
      }
      if([...sockets.values()].filter(c=>c.member===m.id).length>=3)fail('tooManyWindows');
@@ -270,12 +295,13 @@ export function createTableService({database,origin='https://obr.dnd.center',max
     send(ws,{type:'ack',id,ok:false,code:error.message,...(actionReceipt?{actionReceipt}:{})});
    }
   });
-  ws.on('close',()=>{clearTimeout(authTimer);sockets.delete(ws);if(ctx){const peers=[...sockets.values()].filter(c=>c.room===ctx.room);if(!peers.length)rooms.delete(ctx.room);else if(ctx.gesture)for(const c of peers)send(c.ws,{type:'gestures',values:[{...ctx.gesture,gesture:{...ctx.gesture.gesture,hover:null,selected:[],slap:false}}]},false);checkHost(ctx.room);}});
+  ws.on('close',()=>{clearTimeout(authTimer);sockets.delete(ws);if(ctx&&!closing){const peers=[...sockets.values()].filter(c=>c.room===ctx.room);if(!peers.length)rooms.delete(ctx.room);else if(ctx.gesture)for(const c of peers)send(c.ws,{type:'gestures',values:[{...ctx.gesture,gesture:{...ctx.gesture.gesture,hover:null,selected:[],slap:false}}]},false);noteEmpty(ctx.room);checkHost(ctx.room);}});
  });
  const gestures=setInterval(()=>{
   const groups=new Map();for(const ctx of sockets.values())if(ctx.gesture){const values=groups.get(ctx.room)||[];values.push(ctx.gesture);groups.set(ctx.room,values);ctx.gesture=null;}
   for(const [id,values] of groups)for(const ctx of sockets.values())if(ctx.room===id&&ctx.ws.bufferedAmount<32000)send(ctx.ws,{type:'gestures',values},false);
  },250);
  const pulse=setInterval(()=>{for(const ws of wss.clients){if(!ws.isAlive){ws.terminate();continue;}ws.isAlive=false;ws.ping();const ctx=sockets.get(ws);if(ctx&&ctx.last?.role==='GM'&&roleOf(member(ctx.room,ctx.token))!=='GM')publish(ctx,true);}for(const [key,r] of rates)if(Date.now()-r.at>3600000)rates.delete(key);},15000);
- return {server,db,stats:()=>({rooms:rooms.size,sockets:sockets.size}),async close(){closing=true;clearInterval(gestures);clearInterval(pulse);for(const timer of hostTimers.values())clearTimeout(timer);hostTimers.clear();for(const ws of wss.clients)ws.terminate();await new Promise(done=>server.close(done));wss.close();db.close();}};
+ const emptySweep=setInterval(collectEmptyRooms,emptyRoomSweepMs);
+ return {server,db,stats:()=>({rooms:rooms.size,sockets:sockets.size}),async close(){closing=true;clearInterval(emptySweep);clearInterval(gestures);clearInterval(pulse);for(const timer of hostTimers.values())clearTimeout(timer);hostTimers.clear();for(const ws of wss.clients)ws.terminate();await new Promise(done=>server.close(done));wss.close();db.close();}};
 }

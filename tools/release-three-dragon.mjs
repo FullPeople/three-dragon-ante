@@ -28,6 +28,8 @@ const api = '/three-dragon-api/v1';
 const overlays = JSON.parse(readFileSync(join(overlay, 'overlay-manifest.json'), 'utf8'));
 if (overlays.tdaSource !== head || overlays.api !== api) throw Error('Suite overlay must match the exact frozen source and same-origin API.');
 if (JSON.stringify([...overlays.targets].sort()) !== JSON.stringify(['suite', 'suite-dev'])) throw Error('Both Suite overlays are required.');
+const hostOutputs = new Map((overlays.hostOverlay?.outputs || []).map(item => [item.path, item]));
+if (overlays.hostOverlay && (overlays.hostOverlay.mode !== 'website-link-only' || overlays.hostOverlay.website !== 'https://obr.dnd.center/three-dragon-ante/')) throw Error('Only the reviewed website-link host overlay is allowed.');
 const slash = value => value.replaceAll('\\', '/');
 const safeRelative = value => {
   if (!value || isAbsolute(value) || value.includes('\\') || value.split('/').some(part => !part || part === '.' || part === '..')) throw Error('Unsafe package path: ' + value);
@@ -76,7 +78,9 @@ for (const name of ['suite-dev', 'suite']) {
   const files = entries.map(entry => {
     const path = safeRelative(entry.path.slice(name.length + 1));
     const allowed = name === 'suite-dev' ? /^(?:workbench-panels\/table\.html|workbench-panels\/assets\/[A-Za-z0-9_.-]+)$/ : /^(?:three-dragon-ante\.html|three-dragon-assets\/[A-Za-z0-9_.-]+)$/;
-    if (!allowed.test(path) || seen.has(path)) throw Error('Unexpected or duplicated Suite overlay output: ' + path);
+    const host = hostOutputs.get(entry.path);
+    const hostAllowed = /^(?:settings\.html|assets\/[A-Za-z0-9_.-]+\.(?:js|css)|three-dragon-link-source-[a-f0-9]{12}\.zip|workbench\/(?:index\.html|sw\.js|assets\/[A-Za-z0-9_.-]+\.(?:js|css)|three-dragon-link-source-[a-f0-9]{12}\.zip)|workbench-panels\/(?:settings\.html|settings-[A-Za-z0-9_.-]+\.js))$/;
+    if ((!allowed.test(path) && !(host && host.sha256 === entry.sha256 && hostAllowed.test(path))) || seen.has(path)) throw Error('Unexpected or duplicated Suite overlay output: ' + path);
     seen.add(path);
     const source = join(overlay, name, path), destination = join(payload, name, path);
     if (sha(source) !== entry.sha256) throw Error('Overlay SHA mismatch: ' + entry.path);
@@ -88,7 +92,7 @@ for (const name of ['suite-dev', 'suite']) {
 }
 run('tools/build-three-dragon-server.mjs', { TDA_SERVER_OUT: join(payload, 'server') });
 const server = { path: 'server/server.mjs', sha256: sha(join(payload, 'server/server.mjs')), size: statSync(join(payload, 'server/server.mjs')).size };
-const manifest = { format: 1, repository: 'FullPeople/three-dragon-ante', source: head, version, api, sourceArchive: sourceInfo, server, targets,
+const manifest = { format: 1, repository: 'FullPeople/three-dragon-ante', source: head, version, api, sourceArchive: sourceInfo, server, targets, hostOverlay: overlays.hostOverlay || null,
   preservation: 'Merge compiled files only; preserve existing cached assets, Suite manifests/runtime/legacy modules, nginx, unit, relay, card and live SQLite.' };
 writeFileSync(join(payload, 'release-manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
 const deployScript = join(root, 'tools/deploy-three-dragon-release.py');

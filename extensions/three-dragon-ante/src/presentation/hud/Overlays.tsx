@@ -100,7 +100,7 @@ export function EndPanel({ state, controller }: { state: UIState; controller: Co
     <p className="tda-end-winners">{t("winners", lang)}: {joinNames(game.winners.map(name), lang)}</p>
     <ul className="tda-end-table">{[...game.seats].sort((a, b) => b.gold - a.gold).map(seat => <li key={seat.id}><span>{name(seat.id)}</span><b className="tda-num">{seat.gold}</b></li>)}</ul>
     <div className="tda-end-actions">
-      {state.hostKind === "local" || state.view?.isHost ? <button type="button" className="tda-btn tda-btn--primary" onClick={() => controller.send({ type: "newGame" })}>{t("newGame", lang)}</button> : null}
+      {state.view?.isHost ? <button type="button" className="tda-btn tda-btn--primary" onClick={() => controller.send({ type: "newGame" })}>{t("newGame", lang)}</button> : null}
       <button type="button" className="tda-btn" onClick={() => controller.send({ type: "close" })}>{t("leaveGame", lang)}</button>
     </div>
   </div></div>;

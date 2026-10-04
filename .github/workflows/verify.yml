@@ -20,9 +20,11 @@ jobs:
       - run: npm test
       - run: npm run test:server
       - run: npm run test:guest-server
+      - run: npm run test:empty-room
       - run: npm run test:page-route
       - run: npx playwright install --with-deps chromium
       - run: npm run test:browser
+      - run: node tools/site-entry-browser.mjs
       - run: npm run test:server-browser
       - run: npm run test:site-multiplayer
       - run: npm run test:fx3d

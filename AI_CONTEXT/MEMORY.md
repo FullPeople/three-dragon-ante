@@ -59,3 +59,10 @@
 - 枭熊 manifest 已 HTTPS 发布，但安装与 GM/玩家真实房间验收仍待可操作的浏览器与两个账号，未把网站/夹具算为通过。发布与回退详见 `RUNBOOKS/2026-10-04_owlbear-deploy.md`；新发布元数据读取 `three-dragon-release.json` 和 manifest，独立 dev 历史 Suite 的 `release.json` 保留旧值，不作为本轮版本依据。
 - 本机预览 `http://127.0.0.1:4173/three-dragon-ante-dev/` 已接本地 5013 服务，独立预览数据库 `.local-data/preview-20261004.sqlite`；不连接生产玩家房间。
 - 浏览器连接组件目前缺少所需版本的 browser-service 文件，尚不能提供真实 GM/玩家双账号验收证据；本地 fixture 与线上网站测试不得替代它。
+
+## D. 2026-10-04 用户调整为仅在线网站（当前）
+
+- 正本 GOAL §10；用户撤销枭熊内游戏方向，网站只在线多人，插件/Suite 只提供网站新窗口链接并保留父顶栏。原真实枭熊游戏验收不是新版完成条件，历史未验证状态不包装为通过。
+- 删除 LocalMatch、本地首页和 local hostKind；修复大厅透明层/演出遮罩对顶栏与帮助的截获，随机昵称+随机按钮、未聚焦只读和自动填充关闭，进行中退出/新局确认及 beforeunload。
+- 网站 guest 房间空缓存立即释放、60 秒宽限、5 秒扫描删除全关联记录；创建数量受 maxRooms 限制，在线 peer 保留，启动重给宽限；用独立 lifecycle 表保持原 guest_rooms 两列，便于代码回退。旧 Owlbear 存档不清除。
+- 源码 0.9.0(-dev)，构建/环境和上线事实以 `RUNBOOKS/2026-10-04_online-only.md` 新版收口为准；当前尚在浏览器回归、宿主定向包冻结/审计阶段，旧 C 段 0.8.0 发布是历史回执。

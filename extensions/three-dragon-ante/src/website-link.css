@@ -1,0 +1,5 @@
+.tda-website-link { box-sizing: border-box; min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 24px; background: #1a110a; color: #efe3c8; font: 14px/1.5 "Microsoft YaHei", system-ui, sans-serif; text-align: center; }
+.tda-website-link h1 { margin: 0; font-size: 20px; }
+.tda-website-link a { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 8px 20px; border: 1px solid #0d0705; border-radius: 3px; background: #c9a24d; color: #15100b; font-weight: 700; text-decoration: none; }
+.tda-website-link a:focus-visible { outline: 2px solid #efe3c8; outline-offset: 4px; }
+.tda-website-link p { margin: 0; overflow-wrap: anywhere; color: #c7b58f; }

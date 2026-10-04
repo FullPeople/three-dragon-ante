@@ -27,8 +27,8 @@ export interface TableUIDeps {
   gesture?(value: HandGesture): void;
   id?(): string;
   onPresentationChange?(busy: boolean): void;
-  /** 本地对战宿主传 "local"；枭熊页默认 "obr"。 */
-  hostKind?: "local" | "obr";
+  /** 独立在线网站传 "website"；保留的旧宿主页默认 "obr"。 */
+  hostKind?: "website" | "obr";
   /** 宿主自己画顶栏时关掉 */
   topBar?: boolean;
   /** 用户在 UI 里切换语言时通知宿主（枭熊页用它写入本地语言偏好） */

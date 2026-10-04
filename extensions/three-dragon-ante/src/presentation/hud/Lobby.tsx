@@ -1,4 +1,4 @@
-/** 枭熊大厅：座位、主持的开局设置、加入 / 离座 / 移交 / 开始 / 重试。本地对战不会进入这里。 */
+/** 联机大厅：座位、主持的开局设置、加入 / 离座 / 移交 / 开始 / 重试。 */
 import { useState } from "react";
 import type { UIState } from "../app/store";
 import type { Controller } from "../app/controller";

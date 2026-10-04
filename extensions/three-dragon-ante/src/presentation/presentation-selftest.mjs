@@ -92,7 +92,7 @@ assert.ok(events.some(e => e.code === 'CARD_PLAYED' && e.cardIds?.[0] === ready)
 {
   const triggered = events.some(e => e.code === 'POWER_TRIGGERED');
   assert.ok(triggered, 'fixture play triggers a power');
-  const initial = { lang: 'zh', hostKind: 'local', mode: 'full', view: null, display: null, flow: null, selected: [], hovered: null, keyboardCard: null, keyboardHeld: false, drag: null, pending: null, sending: false, localMessage: '', inspect: null, show: m.emptyShow(), busy: false, soundOn: false, gestures: {}, slowSeatIds: [], suspended: false, helpOpen: false, goldHold: null, knockAt: 0, orientation: 'landscape' };
+  const initial = { lang: 'zh', hostKind: 'website', mode: 'full', view: null, display: null, flow: null, selected: [], hovered: null, keyboardCard: null, keyboardHeld: false, drag: null, pending: null, sending: false, localMessage: '', inspect: null, show: m.emptyShow(), busy: false, soundOn: false, gestures: {}, slowSeatIds: [], suspended: false, helpOpen: false, goldHold: null, knockAt: 0, orientation: 'landscape' };
   const store = m.createStore(initial);
   const controller = m.createController(store, { send() {} });
   const t0 = performance.now(), log = [];
@@ -125,7 +125,7 @@ assert.ok(events.some(e => e.code === 'CARD_PLAYED' && e.cardIds?.[0] === ready)
 
 // --- 4b) 代际：说明层打开时清场，旧调度不得再写回旧帧 ---
 {
-  const initial = { lang: 'zh', hostKind: 'local', mode: 'full', view: null, display: null, flow: null, selected: [], hovered: null, keyboardCard: null, keyboardHeld: false, drag: null, pending: null, sending: false, localMessage: '', inspect: null, show: m.emptyShow(), busy: false, soundOn: false, gestures: {}, slowSeatIds: [], suspended: false, helpOpen: false, goldHold: null, knockAt: 0, orientation: 'landscape' };
+  const initial = { lang: 'zh', hostKind: 'website', mode: 'full', view: null, display: null, flow: null, selected: [], hovered: null, keyboardCard: null, keyboardHeld: false, drag: null, pending: null, sending: false, localMessage: '', inspect: null, show: m.emptyShow(), busy: false, soundOn: false, gestures: {}, slowSeatIds: [], suspended: false, helpOpen: false, goldHold: null, knockAt: 0, orientation: 'landscape' };
   const store = m.createStore(initial);
   const controller = m.createController(store, { send() {} });
   const presenter = m.createPresenter(store, controller, { fx: () => null, root: () => ({ querySelector: () => null }), onBusy() {}, sound() {} });
@@ -145,7 +145,7 @@ assert.ok(events.some(e => e.code === 'CARD_PLAYED' && e.cardIds?.[0] === ready)
 // --- 5) 选择切换：单选时点另一项直接切换，多选时选满后其余不再加入 ---
 {
   const choose = (max, min = 1) => ({ kind: 'choose', choice: { id: 'c', seatId: leader, code: 'LOWEST_ANTE_CARD', min, max, options: [{ id: 'a', cardId: 'red-1' }, { id: 'b', cardId: 'black-1' }, { id: 'c2', cardId: 'blue-1' }] } });
-  const mk = max => { const g = { ...m.projectSeat(state, leader), actions: [choose(max)] }; const store = m.createStore({ lang: 'zh', hostKind: 'local', mode: 'full', view: view(state, { game: g }), display: null, flow: null, selected: [], hovered: null, keyboardCard: null, keyboardHeld: false, drag: null, pending: null, sending: false, localMessage: '', inspect: null, show: m.emptyShow(), busy: false, soundOn: false, gestures: {}, slowSeatIds: [], suspended: false, helpOpen: false, goldHold: null, knockAt: 0, orientation: 'landscape' }); return { store, c: m.createController(store, { send() {} }) }; };
+  const mk = max => { const g = { ...m.projectSeat(state, leader), actions: [choose(max)] }; const store = m.createStore({ lang: 'zh', hostKind: 'website', mode: 'full', view: view(state, { game: g }), display: null, flow: null, selected: [], hovered: null, keyboardCard: null, keyboardHeld: false, drag: null, pending: null, sending: false, localMessage: '', inspect: null, show: m.emptyShow(), busy: false, soundOn: false, gestures: {}, slowSeatIds: [], suspended: false, helpOpen: false, goldHold: null, knockAt: 0, orientation: 'landscape' }); return { store, c: m.createController(store, { send() {} }) }; };
   const single = mk(1); single.c.toggleOption('a'); single.c.toggleOption('b');
   assert.deepEqual(single.store.get().selected, ['b'], 'single choice switches on the second click');
   single.c.toggleOption('b'); assert.deepEqual(single.store.get().selected, [], 'clicking the selected option clears it');
@@ -226,7 +226,7 @@ assert.ok(events.some(e => e.code === 'CARD_PLAYED' && e.cardIds?.[0] === ready)
   const pres = m.derivePresentation(pv.game, nv.game);
   assert.ok(pres.gold.every(f => f.code !== 'PAID_HOLE' && f.code !== 'TOOK_HOLE'), 'debt flows never precede the scoreboard');
   // 演出：桌面拼点时场景帧还是结算帧（有牌、有点数），演完才切到结算后的投影
-  const initial = { lang: 'zh', hostKind: 'local', mode: 'full', view: null, display: null, flow: null, selected: [], hovered: null, keyboardCard: null, keyboardHeld: false, drag: null, pending: null, sending: false, localMessage: '', inspect: null, show: m.emptyShow(), busy: false, soundOn: false, gestures: {}, slowSeatIds: [], suspended: false, helpOpen: false, goldHold: null, knockAt: 0, orientation: 'landscape' };
+  const initial = { lang: 'zh', hostKind: 'website', mode: 'full', view: null, display: null, flow: null, selected: [], hovered: null, keyboardCard: null, keyboardHeld: false, drag: null, pending: null, sending: false, localMessage: '', inspect: null, show: m.emptyShow(), busy: false, soundOn: false, gestures: {}, slowSeatIds: [], suspended: false, helpOpen: false, goldHold: null, knockAt: 0, orientation: 'landscape' };
   const store = m.createStore(initial), controller = m.createController(store, { send() {} });
   const presenter = m.createPresenter(store, controller, { fx: () => null, root: () => ({ querySelector: () => null }), onBusy() {}, sound() {} });
   store.set({ view: pv }); presenter.update(pv, null, false); store.set({ view: nv }); presenter.update(nv, pv, true);
@@ -257,7 +257,7 @@ assert.ok(events.some(e => e.code === 'CARD_PLAYED' && e.cardIds?.[0] === ready)
 
 // --- 12) 拍桌节流；能力事件段切分 ---
 {
-  const initial = { lang: 'zh', hostKind: 'local', mode: 'full', view: view(state), display: null, flow: null, selected: [], hovered: null, keyboardCard: null, keyboardHeld: false, drag: null, pending: null, sending: false, localMessage: '', inspect: null, show: m.emptyShow(), busy: false, soundOn: false, gestures: {}, slowSeatIds: [], suspended: false, helpOpen: false, goldHold: null, knockAt: 0, orientation: 'landscape' };
+  const initial = { lang: 'zh', hostKind: 'website', mode: 'full', view: view(state), display: null, flow: null, selected: [], hovered: null, keyboardCard: null, keyboardHeld: false, drag: null, pending: null, sending: false, localMessage: '', inspect: null, show: m.emptyShow(), busy: false, soundOn: false, gestures: {}, slowSeatIds: [], suspended: false, helpOpen: false, goldHold: null, knockAt: 0, orientation: 'landscape' };
   const store = m.createStore(initial); let sent = 0; const c = m.createController(store, { send() {}, gesture() { sent++; } });
   c.knock(); const first = store.get().knockAt; c.knock();
   assert.ok(first > 0 && store.get().knockAt === first && sent === 1, 'second knock within 350 ms is ignored');

@@ -1,4 +1,4 @@
-// Production entry compatibility only; table.html is intercepted, with no Owlbear identity fixture.
+// Public Owlbear entry pages and cached embedded website entries open the online website through native links.
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { existsSync, readFileSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
@@ -7,8 +7,11 @@ import { chromium, browserLaunchOptions } from './browser-runtime.mjs';
 
 const root = resolve(import.meta.dirname, '..');
 const dist = join(root, 'extensions/three-dragon-ante/dist');
-const base = '/three-dragon-ante-dev/';
+const base = '/three-dragon-ante-dev/', onlineURL = 'https://obr.dnd.center/three-dragon-ante/';
 assert.ok(existsSync(join(dist, 'index.html')), 'Run npm run build first.');
+const manifest = JSON.parse(readFileSync(join(dist, 'manifest.json'), 'utf8'));
+assert.equal(manifest.background_url, base + 'background.html', 'manifest keeps the published background entry');
+assert.equal(manifest.action.popover, base + 'launcher.html', 'manifest opens the link-only launcher');
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.woff2': 'font/woff2', '.woff': 'font/woff', '.png': 'image/png', '.webp': 'image/webp', '.svg': 'image/svg+xml' };
 const server = createServer((request, response) => {
   const url = new URL(request.url || '/', 'http://localhost');
@@ -29,35 +32,61 @@ const origin = 'http://127.0.0.1:' + server.address().port;
 const evidence = join(root, '.local-evidence/site-entry'); mkdirSync(evidence, { recursive: true });
 const run = mkdtempSync(join(evidence, 'run-'));
 const browser = await chromium.launch({ ...browserLaunchOptions(), headless: true });
-const checks = [], errors = [], external = [];
+const checks = [], errors = [], external = [], apiRequests = [], sockets = [];
 const pass = name => { checks.push(name); console.log('PASS', name); };
 try {
+  for (const [layout, viewport] of [['desktop', { width: 1280, height: 900 }], ['narrow', { width: 390, height: 600 }]]) {
+    const context = await browser.newContext({ viewport, locale: 'zh-CN' });
+    context.on('request', request => {
+      if (!request.url().startsWith(origin + '/') && request.url() !== onlineURL) external.push(request.url());
+      if (request.url().includes('/three-dragon-api/')) apiRequests.push(request.url());
+    });
+    // Only the explicit user-clicked destination is intercepted. No real Owlbear account or production request is used.
+    await context.route(onlineURL, route => route.fulfill({ contentType: 'text/html', body: '<p id="website-target">Online website</p>' }));
+    await context.route('**/*', route => route.request().url().startsWith(origin + '/') || route.request().url() === onlineURL ? route.fallback() : route.abort());
+    const page = await context.newPage();
+    page.on('pageerror', error => errors.push(String(error)));
+    page.on('websocket', socket => sockets.push(socket.url()));
+    const cases = [
+      ['cached full panel', 'index.html?instance=cached-panel-full&mode=full&extra=kept#resume', true],
+      ['cached compact panel', 'index.html?instance=cached-panel-compact&mode=compact', true],
+      ['ordinary embedded website', 'index.html?room=ABCDEFGH', true],
+      ['other embedded mode', 'index.html?instance=cached-panel&mode=other', true],
+      ['public table', 'table.html?instance=panel&mode=compact', false],
+      ['public launcher', 'launcher.html', false],
+    ];
+    for (const [index, [name, suffix, embedded]] of cases.entries()) {
+      const entryURL = origin + base + suffix;
+      await page.goto(embedded ? origin + '/embed?target=' + encodeURIComponent(base + suffix) : entryURL);
+      const host = embedded ? page.frame({ name: 'legacy-target' }) : page; assert.ok(host);
+      const link = host.locator(`a[href="${onlineURL}"][target="_blank"]`).first(); await link.waitFor();
+      const rel = (await link.getAttribute('rel') || '').split(/\s+/);
+      assert.ok(rel.includes('noopener')); assert.ok(rel.includes('noreferrer'));
+      assert.equal(host.url(), entryURL);
+      assert.equal(await host.locator('.tda-shell, .site-online-form').count(), 0);
+      const parentURL = page.url();
+      const opened = context.waitForEvent('page');
+      if (index % 2 === 0) await link.click();
+      else { await link.focus(); await page.keyboard.press('Enter'); }
+      const target = await opened; await target.locator('#website-target').waitFor();
+      assert.equal(target.url(), onlineURL); assert.equal(page.url(), parentURL); assert.equal(host.url(), entryURL);
+      await target.close();
+      pass(`${layout} ${name} opens the website by ${index % 2 === 0 ? 'pointer' : 'keyboard'} and preserves its parent`);
+    }
+    await context.close();
+  }
   const page = await browser.newPage();
   page.on('pageerror', error => errors.push(String(error)));
   page.on('request', request => { if (!request.url().startsWith(origin + '/')) external.push(request.url()); });
-  await page.route('**/table.html?**', route => route.fulfill({ contentType: 'text/html', body: '<p id="table-target">Table entry</p>' }));
-  for (const mode of ['full', 'compact']) {
-    const suffix = `?instance=cached-panel-${mode}&mode=${mode}&extra=kept#resume`;
-    await page.goto(origin + '/embed?target=' + encodeURIComponent(base + 'index.html' + suffix));
-    const frame = page.frame({ name: 'legacy-target' }); assert.ok(frame);
-    await frame.waitForURL(origin + base + 'table.html' + suffix);
-    await frame.locator('#table-target').waitFor();
-    pass(`cached ${mode} background reaches table.html with instance, query and hash intact`);
-  }
-  for (const suffix of ['?room=ABCDEFGH', '?instance=cached-panel&mode=other']) {
-    await page.goto(origin + '/embed?target=' + encodeURIComponent(base + 'index.html' + suffix));
-    const frame = page.frame({ name: 'legacy-target' }); assert.ok(frame);
-    await frame.getByRole('button', { name: '开始', exact: true }).waitFor();
-    assert.equal(frame.url(), origin + base + 'index.html' + suffix);
-    pass(`embedded website keeps its entry for ${suffix}`);
-  }
   await page.goto(origin + base + 'index.html?instance=direct-visit&mode=full');
-  await page.getByRole('button', { name: '开始', exact: true }).waitFor();
+  await page.getByRole('button', { name: '创建房间', exact: true }).waitFor();
   assert.ok(page.url().includes('index.html?instance=direct-visit'));
-  pass('direct website visits keep index.html');
+  pass('direct website visits retain the online admission form');
+  assert.deepEqual(apiRequests, []); assert.deepEqual(sockets, []);
+  pass('link-only embedded and extension entries start no room requests or WebSocket gameplay');
   assert.deepEqual(errors, []); assert.deepEqual(external, []);
-  pass('entry checks have no script errors or external requests');
-  writeFileSync(join(run, 'result.json'), JSON.stringify({ checks, errors, external, realOwlbearRoom: false, scope: 'Built website entry and cached background URL compatibility; intercepted table, no game or account data.' }, null, 2) + '\n');
+  pass('entry checks have no script errors or incidental external requests');
+  writeFileSync(join(run, 'result.json'), JSON.stringify({ checks, errors, external, apiRequests, sockets, realOwlbearRoom: false, scope: 'Published manifest entries, built public launcher/table and cached iframe links; native link navigation is intercepted at the website destination. No SDK identity fixture, real Owlbear account or production game data.' }, null, 2) + '\n');
   console.log(`${checks.length}/${checks.length} checks passed; ${run}`);
 } finally {
   await browser.close(); await new Promise(done => server.close(done));

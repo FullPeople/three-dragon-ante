@@ -41,7 +41,7 @@ export interface ShowState {
 export interface GhostCard { key: string; cardId?: string; from: Pose; to: Pose; delay: number; duration: number; faceDown: boolean; flip?: boolean }
 export interface UIState {
   lang: Lang;
-  hostKind: "local" | "obr";
+  hostKind: "website" | "obr";
   mode: "full" | "compact";
   view: TableView | null;
   /** 场景正在画的帧 */

@@ -7,14 +7,14 @@ const dev = process.env.THREE_DRAGON_CHANNEL !== "stable";
 const base = `/three-dragon-ante${dev ? "-dev" : ""}/`;
 // Injected so the running build identifies itself on screen: a stale cached
 // bundle is otherwise indistinguishable from a code defect.
-const version = "0.8.0" + (dev ? "-dev" : "");
+const version = "0.9.0" + (dev ? "-dev" : "");
 export default defineConfig({
   root, base,
   define: { __TDA_BUILD__: JSON.stringify(`v${version}`) },
   plugins: [{ name: "standalone-manifest", generateBundle() {
     this.emitFile({ type: "asset", fileName: "manifest.json", source: JSON.stringify({
       name: `Three-Dragon Ante${dev ? " (Dev)" : ""}`, version,
-      manifest_version: 1, author: "FullPeople", description: "三龙牌 · Legendary Edition 牌桌 / A shared tavern card table.",
+      manifest_version: 1, author: "FullPeople", description: "打开三龙牌线上网站 / Open the Three-Dragon Ante website.",
       icon: `${base}icon.svg`, background_url: `${base}background.html`,
       action: { title: "三龙牌 / Three-Dragon Ante", icon: `${base}icon.svg`, popover: `${base}launcher.html`, width: 300, height: 180 },
     }, null, 2) });

@@ -14,10 +14,7 @@
 .site-segment button + button { border-left: 1px solid #0d0705; }
 .site-segment button.is-on { background-color: #c9a24d; background-image: var(--tex-oak); background-size: 420px; background-blend-mode: overlay; color: #15100b; }
 .site-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 24px; }
-.site-start { min-height: 52px; padding: 10px 40px; font-size: 19px; letter-spacing: .12em; }
 .site-foot { display: flex; justify-content: space-between; gap: 12px; padding: 12px 20px; font-size: 12px; color: rgba(199, 181, 143, .55); border-top: 1px solid #0d0705; background: #15100b; }
-.site-match { position: fixed; inset: 0; }
-.site-match .tda-local-host { position: absolute; inset: 0; }
 .site-howto { max-width: 820px; margin: 0 auto; padding: 24px 20px 60px; }
 .site-howto-head { display: flex; align-items: center; gap: 16px; margin-bottom: 18px; }
 .site-howto-head h1 { margin: 0; font-family: var(--font-display); font-size: 26px; color: var(--parchment); }
@@ -30,8 +27,10 @@
 /* 在线宿主控件。沿用现有纸张/皮革材质，牌桌本身由 mountTableUI 渲染。 */
 .site-home { padding-top: 24px; }
 .site-online-form { margin-top: 20px; padding-bottom: 24px; border-bottom: 1px solid rgba(60, 40, 20, .35); }
-.site-online-form h2, .site-local-heading { margin: 0 0 12px; font-family: var(--font-display); font-size: 20px; }
-.site-local-heading { margin-top: 24px; }
+.site-online-form h2 { margin: 0 0 12px; font-family: var(--font-display); font-size: 20px; }
+.site-name-tools { display: flex; gap: 6px; }
+.site-name-tools input { flex: 1; width: 0; }
+.site-name-tools .tda-btn { min-height: 38px; padding: 4px 10px; white-space: nowrap; }
 .site-room-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .site-room-fields .site-field { justify-items: stretch; text-align: left; }
 .site-room-fields input, .site-room-tools input { min-width: 0; width: 100%; min-height: 38px; padding: 6px 10px; border: 1px solid #4a3522; border-radius: 2px; background: #eee3c8; color: var(--ink); font-family: var(--font-body); }
@@ -49,7 +48,11 @@
 .site-room-tools .tda-btn { min-height: 30px; white-space: nowrap; }
 .site-online-host { position: relative; min-height: 0; flex: 1 1 auto; }
 .site-online-table { position: absolute; inset: 0; }
-.site-online-table #close, .site-online-table #display-mode, .site-online-table #omniscient-toggle { display: none; }
+.site-online-table .tda-shell { min-height: 0; }
+.site-confirm-overlay { position: absolute; inset: 0; z-index: 150; display: grid; place-items: center; padding: 20px; background: rgba(8, 5, 3, .78); }
+.site-confirm { width: min(440px, 100%); padding: 22px 24px; text-align: center; }
+.site-confirm h2 { margin: 0 0 12px; font-family: var(--font-display); font-size: 24px; }
+.site-confirm p { margin: 0; line-height: 1.6; }
 @media (max-width: 640px) {
   .site-room-fields { gap: 10px; }
   .site-room-bar { padding: 6px 10px; }

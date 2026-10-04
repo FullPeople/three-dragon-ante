@@ -41,6 +41,8 @@ def make_archive(module, destination, defect=None):
         path = 'workbench-panels/table.html' if name == 'suite-dev' else 'three-dragon-ante.html' if name == 'suite' else 'index.html'
         if defect == 'suite-outside' and name == 'suite':
             path = 'manifest.json'
+        if defect in ('declared-host', 'host-undeclared', 'host-path', 'host-sha', 'host-missing') and name == 'suite':
+            path = 'background.html' if defect == 'host-path' else 'settings.html'
         data = ('new ' + name).encode()
         contents[name + '/' + path] = data
         targets.append({'name': name, 'kind': 'suite-overlay' if name.startswith('suite') else 'independent',
@@ -55,6 +57,15 @@ def make_archive(module, destination, defect=None):
                 'sourceArchive': {'path': 'three-dragon-source-' + 'a' * 12 + '.zip', 'sha256': hashlib.sha256(source).hexdigest()}}
     if defect == 'sha':
         manifest['server']['sha256'] = 'b' * 64
+    if defect in ('declared-host', 'host-path', 'host-sha', 'host-missing'):
+        path = 'suite/background.html' if defect == 'host-path' else 'suite/settings.html'
+        record = {'path': path, 'sha256': hashlib.sha256(contents[path]).hexdigest(), 'beforeSha256': None}
+        if defect == 'host-sha':
+            record['sha256'] = 'b' * 64
+        outputs = [record]
+        if defect == 'host-missing':
+            outputs.append({'path': 'suite/assets/missing-a.js', 'sha256': 'b' * 64, 'beforeSha256': None})
+        manifest['hostOverlay'] = {'mode': 'website-link-only', 'website': 'https://obr.dnd.center/three-dragon-ante/', 'outputs': outputs}
     contents['release-manifest.json'] = json.dumps(manifest).encode()
     if defect == 'extra':
         contents['unlisted.txt'] = b'not allowed'
@@ -77,7 +88,7 @@ def make_archive(module, destination, defect=None):
             archive.addfile(info, io.BytesIO(data))
 
 
-def fixture(directory):
+def fixture(directory, defect=None):
     module = load()
     module.BASE = directory / 'sites'
     module.SERVER = directory / 'server' / 'server.mjs'
@@ -118,7 +129,7 @@ def fixture(directory):
     baseline_file = module.UPLOAD / 'baseline.json'
     baseline_file.write_text(json.dumps(baseline))
     archive = module.UPLOAD / 'release.tar.gz'
-    make_archive(module, archive)
+    make_archive(module, archive, defect)
     args = types.SimpleNamespace(command='apply', archive=str(archive), baseline=str(baseline_file), sha256=module.digest(archive), release_id='synthetic-test')
     return module, baseline, args
 
@@ -136,8 +147,8 @@ def record(name, callback):
     RESULT.append({'name': name, 'ok': True})
 
 
-def transaction(directory, point=None, interrupted=False):
-    module, baseline, args = fixture(directory)
+def transaction(directory, point=None, interrupted=False, host=False):
+    module, baseline, args = fixture(directory, 'declared-host' if host else None)
     original_exchange = module.exchange
     count = 0
     def injected(a, b):
@@ -218,12 +229,34 @@ def main():
         for value in ('../a', '/absolute', 'a/../b', 'a\\b', '.env.local', 'a/game.sqlite', '.git/config', 'a//b'):
             expect_error(lambda value=value: module.safe_relative(value))
     record('unsafe/private paths rejected', guard_paths)
-    for defect in ('traversal', 'symlink', 'duplicate', 'extra', 'sha', 'suite-outside'):
+    for defect in ('traversal', 'symlink', 'duplicate', 'extra', 'sha', 'suite-outside', 'host-undeclared', 'host-path', 'host-sha', 'host-missing'):
         def test(defect=defect):
             archive = evidence / (defect + '.tar.gz')
             make_archive(module, archive, defect)
             expect_error(lambda: module.package_manifest(archive, evidence / (defect + '-extracted')))
         record('package rejects ' + defect, test)
+    def declared_host():
+        archive = evidence / 'declared-host.tar.gz'
+        make_archive(module, archive, 'declared-host')
+        manifest = module.package_manifest(archive, evidence / 'declared-host-extracted')
+        assert manifest['hostOverlay']['outputs'][0]['path'] == 'suite/settings.html'
+    record('only an explicitly declared website-link host entry is accepted', declared_host)
+    def host_baseline_guard():
+        baseline = {'targets': {'suite': {'files': {'settings.html': {'sha256': 'a' * 64}, 'assets/reused-a.js': {'sha256': 'b' * 64}}}}}
+        manifest = {'hostOverlay': {'outputs': [{'path': 'suite/settings.html', 'sha256': 'c' * 64, 'beforeSha256': 'a' * 64}, {'path': 'suite/assets/new-a.js', 'sha256': 'd' * 64, 'beforeSha256': None}], 'unchanged': [{'path': 'suite/assets/reused-a.js', 'sha256': 'b' * 64}]}}
+        module.validate_host_baseline(manifest, baseline)
+        baseline['targets']['suite']['files']['settings.html']['sha256'] = 'e' * 64
+        expect_error(lambda: module.validate_host_baseline(manifest, baseline))
+        baseline['targets']['suite']['files']['settings.html']['sha256'] = 'a' * 64
+        baseline['targets']['suite']['files']['assets/reused-a.js']['sha256'] = 'e' * 64
+        expect_error(lambda: module.validate_host_baseline(manifest, baseline))
+        baseline['targets']['suite']['files']['assets/reused-a.js']['sha256'] = 'b' * 64
+        baseline['targets']['suite']['files']['assets/new-a.js'] = {'sha256': 'e' * 64}
+        expect_error(lambda: module.validate_host_baseline(manifest, baseline))
+    record('host baseline rejects changed entries, changed reused dependencies and conflicting new assets', host_baseline_guard)
+    host_directory = evidence / 'host-transaction'
+    host_directory.mkdir()
+    record('declared website-link host apply and rollback preserve the original targets', lambda: transaction(host_directory, host=True))
     for name, point, interrupted in (
         ('apply and rollback preserve all targets and private database', None, False),
         ('failure before directory exchange restores baseline', 'before-exchange', False),

@@ -39,6 +39,7 @@ PROTECTED_FILES = (
 PROTECTED_SERVICES = ('nginx', 'obr-workbench-relay-dev')
 RELEASE_ID = re.compile(r'^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$')
 SHA = re.compile(r'^[0-9a-f]{64}$')
+HOST_PATH = re.compile(r'(?:settings\.html|assets/[A-Za-z0-9_.-]+\.(?:js|css)|three-dragon-link-source-[a-f0-9]{12}\.zip|workbench/(?:index\.html|sw\.js|assets/[A-Za-z0-9_.-]+\.(?:js|css)|three-dragon-link-source-[a-f0-9]{12}\.zip)|workbench-panels/(?:settings\.html|settings-[A-Za-z0-9_.-]+\.js))')
 libc = ctypes.CDLL(None, use_errno=True)
 
 
@@ -249,15 +250,27 @@ def package_manifest(archive, destination):
         if sorted(item.get('name') for item in manifest['targets']) != sorted(TARGETS):
             raise ValueError('Exactly four known targets are required')
         records = {}
+        host = manifest.get('hostOverlay') or {}
+        if host and (host.get('mode') != 'website-link-only' or host.get('website') != 'https://obr.dnd.center/three-dragon-ante/'):
+            raise ValueError('Unsupported host overlay')
+        host_records = {}
+        for record in host.get('outputs', []):
+            filename = safe_relative(record['path']).as_posix()
+            target, path = filename.split('/', 1)
+            if target not in ('suite', 'suite-dev') or not HOST_PATH.fullmatch(path) or filename in host_records:
+                raise ValueError('Unexpected or duplicate host output')
+            host_records[filename] = record
         for target in manifest['targets']:
             name = target['name']
             if target['kind'] != ('suite-overlay' if name.startswith('suite') else 'independent'):
                 raise ValueError('Incorrect target kind')
             for record in target['files']:
                 path = safe_relative(record['path']).as_posix()
-                if name == 'suite-dev' and not re.fullmatch(r'workbench-panels/(?:table\.html|assets/[A-Za-z0-9_.-]+)', path):
+                host_record = host_records.get(name + '/' + path)
+                declared_host = host_record and host_record['sha256'] == record['sha256']
+                if name == 'suite-dev' and not re.fullmatch(r'workbench-panels/(?:table\.html|assets/[A-Za-z0-9_.-]+)', path) and not declared_host:
                     raise ValueError('Suite-dev file is outside the table overlay')
-                if name == 'suite' and not re.fullmatch(r'(?:three-dragon-ante\.html|three-dragon-assets/[A-Za-z0-9_.-]+)', path):
+                if name == 'suite' and not re.fullmatch(r'(?:three-dragon-ante\.html|three-dragon-assets/[A-Za-z0-9_.-]+)', path) and not declared_host:
                     raise ValueError('Stable Suite file is outside the table overlay')
                 filename = name + '/' + path
                 if filename in records:
@@ -265,6 +278,8 @@ def package_manifest(archive, destination):
                 records[filename] = record
             if not target['files']:
                 raise ValueError('An empty target cannot be released')
+        if not set(host_records).issubset(records):
+            raise ValueError('Declared host outputs must be present in the release')
         for record in (manifest['server'], manifest['sourceArchive']):
             path = safe_relative(record['path']).as_posix()
             if path in records:
@@ -369,6 +384,26 @@ def copy_overlay(payload, stage, target, source, manifest):
     no_symlink_tree(stage)
 
 
+def validate_host_baseline(manifest, baseline):
+    host = manifest.get('hostOverlay') or {}
+    for record in host.get('outputs', []):
+        target, path = safe_relative(record['path']).as_posix().split('/', 1)
+        actual = ((baseline['targets'].get(target) or {}).get('files') or {}).get(path)
+        before = record.get('beforeSha256')
+        if before is None:
+            if actual is not None and actual['sha256'] != record['sha256']:
+                raise ValueError('New host asset conflicts with current live content: ' + record['path'])
+        elif not actual or actual['sha256'] != before:
+            raise ValueError('Host entry drifted from the reviewed source: ' + record['path'])
+    for record in host.get('unchanged', []) + host.get('preservedDependencies', []):
+        target, path = safe_relative(record['path']).as_posix().split('/', 1)
+        if target not in ('suite', 'suite-dev') or not SHA.fullmatch(record.get('sha256', '')):
+            raise ValueError('Invalid reused host dependency')
+        actual = ((baseline['targets'].get(target) or {}).get('files') or {}).get(path)
+        if not actual or actual['sha256'] != record['sha256']:
+            raise ValueError('Reused host dependency drifted: ' + record['path'])
+
+
 def apply_release(args):
     validate_control_paths()
     require_real_ancestry(pathlib.Path(args.archive))
@@ -399,6 +434,7 @@ def apply_release(args):
     os.chmod(work, 0o700)
     payload = work / 'payload'
     manifest = package_manifest(archive, payload)
+    validate_host_baseline(manifest, baseline)
     subprocess.run(['/usr/local/bin/node', '--check', str(payload / manifest['server']['path'])], check=True, capture_output=True)
     receipt = {'format': 1, 'id': args.release_id, 'source': manifest['source'], 'status': 'preparing', 'baseline': baseline,
                'createdUTC': datetime.datetime.now(datetime.timezone.utc).isoformat(), 'targets': {}, 'serverInstalled': False}

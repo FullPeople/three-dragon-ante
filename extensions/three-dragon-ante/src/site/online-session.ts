@@ -34,6 +34,15 @@ export function readGuestSession(code: string, name: string): GuestAdmission | n
   try { return admission(JSON.parse(localStorage.getItem(cacheKey(code, name)) || "null")); } catch { return null; }
 }
 export function lastGuestName() { try { return localStorage.getItem("three-dragon-site-last-name") || ""; } catch { return ""; } }
+/** A table alias only; unrelated to browser profile names or account identity. */
+export function randomGuestName(language: "zh" | "en", previous = "") {
+  const words = language === "zh" ? [["青铜", "翡翠", "余烬", "琥珀", "月影", "赤铜", "银翼", "星辉"], ["旅人", "法师", "游侠", "诗人", "骑士", "龙客", "学者", "冒险家"]] : [["Bronze", "Emerald", "Ember", "Amber", "Moon", "Copper", "Silver", "Star"], ["Traveler", "Mage", "Ranger", "Bard", "Knight", "Dragon", "Scholar", "Adventurer"]];
+  const values = crypto.getRandomValues(new Uint32Array(3));
+  const prefix = words[0][values[0] % words[0].length] + words[1][values[1] % words[1].length];
+  const number = 1000 + values[2] % 9000;
+  const next = prefix + number;
+  return next === previous ? prefix + (number === 9999 ? 1000 : number + 1) : next;
+}
 export function inviteCode() { return (new URLSearchParams(location.search).get("room") || "").trim().toUpperCase(); }
 export function inviteURL(code: string) {
   const url = new URL(location.href); url.search = ""; url.hash = ""; url.searchParams.set("room", code); return url.href;

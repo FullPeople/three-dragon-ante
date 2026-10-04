@@ -2,10 +2,10 @@
 .tda-shell { position: relative; width: 100%; height: 100%; min-height: 480px; display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; background: #120b07; color: var(--parchment); overflow: hidden; }
 .tda-shell > .tda-table { grid-row: 3; min-height: 0; }
 
-.tda-topbar { grid-row: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 14px; background-color: #5a3e2e; background-image: var(--tex-leather); background-size: 420px; background-blend-mode: multiply; border-bottom: 1px solid #0d0705; box-shadow: var(--bevel); }
+.tda-topbar { position: relative; z-index: 100; grid-row: 1; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; padding: 6px 14px; background-color: #5a3e2e; background-image: var(--tex-leather); background-size: 420px; background-blend-mode: multiply; border-bottom: 1px solid #0d0705; box-shadow: var(--bevel); }
 .tda-topbar-title { font-family: var(--font-display); font-size: 18px; letter-spacing: .1em; color: var(--parchment); display: flex; align-items: center; gap: 10px; }
 .tda-topbar-title small { font-family: var(--font-body); font-size: 12px; letter-spacing: .06em; color: var(--parchment-dim); }
-.tda-topbar-tools { display: flex; gap: 6px; }
+.tda-topbar-tools { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
 .tda-topbar-tools .tda-btn { min-height: 32px; padding: 3px 11px; font-size: 13px; }
 
 /* 状态行高度固定：等待行文字再长也不换行，牌桌区域高度不会随之跳动 */
@@ -130,19 +130,25 @@
 .tda-end-table li { display: flex; justify-content: space-between; padding: 4px 10px; border-bottom: 1px solid rgba(60, 40, 20, .3); }
 .tda-end-actions { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
 
-.tda-lobby { position: absolute; inset: 0; z-index: 40; display: grid; place-items: center; padding: 16px; }
-.tda-lobby-board { width: min(440px, 100%); padding: 20px 24px; text-align: center; }
+.tda-lobby { position: absolute; inset: 96px 0 56px; z-index: 40; display: grid; place-items: center; padding: 16px; overflow: auto; pointer-events: none; }
+.tda-lobby-board { width: min(440px, 100%); padding: 20px 24px; text-align: center; pointer-events: auto; }
 .tda-lobby-board h2 { margin: 0 0 10px; font-family: var(--font-display); }
 .tda-lobby-seats { list-style: none; margin: 0 0 12px; padding: 0; } .tda-lobby-note { font-size: 13px; color: #5a4328; }
 
-.tda-help { position: absolute; right: 14px; top: 108px; z-index: 68; width: min(360px, calc(100% - 28px)); padding: 14px 16px; }
+.tda-help { position: absolute; right: 14px; top: 108px; z-index: 110; width: min(360px, calc(100% - 28px)); padding: 14px 16px; }
 .tda-help h3 { margin: 0 0 4px; font-family: var(--font-display); font-size: 14px; }
 .tda-help p { margin: 0 0 10px; font-size: 13px; line-height: 1.5; }
 .tda-help-close { position: absolute; top: 4px; right: 4px; min-height: 26px; padding: 0 8px; color: var(--ink); }
 
+.tda-confirm-overlay { position: absolute; inset: 0; z-index: 120; display: grid; place-items: center; padding: 20px; background: rgba(8, 5, 3, .78); }
+.tda-confirm { width: min(440px, 100%); padding: 22px 24px; text-align: center; }
+.tda-confirm h2 { margin: 0 0 12px; font-family: var(--font-display); font-size: 24px; }
+.tda-confirm p { margin: 0 0 20px; line-height: 1.6; }
+
 @media (max-width: 640px) {
   .tda-topbar { padding: 5px 10px; } .tda-topbar-title { font-size: 15px; } .tda-topbar-title small { display: none; }
   .tda-topbar-tools { gap: 4px; } .tda-topbar-tools .tda-btn { min-height: 30px; padding: 2px 8px; font-size: 12px; white-space: nowrap; }
+  .tda-lobby { inset: 128px 0 96px; }
   .tda-status { grid-template-columns: 1fr; gap: 4px; height: 82px; padding: 4px 10px; }
   .tda-flow { gap: 8px; } .tda-flow-gambit { padding: 1px 7px; font-size: 13px; } .tda-flow-gambit .tda-num { font-size: 15px; }
   .tda-flow-step { padding: 1px 4px; font-size: 11px; gap: 4px; } .tda-flow-step + .tda-flow-step::before { left: -6px; width: 8px; } .tda-flow-dot { width: 11px; height: 11px; font-size: 8px; }

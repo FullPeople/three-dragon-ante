@@ -36,6 +36,7 @@ async function actor(label, narrow = false) {
   context.on('request', request => { if (!request.url().startsWith(origin + '/')) external.push({ origin: new URL(request.url()).origin }); });
   await context.route('**/*', route => route.request().url().startsWith(origin + '/') ? route.continue() : route.abort());
   value.page.on('pageerror', () => errors.push(label + ': pageError'));
+  value.page.on('dialog', async dialog => { if(dialog.type()==='beforeunload')await dialog.accept();else{errors.push(label+': unexpectedDialog');await dialog.dismiss();} });
   value.page.on('response', response => { if (response.status() >= 400 && !response.url().includes('/three-dragon-api/') && !response.url().endsWith('/favicon.ico')) resourceFailures.push({ status: response.status() }); });
   value.page.on('websocket', socket => {
     value.wsAttempts++; assert.ok(socket.url().startsWith(origin.replace(/^http/, 'ws') + '/three-dragon-api/'));
@@ -57,8 +58,18 @@ async function actor(label, narrow = false) {
 }
 const connected = value => value.page.locator('.site-online-match[data-connected="true"]').waitFor({ timeout: 30000 });
 async function dismiss(value) {
-  for (const selector of ['.tda-spotlight', '.tda-formation-spot']) if (await value.page.locator(selector).first().isVisible()) { await value.page.locator(selector).first().click({ position: { x: 20, y: 20 } }); return true; }
+  for (const selector of ['.tda-spotlight', '.tda-formation-spot']) if (await value.page.locator(selector).first().isVisible()) { await value.page.locator(selector).first().locator('[data-dismiss-hint]').click(); return true; }
   return false;
+}
+async function alias(value,name){const field=value.page.locator('#guest-name');await field.click();await field.fill(name);}
+async function tableControls(value){
+  const before=structuredClone(value.wire?.game);
+  await value.page.getByTestId('table-help').click();await value.page.getByTestId('table-help-panel').waitFor();
+  await value.page.getByTestId('table-help-close').click();assert.equal(await value.page.getByTestId('table-help-panel').count(),0);
+  const sound=value.page.getByTestId('table-sound'),was=await sound.getAttribute('aria-pressed');await sound.click();assert.notEqual(await sound.getAttribute('aria-pressed'),was);await sound.click();
+  await value.page.getByTestId('table-language').click();assert.equal(await value.page.evaluate(()=>document.documentElement.lang),'en');
+  await value.page.getByTestId('table-language').click();assert.equal(await value.page.evaluate(()=>document.documentElement.lang),'zh-CN');
+  assert.deepEqual(value.wire?.game,before);
 }
 async function finishGambit(peers) {
   const end = Date.now() + 240000;
@@ -101,16 +112,18 @@ try {
   }
   pass('same-origin service health and complete website/extension entry points are reachable');
   const owner = await actor('owner'), player = await actor('player', true), duplicate = await actor('duplicate');
-  await owner.page.goto(origin + stable); await owner.page.locator('#guest-name').fill(names[0]);
+  await owner.page.goto(origin + stable); await alias(owner,names[0]);
   await owner.page.getByRole('button', { name: '创建房间', exact: true }).click(); await connected(owner);
   const invitation = await owner.page.getByRole('textbox', { name: '邀请链接', exact: true }).inputValue();
   assert.match(new URL(invitation).search, /^\?room=[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{8}$/);
   const playerInvite = new URL(invitation); playerInvite.pathname = dev;
-  await player.page.goto(playerInvite.href); await player.page.locator('#guest-name').fill(names[1]);
+  await player.page.goto(playerInvite.href); await alias(player,names[1]);
   await player.page.getByRole('button', { name: '加入房间', exact: true }).click(); await connected(player);
   await wait(() => owner.wire?.table?.seats.length === 2, 'two seats on both channels');
   pass('desktop creates a synthetic room; narrow browser joins by token-free invite across channels');
-  await duplicate.page.goto(invitation); await duplicate.page.locator('#guest-name').fill(names[0]);
+  for(const value of [owner,player])await tableControls(value);
+  pass('desktop and narrow lobby help, sound and language buttons respond to real pointer input');
+  await duplicate.page.goto(invitation); await alias(duplicate,names[0]);
   await duplicate.page.getByRole('button', { name: '加入房间', exact: true }).click();
   await duplicate.page.getByRole('alert').filter({ hasText: '名字已占用' }).waitFor(); assert.equal(await duplicate.page.locator('.site-online-match').count(), 0);
   pass('ordinary duplicate-name entry is rejected');
@@ -123,6 +136,10 @@ try {
     assert.equal(leak, 0); assert.equal(await value.page.locator('#omniscient-toggle').isVisible(), false);
   }
   pass('real WebSocket deal reveals each own hand only and exposes no guest omniscient control');
+  for(const value of [owner,player])await tableControls(value);
+  await owner.page.getByTestId('table-new-game').click();await owner.page.getByTestId('new-game-confirmation').waitFor();await owner.page.getByTestId('new-game-cancel').click();
+  assert.ok(owner.wire.game);await owner.page.getByTestId('leave-room').click();await owner.page.getByTestId('leave-confirmation').waitFor();await owner.page.getByTestId('leave-cancel').click();await connected(owner);
+  pass('in-game controls remain clickable; cancelled new-game and leave confirmations preserve the current game');
   await finishGambit([owner, player]);
   pass('both browsers submit antes, reveal, plays, ability choices and a visible authoritative settlement');
   const hand = [...player.wire.game.hand], revision = player.wire.game.revision, seat = player.wire.game.selfSeatId;
@@ -137,8 +154,9 @@ try {
   pass('closing the browser transport reconnects through WSS to the same saved state');
   const oldOwnerHand = [...owner.wire.game.hand], oldOwnerSeat = owner.wire.game.selfSeatId;
   await owner.page.getByRole('button', { name: '返回首页', exact: true }).click();
+  await owner.page.getByTestId('leave-confirmation').waitFor();await owner.page.getByTestId('leave-confirm').click();
   await wait(() => player.wire?.isHost === true, 'automatic host succession'); assert.equal(player.wire.game.revision, revision);
-  const fresh = await actor('fresh'); await fresh.page.goto(invitation); await fresh.page.locator('#guest-name').fill(names[0]);
+  const fresh = await actor('fresh'); await fresh.page.goto(invitation); await alias(fresh,names[0]);
   await fresh.page.getByRole('button', { name: '重连房间', exact: true }).click(); await connected(fresh);
   await wait(() => fresh.wire?.game?.revision === revision, 'fresh-browser recovery');
   assert.equal(fresh.wire.game.selfSeatId, oldOwnerSeat); assert.deepEqual(fresh.wire.game.hand, oldOwnerHand); assert.equal(fresh.wire.isHost, false);
@@ -146,6 +164,13 @@ try {
   for (const value of [player, fresh]) assert.equal(await value.page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
   assert.deepEqual(errors, []); assert.deepEqual(external, []); assert.deepEqual(resourceFailures, []);
   pass('desktop/narrow clients have no script errors, failed assets, horizontal overflow or external requests');
+  for(const value of actors)await value.context.close();
+  console.log('Waiting for the empty-room reconnect grace to expire.');
+  await new Promise(done=>setTimeout(done,66000));
+  const roomCode=new URL(invitation).searchParams.get('room');
+  const expired=await fetch(origin+'/three-dragon-api/v1/guest/rooms/'+roomCode+'/sessions',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({name:names[0],reconnect:true})});
+  assert.equal((await expired.json()).error,'roomMissing');
+  pass('the self-created room dissolves after the final browser leaves and its reconnect grace expires');
   writeFileSync(join(run, 'result.json'), JSON.stringify({ checks, gameplay, errors, external, resourceFailures, origin, deployedServer: online, realOwlbearRoom: false, privateFrames: actors.reduce((sum, value) => sum + value.privateFrames, 0), syntheticRoom: true, scope: 'New isolated browser contexts and a self-created synthetic website room; real HTTP/WebSocket. No production database access or real Owlbear identity.' }, null, 2) + '\n');
   console.log(`${checks.length}/${checks.length} checks passed; ${run}`);
 } catch {
