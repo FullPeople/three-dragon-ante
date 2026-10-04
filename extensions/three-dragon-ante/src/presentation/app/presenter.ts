@@ -386,7 +386,9 @@ export function createPresenter(store: Store, controller: Controller, hooks: Pre
             if (choice && (choice.sourceCardId === cue.cardId || view.game?.resolutionStack.some(step => step.status === "active" && step.sourceCardId === cue.cardId))) {
               show({ powerHold: { cue, seatId: choice.seatId, choiceId: choice.id } });
               const rect = handRect(choice.seatId);
-              hooks.fx()?.ambient(`hold:${choice.id}`, { kind: familyFx(cue.family), rate: 3, area: rect ? { x: rect.x - 16, y: rect.y - 16, w: rect.w + 32, h: rect.h + 32 } : null, drift: { x: 0, y: -22 }, size: 2.4, life: 2, alpha: 0.75 });
+              const selfSeat = view.game && "selfSeatId" in view.game ? (view.game as SeatView).selfSeatId : null;
+              hooks.fx()?.ambient(`hold:${choice.id}`, { kind: familyFx(cue.family), rate: 3, area: rect ? { x: rect.x - 16, y: rect.y - 16, w: rect.w + 32, h: rect.h + 32 } : null, drift: { x: 0, y: -22 }, size: 2.4, life: 2, alpha: 0.75,
+                hold: { who: choice.seatId === selfSeat ? "self" : "other", code: choice.code, from: cardPoint(cue.cardId) ?? undefined } });
             }
           }
           await goldArcs(pres.gold, gen); if (gen !== generation) return;

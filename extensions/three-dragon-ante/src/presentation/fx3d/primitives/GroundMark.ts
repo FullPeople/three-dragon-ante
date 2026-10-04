@@ -14,7 +14,7 @@ void main(){ vUv = uv; vec4 w = modelMatrix * vec4(position, 1.0); vWorld = w.xy
 const FRAG = /* glsl */`
 precision highp float;
 uniform vec3 uColor, uBright; uniform float uT, uTime, uSeed, uMode, uOut;
-uniform float uPoints, uRibs, uHooks, uTicks, uRhombus, uSharp;
+uniform float uPoints, uRibs, uHooks, uTicks, uRhombus, uSharp, uDim;
 varying vec2 vUv; varying vec2 vWorld;
 ${GLSL_COMMON}${GLSL_TABLE}
 void main(){
@@ -68,7 +68,7 @@ void main(){
     float glow = smoothstep(1.0, 0.0, r) * 0.16 + smoothstep(0.08, 0.0, abs(r - 0.92)) * 0.25;
     col = uBright * (outer + inner + ticks + rune + star + hooks + ribsL + rhomb) * shimmer + uColor * glow;
   }
-  col *= env * tableMask(vWorld);
+  col *= env * tableMask(vWorld) * uDim;
   gl_FragColor = glowOut(col);
 }
 `;
@@ -85,7 +85,7 @@ export class GroundMark implements Effect {
     const p = palette(o.kind), f: GlyphForm = { ...DEFAULT_FORM, ...o.form };
     const material = new ShaderMaterial({ vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthWrite: false, depthTest: false, premultipliedAlpha: true, toneMapped: false,
       uniforms: { uColor: { value: p.main }, uBright: { value: p.bright }, uT: { value: 0 }, uTime: { value: 0 }, uSeed: { value: o.seed ?? Math.random() * 100 }, uMode: { value: o.mode ?? 0 }, uOut: { value: 0 },
-        uPoints: { value: f.points }, uRibs: { value: f.ribs }, uHooks: { value: f.hooks ? 1 : 0 }, uTicks: { value: f.ticks }, uRhombus: { value: f.rhombus ? 1 : 0 }, uSharp: { value: f.sharp ? 1 : 0 }, ...stage.tableUniforms() } });
+        uPoints: { value: f.points }, uRibs: { value: f.ribs }, uHooks: { value: f.hooks ? 1 : 0 }, uTicks: { value: f.ticks }, uRhombus: { value: f.rhombus ? 1 : 0 }, uSharp: { value: f.sharp ? 1 : 0 }, uDim: { value: o.duration > 0 ? 1 : 0.6 }, ...stage.tableUniforms() } });
     this.mesh = new Mesh(new PlaneGeometry(o.radius * 2, o.radius * 2), material);
     this.mesh.position.copy(stage.local(x, y, o.z ?? 0.6)); this.mesh.renderOrder = 10;
     if (!stage.ground) throw new Error("ground canvas missing");

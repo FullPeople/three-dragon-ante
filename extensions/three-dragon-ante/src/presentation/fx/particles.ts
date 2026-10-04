@@ -9,7 +9,11 @@ import type { PowerFxContext } from "./powers";
 export type FxKind = "ember" | "tide" | "grove" | "arcane" | "crown" | "gold" | "dust" | "verdigris" | "necro";
 export interface Point { x: number; y: number }
 export interface Rect { x: number; y: number; w: number; h: number }
-export interface AmbientSpec { kind: FxKind; rate: number; area: Rect | null; drift: Point; size: number; life: number; alpha?: number }
+export interface AmbientSpec { kind: FxKind; rate: number; area: Rect | null; drift: Point; size: number; life: number; alpha?: number;
+  /** 等待选择：谁在选、选择码、源牌位置（three 层据此做"等自己 / 等对手"的驻留变体） */
+  hold?: { who: "self" | "other"; code: string; from?: Point };
+  /** 场地持续效果的种类（FieldLayer 的 item.kind） */
+  field?: string }
 
 type Sprite = "smoke_01" | "smoke_03" | "smoke_06" | "dirt_01" | "dirt_02" | "flame_01" | "flame_03" | "fire_01" | "spark_01" | "spark_03" | "spark_06" | "star_01" | "star_05" | "star_07" | "magic_01" | "magic_02" | "magic_04" | "magic_05" | "light_01" | "light_02" | "circle_01" | "circle_03" | "circle_05" | "twirl_01" | "twirl_03" | "slash_01" | "slash_03" | "scorch_01" | "symbol_01" | "symbol_02" | "flare_01" | "trace_01" | "trace_06" | "window_01" | "muzzle_01";
 const sprite = (name: Sprite) => new URL(`../assets/fx/${name}.webp`, import.meta.url).href;

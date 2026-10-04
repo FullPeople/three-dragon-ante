@@ -13,14 +13,14 @@ const SPEC: Record<string, { label: string; fx: FxKind; global: boolean }> = {
   priest: { label: "fieldPriest", fx: "crown", global: true },
   merchant: { label: "fieldMerchant", fx: "crown", global: false },
   monarch: { label: "fieldMonarch", fx: "crown", global: false },
-  dracolich: { label: "fieldDracolich", fx: "ember", global: true },
+  dracolich: { label: "fieldDracolich", fx: "necro", global: true },
   warlord: { label: "fieldWarlord", fx: "grove", global: false },
   archmage: { label: "fieldArchmage", fx: "arcane", global: false },
 };
 const AMBIENT: Record<string, Omit<AmbientSpec, "area">> = {
   druid: { kind: "grove", rate: 5, drift: { x: -14, y: 26 }, size: 3.2, life: 4, alpha: 0.6 },
   priest: { kind: "crown", rate: 3, drift: { x: 0, y: -18 }, size: 2.2, life: 3.5, alpha: 0.55 },
-  dracolich: { kind: "ember", rate: 6, drift: { x: 6, y: -30 }, size: 2.4, life: 3, alpha: 0.6 },
+  dracolich: { kind: "necro", rate: 6, drift: { x: 6, y: -30 }, size: 2.4, life: 3, alpha: 0.6 },
   merchant: { kind: "gold", rate: 2, drift: { x: 0, y: -12 }, size: 2, life: 2, alpha: 0.6 },
   monarch: { kind: "crown", rate: 2.5, drift: { x: 0, y: -16 }, size: 2.4, life: 2.5, alpha: 0.6 },
   warlord: { kind: "grove", rate: 2, drift: { x: 0, y: -14 }, size: 2.6, life: 2.5, alpha: 0.5 },
@@ -59,7 +59,7 @@ export function FieldLayer({ game, seats, fx, lang, host }: FieldLayerProps) {
       const spec = AMBIENT[item.kind]; if (!spec) continue;
       let area: AmbientSpec["area"] = null;
       if (!item.global && host) { const el = host.querySelector(`[data-drop-zone="flight"][data-drop-seat="${CSS.escape(item.seatId)}"]`) as HTMLElement | null; const r = el?.getBoundingClientRect(); if (r) area = { x: r.left - 20, y: r.top - 20, w: r.width + 40, h: r.height + 40 }; }
-      fx.ambient(item.id, { ...spec, area }); active.add(item.id);
+      fx.ambient(item.id, { ...spec, area, field: item.kind }); active.add(item.id);
     }
     return () => { for (const id of active) fx.ambient(id, null); };
   }, [fx, host, items.map(item => item.id).join("|")]);

@@ -1,13 +1,14 @@
 /** 把 three.js 图元接到现有 FxLayer 接口上：有舞台时 sigil / ring / beam / burst / flare 走 three，
  *  其余（金币 DOM 精灵、拍桌、尘土、抓取、交换、划痕、环境粒子…）仍走 2D 贴图层，逐步替换。
  *  没有舞台（WebGL 不可用 / 减少动态 / 用户关掉 / 软件 GL）→ 原样返回 2D 层，presenter 零改动。 */
-import type { FxLayer, Point } from "../fx/particles";
+import type { FxKind, FxLayer, Point } from "../fx/particles";
 import type { FxStage } from "./FxStage";
 import { GroundMark } from "./primitives/GroundMark";
 import { Pillar } from "./primitives/Pillar";
 import { Burst } from "./primitives/Burst";
 import { Beam } from "./primitives/Beam";
 import { Emitter } from "./primitives/Emitter";
+import type { GlyphForm } from "./primitives/GroundMark";
 import { Kit, wait as kwait } from "./kit";
 import { palette } from "./palette";
 import { FAMILY_SCRIPTS, defaultScript } from "./scripts/families";
@@ -21,7 +22,24 @@ export function composeFx(fx2d: FxLayer, stage: FxStage | null): FxLayer {
   if (!stage || !stage.ground) return fx2d;
   const plane = (p: Point) => stage.toPlane(p);
   const low = stage.tier === "low", k = low ? 0.5 : stage.tier === "medium" ? 0.75 : 1;
-  const ambients = new Map<string, Emitter>();
+  // 驻留态（等待选择 / 场地）：发射器 + 可选的驻留法阵 + 可选的系绳飘带循环
+  interface Hold { emitter: Emitter | null; marks: GroundMark[]; tether: ReturnType<typeof setInterval> | null }
+  const ambients = new Map<string, Hold>();
+  const releaseHold = (h: Hold) => { h.emitter?.release(); for (const m of h.marks) m.release(); if (h.tether) clearInterval(h.tether); };
+  const domPoint = (selector: string): { x: number; y: number } | null => { const r = document.querySelector(selector)?.getBoundingClientRect(); return r ? plane({ x: r.left + r.width / 2, y: r.top + r.height / 2 }) : null; };
+  // 等待选择的形态：按选择码分 索要 / 去向 / 顺序 / 挑牌
+  const holdForm = (code: string): Partial<GlyphForm> => {
+    if (/GIVE|PAY|GOLD|DEMAND/.test(code)) return { points: 0, ticks: 24, ribs: 0 };
+    if (/DESTINATION/.test(code)) return { points: 2, ticks: 0, ribs: 0 };
+    if (/ORDER|NEXT_GOOD/.test(code)) return { points: 5, sharp: true, ticks: 0, ribs: 5 };
+    return { points: 6, rhombus: true, ticks: 12, ribs: 0 };
+  };
+  // 牌阵 / 传说到场的法阵形态（presenter 只给 kind 与半径：170 = 牌阵，150 = 传说到场）
+  const sigilForm = (kind: FxKind, radius: number): Partial<GlyphForm> | undefined => {
+    if (radius >= 165) return kind === "tide" ? { points: 4, sharp: true, rhombus: true, ribs: 0, ticks: 0 } : kind === "arcane" ? { points: 5, rhombus: true, ribs: 10, ticks: 10 } : { points: 12, sharp: true, ticks: 24, ribs: 0 };
+    if (radius >= 140) return { points: 7, ribs: 14, ticks: 28, hooks: true };
+    return undefined;
+  };
   const kit = new Kit(stage, stage.tier);
   return {
     ...fx2d,
@@ -72,17 +90,42 @@ export function composeFx(fx2d: FxLayer, stage: FxStage | null): FxLayer {
     },
     // 持续环境粒子（等待选择 / 场地）：GPU 循环发射器；传 null 淡出
     ambient(id, spec) {
-      const old = ambients.get(id); if (old) { old.release(); ambients.delete(id); }
+      const old = ambients.get(id); if (old) { releaseHold(old); ambients.delete(id); }
       if (!spec) return;
       const s = stage.metrics().scale;
       const r = spec.area; let area: { x: number; y: number; w: number; h: number };
       if (r) { const p1 = plane({ x: r.x, y: r.y }), p2 = plane({ x: r.x + r.w, y: r.y + r.h }); area = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2, w: Math.abs(p2.x - p1.x), h: Math.abs(p2.y - p1.y) }; }
       else { const m = stage.metrics(); area = { x: m.planeW / 2, y: m.planeH / 2, w: m.planeW * 0.8, h: m.planeH * 0.8 }; }
-      ambients.set(id, new Emitter(stage, area, { kind: spec.kind, rate: spec.rate * k, life: spec.life, drift: { x: spec.drift.x / s, y: 0, z: -spec.drift.y / s }, size: 14 * spec.size, alpha: spec.alpha ?? 0.75 }));
+      const drift = { x: spec.drift.x / s, y: 0, z: -spec.drift.y / s };
+      const hold: Hold = { emitter: null, marks: [], tether: null };
+      const markR = Math.max(90, Math.min(220, Math.max(area.w, area.h) * 0.55));
+      if (spec.hold) {
+        // 等待选择：等自己 → 本家手牌下暖色驻留法阵 + 更密的上升粒子；等对手 → 对手手牌下法阵 + 源牌到等待者的系绳飘带
+        const self = spec.hold.who === "self";
+        hold.marks.push(new GroundMark(stage, area.x, area.y, { kind: spec.kind, radius: markR, duration: 0, form: holdForm(spec.hold.code) }));
+        hold.emitter = new Emitter(stage, area, { kind: spec.kind, rate: spec.rate * k * (self ? 3 : 1.6), life: spec.life, drift, size: 14 * spec.size, alpha: spec.alpha ?? 0.75 });
+        if (!self && spec.hold.from) {
+          const from = plane(spec.hold.from), to = { x: area.x, y: area.y };
+          const fire = () => new Beam(stage, { ...from, z: 30 }, { ...to, z: 30 }, { kind: spec.kind, duration: 1300, lift: 60, width: 9, tail: 0.6 });
+          fire(); hold.tether = setInterval(fire, 1400);
+        }
+        if (/DESTINATION/.test(spec.hold.code)) { const st = domPoint('[data-pile="stakes"]'); if (st) hold.marks.push(new GroundMark(stage, st.x, st.y + 20, { kind: "gold", radius: 110, duration: 0, form: { points: 0, ticks: 16, ribs: 0 } })); }
+      } else if (spec.field) {
+        // 场地持续效果按种类：德鲁伊落叶 + 藤纹；祭司暖光上升 + 四角印；龙巫妖磷火 + 骨色钩印；大法师秘法刻度环；其余小印 + 粒子
+        const f = spec.field;
+        const sprites = f === "druid" ? ["star_01", "twirl_01"] as const : f === "dracolich" ? ["smoke_06", "magic_05"] as const : f === "priest" ? ["light_02", "star_05"] as const : undefined;
+        const z0 = f === "druid" || f === "dracolich" ? 160 : 0;
+        hold.emitter = new Emitter(stage, area, { kind: spec.kind, rate: spec.rate * k * 1.5, life: spec.life, drift: z0 ? { x: drift.x, y: 0, z: -Math.abs(drift.z) - 20 } : drift, size: 14 * spec.size, alpha: spec.alpha ?? 0.7, sprites: sprites ? [...sprites] : undefined, z0 });
+        const form: Partial<GlyphForm> = f === "druid" ? { points: 3, hooks: true, ribs: 6, ticks: 0 } : f === "priest" ? { points: 4, ribs: 8, ticks: 0 } : f === "dracolich" ? { points: 4, hooks: true, rhombus: true, ticks: 16, ribs: 0 } : f === "archmage" ? { points: 5, ticks: 30, ribs: 10, rhombus: true } : f === "monarch" ? { points: 12, ticks: 12, ribs: 0 } : f === "merchant" ? { points: 8, ticks: 16, rhombus: true, ribs: 0 } : { points: 8, ribs: 8, ticks: 0 };
+        hold.marks.push(new GroundMark(stage, area.x, area.y, { kind: spec.kind, radius: spec.area ? markR : 240, duration: 0, form }));
+      } else {
+        hold.emitter = new Emitter(stage, area, { kind: spec.kind, rate: spec.rate * k, life: spec.life, drift, size: 14 * spec.size, alpha: spec.alpha ?? 0.75 });
+      }
+      ambients.set(id, hold);
     },
     sigil(point, kind, radius = 120, duration = 1400) {
       const p = plane(point);
-      new GroundMark(stage, p.x, p.y, { kind, radius, duration });
+      new GroundMark(stage, p.x, p.y, { kind, radius, duration, form: sigilForm(kind, radius) });
       new Pillar(stage, p.x, p.y, { kind, height: radius * 2.2, width: radius * 1.1, duration: duration * 0.9 });
       new Burst(stage, p.x, p.y, 10, { kind, count: Math.round(36 * k), speed: 150, up: 0.95, gravity: 420, size: 34, life: 1.2 });
       return wait(duration);
@@ -102,6 +145,6 @@ export function composeFx(fx2d: FxLayer, stage: FxStage | null): FxLayer {
       new Burst(stage, p.x, p.y, 20, { kind, count: Math.round(64 * k), speed: 290, up: 0.9, size: 40, life: 1.0 });
       return wait(duration);
     },
-    destroy() { for (const e of ambients.values()) e.release(); ambients.clear(); fx2d.destroy(); },
+    destroy() { for (const h of ambients.values()) releaseHold(h); ambients.clear(); fx2d.destroy(); },
   };
 }

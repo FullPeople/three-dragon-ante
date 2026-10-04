@@ -10,7 +10,7 @@ import type { FxKind } from "../../fx/particles";
 const VERT = /* glsl */`
 attribute vec4 aLife;   // phase(s), duration(s), size, spin
 attribute float aSeed;
-uniform float uTime, uStart, uPointScale, uFade; uniform vec4 uArea; uniform vec3 uDrift;
+uniform float uTime, uStart, uPointScale, uFade, uZ0; uniform vec4 uArea; uniform vec3 uDrift;
 varying float vFade; varying float vSpin; varying float vSeed;
 ${GLSL_NOISE}
 void main(){
@@ -18,7 +18,7 @@ void main(){
   float cyc = floor(age / aLife.y); float t = fract(age / aLife.y);
   float alive = step(0.0, age);
   vec2 j = vec2(hash12(vec2(aSeed * 31.7, cyc)), hash12(vec2(cyc + 3.1, aSeed * 17.3)));
-  vec3 origin = vec3(uArea.x + (j.x - 0.5) * uArea.z, uArea.y + (j.y - 0.5) * uArea.w, 0.0);
+  vec3 origin = vec3(uArea.x + (j.x - 0.5) * uArea.z, uArea.y + (j.y - 0.5) * uArea.w, uZ0);
   float wob = (hash12(vec2(aSeed, cyc + 9.0)) - 0.5) * 2.0;
   vec3 p = origin + uDrift * (t * aLife.y) * (0.7 + 0.6 * hash12(vec2(cyc, aSeed))) + vec3(wob * 10.0 * sin(t * 6.283 + aSeed * 6.0), 0.0, 0.0);
   vec4 mv = modelViewMatrix * vec4(p, 1.0);
@@ -42,7 +42,7 @@ void main(){
 }
 `;
 
-export interface EmitterOptions { kind: FxKind; rate: number; life: number; drift: { x: number; y: number; z: number }; size: number; alpha?: number; sprites?: SpriteName[] }
+export interface EmitterOptions { kind: FxKind; rate: number; life: number; drift: { x: number; y: number; z: number }; size: number; alpha?: number; sprites?: SpriteName[]; z0?: number }
 const FAMILY_SPRITES: Record<FxKind, SpriteName[]> = {
   ember: ["spark_03", "flame_01"], tide: ["magic_02", "spark_01"], grove: ["star_01", "magic_04"], arcane: ["magic_01", "star_07"], crown: ["star_05", "spark_06"], gold: ["spark_06"], dust: ["smoke_01", "dirt_01"], verdigris: ["spark_06", "twirl_03"], necro: ["magic_05", "smoke_06"],
 };
@@ -64,7 +64,7 @@ export class Emitter implements Effect {
       const geo = new BufferGeometry();
       geo.setAttribute("position", new Float32BufferAttribute(pos, 3)); geo.setAttribute("aLife", new Float32BufferAttribute(life, 4)); geo.setAttribute("aSeed", new Float32BufferAttribute(seed, 1));
       const mat = new ShaderMaterial({ vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthWrite: false, depthTest: false, premultipliedAlpha: true, toneMapped: false,
-        uniforms: { uMap: { value: sprite(name) as Texture }, uColor: { value: p.main }, uBright: { value: p.bright }, uTime: { value: start }, uStart: { value: start }, uPointScale: { value: stage.pointScale() }, uFade: { value: 1 }, uAlpha: { value: o.alpha ?? 0.8 },
+        uniforms: { uMap: { value: sprite(name) as Texture }, uColor: { value: p.main }, uBright: { value: p.bright }, uTime: { value: start }, uStart: { value: start }, uPointScale: { value: stage.pointScale() }, uFade: { value: 1 }, uAlpha: { value: o.alpha ?? 0.8 }, uZ0: { value: o.z0 ?? 0 },
           uArea: { value: new Vector4(c.x, c.y, area.w, area.h) }, uDrift: { value: { x: o.drift.x, y: -o.drift.y, z: o.drift.z } } } });
       const pts = new Points(geo, mat); pts.frustumCulled = false; pts.renderOrder = 28;
       stage.air.group.add(pts); this.points.push(pts); this.materials.push(mat);
