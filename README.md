@@ -72,6 +72,9 @@ npm run test:site-presentation # 真实网站WS回执与非减少动态演出，
 npm run test:website-omniscient # 隐藏键序、服务端房主授权与断线/超时撤权
 npm run test:nameplate    # 2–6席长名/完整财务和材质、桌面与窄屏
 npm run test:flight-layer # 真实前后版飞牌层叠/几何、减少动态价牌
+npm run test:fx3d-ambient # 驻留两路迁移/尾清理/销毁；合成spec，生产参数另验
+npm run test:site-presentation-3d # 原演出流程与实际双客户端3D绘制
+npm run test:website-pending-inspection # 权限命令不跨连接重发，事务继续只应用一次
 npm run test:performance-structure # 六人实际组件与冻结旧组件结构对照，不设FPS阈值
 npm run test:guest-server # 唯一名字、重连、事务、持久化、私牌和旧协议共存
 npm run test:empty-room  # 空房过期/数量限制/全记录清理/重连/重启/回退兼容

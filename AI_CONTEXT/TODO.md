@@ -5,6 +5,9 @@
 
 ## 待办
 
+- [x] 候选0.9.2-dev版本/锁/Vite产物统一，原CI全部步骤保留并接入pending13/真实ambient历史与current/真实联网3D脚本；准备状态不等于精确CI或上线，见fx3d-release runbook。
+- [ ] 0.9.2精确CI/生产参数与3D/独立终审/冻结与定向发布，线上仍0.9.1源801。
+
 - [x] 驻留P2已有真实历史三类反例与最小修复e8cf0e5；原life9、新自造spec路由24、真实历史源码10和默认软件2D双客户端14实际通过；自造spec life1.2不是生产FieldLayer/presenter参数验收。见fx3d-ambient-recovery/fx3d-ambient-network-validation runbooks。
 - [ ] 实际生产FieldLayer/presenter驻留参数、active hold画质重建、真实双客户端3D绘制及完整精确CI/独立终审/0.9.2冻结与发布，保留历史失败和真实弱机/实体手机边界。
 
