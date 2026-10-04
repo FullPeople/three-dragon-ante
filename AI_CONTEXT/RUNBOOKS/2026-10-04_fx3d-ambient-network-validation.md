@@ -45,6 +45,24 @@ nodecheck 和 diffcheck 已通过；ignored AST 对照 `.local-evidence/fx-integ
 | `node tools/fx3d-lifecycle-browser.mjs` | 9/9，exit 0，19.525s | `.local-evidence/fx3d-lifecycle/run-kc7s9t/result.json` | 原 9 项原封不动；原工具 SHA256 `1C0D21820FFADEA00014A58A3099D8C286F0B34D76CEBFB0830EA384E6EBCFEF` |
 | `node tools/fx3d-ambient-browser.mjs --baseline-ambient` | 10/10，exit 0，45.813s | `.local-evidence/fx3d-ambient-recovery/baseline-mebAIj/result.json` | 真实历史三文件复现三场原缺陷；不是当前产品通过 |
 | `node tools/fx3d-ambient-browser.mjs` | 24/24，exit 0，58.402s | `.local-evidence/fx3d-ambient-recovery/run-FJFaJI/result.json` | 三类实际驻留完整 loss/single restore/full restore/null 尾清理；direct destroy 和有限 gallery 均过 |
-| 双客户端 2D / 双客户端 3D | 尚未完成 | 待追加 | 不提前计为通过 |
+| `node tools/site-presentation-browser.mjs --gpu software` | 14/14，exit 0，65.857s | `.local-evidence/site-presentation/run-o1ibiR/result.json` | 原 13 项 + 实际 2D 阳性/FX 原生 GL 零绘制阴性对照 |
+| `node tools/site-presentation-browser.mjs --gpu software --fx3d` | 16/16，exit 0，109.064s | `.local-evidence/site-presentation/run-9ApAvm/result.json` | 原 13 项 + 双客户端实际 3D 非空绘制 + 说明各仅开关一次；软件 GPU 明确强开 |
+| `node tools/site-presentation-browser.mjs --gpu default` | 16/16，exit 0，54.160s | `.local-evidence/site-presentation/run-b66MlY/result.json` | 正常网站默认路由，未加强开 query，renderer reported hardware；不是实体设备验收 |
 
 三次已完成工具均无脚本/着色器/资源/外域错误。对照始末工作树 FX 文件的 SHA256 相同：composeFx `F8E908FCC2F0C5616A30C55576CB5E73D382A28C30B40E04D77314C9C14892BB`、FxStage `86903835F03BFCBF7B2F9F227F5F62B2FEF9DFEE6E3FCF04FB34EF1FBC283ACD`、TableScene `5FD944B8076E92AABF740AF9472E4ADEF748BE541EB662ED8D7DC8978626E107`。新源 24 项实际在 `5506116` 执行，3 场尾清理均为 2D draw 0、alpha 0、显示 false、RAF 0；原缺陷三布尔均 false。修复后的持续 3D/2D 在迁移时可以同时短暂存在尾粒子，这是有界退场；不要求取消当帧立刻清空合法尾粒子。旧失效/启动失败证据仍全部保留。
+
+双客户端工具提交 `34f609e0d81a89b5567ce44efd31c2868cfd053c` 后，软件 2D 与强开 3D 两次均在该 source 执行；正常 GPU 模式在只含文档/公开验收工具合并的 `d32aef83843727380bc6f1fb008396cdfdc55785` 执行。三次涉及 FX 的产品 SHA256 均与上表修复一致，原 13 项未减项、未放宽断言或期限。软件强开时提交者实际 POINTS 3、POINTS 改变非透明像素 648、ground draw 2/改变像素 10103；观察者对应为 6/197、2/10074。正常 GPU 模式两客户端实际 POINTS 为 348/347，均有原生绘制前后非透明像素变化；GPU known=true、software=false。说明 opens/closes 各为 1，提交者 view→ack 未重播或取消能力，回合/轮局结算/购买原断言均过。这里的读回是可见绘制验收，不能作为 FPS 证据。
+
+## 实际生产 producer 追加与质量切换新反例
+
+独立审计指出，上述 ambient24 使用真实 composeFx 路由但 rate 24/life 1.2 的合成 AmbientSpec，未覆盖 FieldLayer 的实际德鲁伊 life 4、牧师 life 3.5 或 presenter hold life 2。不得据此称生产参数全部通过。用户目标中的完整真实演出继续，根代理授权新增专门工具，原 24/9/13 项保留不替换。
+
+`tools/fx3d-producer-browser.mjs` 使用实际 `mountTableUI`，从规则引擎合法开局动作搜索产生真实 pending choice / druid / priest 场景，并检查 before/after invariants。测试 Vite observer 只包装真实 FieldLayer/presenter 的第二个 ambient 参数、记录公开特效参数后返回同一个对象；不手调 show.powerHold、不复制生产 spec、不修改产品。实际 native air/ground 绘制与 RAM 像素变化验证驻留，生成牌局和投影只在 RAM；JSON 仅数值/布尔，不保存私牌、名字、身份、房码、token 或图像。
+
+首次仅执行 `node tools/fx3d-producer-browser.mjs --hold-only`：source `7fb7a08b2f479b962c1c797c7fd653b93d47df6d`，exit 1，39.008s。证据 `.local-evidence/fx3d-producer/run-39HGpC/result.json`；包装日志/完整边界 `.local-evidence/fx-integration-validation/run-ambient-network-6b63f355/producer-hold-first-result.json`。工具 SHA256 `1EAFB641AE3FDAABD397D1DC625B07E2E56D0050324CC2E5D44E1EE3908CCEC0`。第一条实际 producer 驻留阳性通过，随后的 `hold-quality-render` 发生 AssertionError，立即停止，没有继续德鲁伊/牧师、context loss 或尾清理。
+
+合法 blue 能力产生 pending choice，通过实际 surface 更新与实际说明关闭后捕获的 presenter 参数为 rate 3、life 2、size 2.4、alpha 0.75、drift (0,-22)，holdSelf=true 且存在真实 origin。有限能力尾结束后，generation 1 实际 air draw 30、POINTS 20，POINTS 改变非透明像素 1667；ground draw 20、改变非透明像素 27007，stage 可用、choice 仍在、busy=false。
+
+真实点击 `#fx-quality` 后 stage generation 变为 2，stageAvailable=true、threeMode=true、choice=true、busy=false，specCalls 仍为 1、nullCalls 0。排除旧帧后，新阶段 air/ground 实际绘制、POINTS、alpha 全部为 0；不是用空画布或 stats 充当阳性。根因是画质重建销毁旧 composition 的 owned specs，而 presenter 只在能力事件时生成 hold，没有在新 FX 发布时重新生成已有 powerHold。该缺陷不能被此前完整 CI 或原 ambient24 通过掩盖。
+
+此轮 FieldLayer、presenter、composeFx、FxStage、TableScene 五个产品文件前后 SHA256 相同，脚本/console/外域/资源错误均 0，浏览器/静态服务 finally 已关闭。当前只准备工具与此留痕，不预修生产、不部署。遗留：修复 active hold 画质重建后的 producer 接线、独立审计、新冻结针对性验证与完整 CI；实际德鲁伊/牧师生产参数与真实最大粒子寿命尾清理仍未执行。TODO 由根代理统一双落，避免并行覆盖。
