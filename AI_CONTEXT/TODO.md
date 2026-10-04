@@ -5,6 +5,7 @@
 
 ## 待办
 
+- [x] pending-inspection独立复跑原第10TypeError修复：仅fixture第二socket view原apply后采点+原12秒等待，原assert不变，独立完整run-n6hs2e13/13/tool6d01bb0a。原run-LGF1Af前9过第10失败、run-wEZEPT失败及RAM定位run-5nn2mB保留，未证明生产权限复活；修后run-eiqneN12/13第13HTTPsetup TypeError无socket原因未确定，限定run-54w6A3不当完整。安全steps/错误名/cause.code诊断不含私payload，见pending-inspection runbook新增段。
 - [x] 连接权限 pending 跨断线自动重发 P2：FX候选同helper在真实 onclose、CLOSING手动retry换连接、stop时只取消 inspect/omniscient enable/disable 与commandTimer；正式 Node13/13（run-Y5WOQf）含原9、两个关闭迟到权限边界和相同入口的真实action保留，四action控制各仅一次重试/一次应用。原auth5/5、tsc0错；首次ignored7/9夹具错误、初版9通过和两条真实遗漏复现/新观察点失败均留存；见 `RUNBOOKS/2026-10-04_pending-inspection-reconnect.md`。
 - [ ] 根任务接入 `tools/website-pending-inspection-selftest.mjs` 至 package/CI（build:server后），独立复核本次客户端修复，并纳入最终FX候选完整CI/浏览器/冻结包与发布门槛。本Node控制不替代UI/公网；本次未改线上801、版本、推送或部署。
 

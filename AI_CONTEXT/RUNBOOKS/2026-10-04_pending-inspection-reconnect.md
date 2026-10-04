@@ -44,4 +44,16 @@
 
 ## 遗留与验证范围
 
+### 独立复跑第10项失败（不得以先前13通过覆盖）
+
+独立审计运行原冻结工具/客户端相同hash，完整 `run-LGF1Af` 前9通过而第10失败；限定 `run-wEZEPT` 同第10失败，旧JSON只记合并Error和3条initial/pending/dropped-command事件，没有新view，不能据此归因权限重新开启。独立审计额外RAM定位 `run-5nn2mB` 确认为 `TypeError`，访问尚为null的 `freshViewAfterClose.pending`（原工具119行）。manual retry同步建立第二socket并清pending，但缓存view.connected仍true；旧socket close到达、新认证view尚未到达时原等待可能提前放行。这是夹具新连接观察缺口，尚无生产权限复活证据；若newview先于旧close，按close采点同样不可靠。
+
+新增工具诊断只记录枚举failureStep、白名单error constructor名称和HTTP异常cause.code、最多32条公开事件中的socket attempt/open/close code及失败boolean/count/readyState；不记录message/stack/rawpayload/session/name/room/token/card/SQL。诊断限定 `run-qNVWqx` 第10恰通过1/1，不能当完整13或稳定修复证明。
+
+根任务批准仅fixture generation同步修正：真实第二socket收到完整view并执行原callback/apply完成后采第一次pending/canEdit/inspect布尔，原普通恢复等待只增加该采点已经到达、仍12秒；其余权限/action/timer断言和期限保留，不依赖旧socket close与新view的到达次序。产品client SHA仍a12891aa，authority仍475dbf1a未变。
+
+修正后完整 `run-eiqneN` **12/13**：第10/11权限入口与第12action入口均过，第13在setup-admission报TypeError，connectionCount=0、events为空，没有运行该客户端控制。无法从该次旧诊断确定HTTP异常根因，不能称事务行为失败或归因undici端口复用。只为区分准备原语新增create/join步骤和安全cause.code白名单；限定第13 `run-54w6A3` 1/1通过，不把限定通过合并为完整13。
+
+随后换模型独立审计使用当前正式工具真实完整运行 `.local-evidence/website-pending-inspection/run-n6hs2e/result.json` **13/13**、exit0，第10–13全部通过；其静态复核原权限/action/timer assert及12秒期限保持。该次工具SHA `6d01bb0aa7d783f35f3bb7f52e73d49ce28e5b59cb259510b877671eeea164d1`，客户端与authority仍a12891aa/475dbf1a。新完整通过不撤销前两次TypeError与本次12/13准备失败，HTTP准备异常具体根因仍未知；不声称首次通过、UI或公网验收。未修改Agent、HTTP连接头、产品或等待期限，未push/部署。
+
 Node证据是合成房间、真实协议与提交事务的控制，不是浏览器 UI 或公网验收。本次未运行浏览器，未改 package/CI/build版本，未推送或部署。根任务需接入这个专项的 CI（build:server 后），独立复核本次实际实现，再把最终候选的完整 CI / 浏览器 / 冻结包 / 发布决定分别留证。线上仍为 801；不得把候选修复或 Node13 项包装为线上已整改。
