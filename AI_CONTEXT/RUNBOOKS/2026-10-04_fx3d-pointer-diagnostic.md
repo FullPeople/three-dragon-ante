@@ -19,3 +19,19 @@
 准备验证实际完成：`node --check tools/fx3d-alignment-check.mjs`、`git diff --check` 均 exit 0。工具 SHA256 `9A2C1064DA16E332F4C2C4B040D840C19693116F92D50314E708555FF9218ED7`。RAM TypeScript AST 与 d107035 原工具逐表达式对照：assert 28→28、page.waitFor 4→4、pass 6→6、startOnline 完整函数 1→1、三次调用 3→3、原 pts/card/cr/hit 变量 4→4 均字面和顺序完全一致；其中 startOnline 的 locator.waitFor 前置亦包含在完整函数逐字对照。ignored 证明 `.local-evidence/fx-release/alignment-public-diagnostic-ast.json`。没有浏览器运行、采证结果或源码修复；准备状态不能视为诊断已证明根因。
 
 独立只读代理 `fx_release_audit` 复核同 SHA 工具及整个 diff 通过，其 RAM AST 将 locator.waitFor 一并纳入，得到 wait 7→7 逐字保留；与上述 page.waitFor 4 的口径不同，均未改任何等待。独立审核未运行浏览器、未写源码或测试，不能用审核认可代替真实失败诊断。
+
+## 首次本地诊断执行
+
+工具与本 runbook 独立提交 `dcc3c4ee6ed54a230093e116ad6e1fb3bb3f35be`；根代理追加两份状态文档后统一冻结 `6d2de06b187e5339e33ba1bb0ef184b1ffecd585`。本机独占 CPU/浏览器按顺序执行，临时进程 `VITE_TDA_API=/three-dragon-api/v1`，finally 恢复进程环境，未修改 `.env` 文件。源码始末均 6d2、六产品 SHA256 和工具 SHA256 前后相同，始末 git status 空。
+
+| 命令 | 真实结果 | 日志 |
+| --- | --- | --- |
+| `npm run build` | exit 0，21.267s（含 typecheck） | `.local-evidence/fx-release/local-alignment-diag-abfdb7eb/build.log` |
+| `npm run build:server` | exit 0，0.820s | 同目录 `build-server.log` |
+| `npm run test:fx3d` | 9/9，exit 0，27.229s | 同目录 `test-fx3d.log` |
+
+完整调用、source/hash、973 个前端产物逐文件 hash/字节（共 41,851,338 bytes）、版本与同域 API 绑定在同目录 `invocation.json`，编译服务端文件白名单 hash 在 `server-artifacts.json`。package/产物 manifest 均 0.9.2-dev，同域 API 字面绑定包含在 `site-CWfUZF-U.js`，实际建桌/开始使用本地权威服务成功；不能只拿陈旧 dist 通过充当当前源码结果。
+
+首次两个公开快照 `.local-evidence/fx3d-alignment/run-zQf9QK/desktop-public-diagnostic.json` 和 `narrow-public-diagnostic.json` 均为 airShown=true、hitIsCard=true、stageAvailable=true、effects=1；entering/arriving、transform running/pending、busy 与 power/reveal/choice/score/confirmation/help 全为 false。FX 两画布 pointerEventsNone=true，命中类别 card，取点位于视口及桌内；桌面/窄屏 camera 误差 0.009/0.004px，历史单链阴性为 4 renders/tick，新源为 1，原其余检查均通过。finally 浏览器、SQLite memory service 和 HTTP 服务全部关闭，无重复运行。
+
+本地首诊断通过并未复现旧 Linux 失败，不能据此称旧因已查明或清除发布限制。新的 exact Linux CI 及其同帧诊断仍待根代理取证。只读另发现：建桌 helper 等的是 `.tda-card--hand[data-card]`，实际取点却为首个 `.tda-card--hand`；后者也包含先渲染的桌面层对手匿名牌背，前置并非取点节点的进场确认。本次快照 rect 桌面 (730.97,220.59,43.76,54.26)、窄屏 (201.57,283.70,26.00,33.82)，均在顶部桌面区域；不拿该范围差异推断旧失败，也未擅自更改原取点或断言。遗留保持：Linux 分别两个操作数和节点当时几何/活动/动画证据，取得后才决定需要修产品还是前置，仍禁止盲重跑凑过。TODO 由根代理统一记录。
