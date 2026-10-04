@@ -22,3 +22,10 @@
 ## 遗留（同步TODO）
 
 生产驻留参数/active hold画质重建、真实联网3D、完整精确SHA CI、其他模型独立终审、冻结包/GPL归档/逐目标回滚备份/线上SHA核验与公网真实交互。真实弱机/实体手机人工体验保持单列，不将软件GL或驱动类别当设备体验。源和门槛全部通过才决定定向发布；实质改动完成仍提醒用户按AI_CONTEXT/AUDIT.md换模型独立审计。
+
+
+## 实际联网3D结果及精确CI（后续追加）
+
+默认软件2D run-o1ibiR 14/14、强开软件3D run-9ApAvm 16/16、default正常网站3D run-b66MlY 16/16均exit0。原13演出各全部保留，软件负对照两FX画布GL绘制0；两个3D模式都由真实已接受黑龙能力触发，无debug/gallery/手动cast，实际native POINTS前后非透明像素变化与ground非空绘制均阳性，说明打开/关闭各1，脚本/外域0。各wrapper source与FX/client/presenter文件前后hash稳定；default三驱动观测software=false不等于实体手机/弱机验收，readPixels开销不构成FPS证据。详情同日fx3d-ambient-network-validation runbook及ignored run-ambient-network-6b63f355。
+
+042e446d07ff87deba49b3b5ad6e5356d0faf5ae已normal push隔离integrate/fx3d-refresh-c3960047分支，无main/force/tag。精确CI37194506711已启动，执行29个run步骤，未删原25；当前尚未结论。gpt-6.1-sol独立复核版本/锁/脚本/CI旧行完整保留、client/FX/hash及权限Node13实际证据，有条件通过；生产参数和activehold画质及最终CI/包仍待，不把metadata通过当发布终裁。
