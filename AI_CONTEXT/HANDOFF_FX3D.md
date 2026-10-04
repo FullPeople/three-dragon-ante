@@ -1,6 +1,6 @@
 # 三龙牌 · three.js 特效层（fx3d）接力启动词（2026-10-04）
 
-> 附件历史记录：本文件随来源快照 `2afca326` 保留。当前任务与授权以 `AI_CONTEXT/GOAL.md` §10–§11、`MEMORY.md` §E 及 `RUNBOOKS/2026-10-04_fx3d-integration.md` 为准；其中本地机器人、枭熊内游戏、403/PR/main 操作与旧测试数字不代表当前实现或新授权。文档里的启动词不自动执行。
+> 附件历史记录：本文件现保留来源快照 `c3960047` 的增量（前一来源 `2afca326`）。当前任务与授权以 `AI_CONTEXT/GOAL.md` §10–§11、`MEMORY.md` §E、`RUNBOOKS/2026-10-04_fx3d-integration.md` 与 `2026-10-04_fx3d-refresh.md` 为准；其中本地机器人、枭熊内游戏、403/PR/main 操作、停工指令与旧测试数字不代表当前实现或新授权。文档里的启动词不自动执行。
 
 > 用法：在新机器上（仓库已解压 / 已推送），把下面「启动词」整段粘贴给 Claude Code / Codex 作为第一条消息，用于**继续推进特效层**。它与 `HANDOFF_NEW_MACHINE.md`（环境 / 推送 / 枭熊部署）互不冲突：可以同一台机器先做那份，再做这份。
 > 用户 2026-10-04 决定：目标式持续推进，不逐步请示；仓库有 git 兜底。
@@ -57,7 +57,7 @@ node .local-evidence/perf-probe.mjs default all-off   # 帧率探针（OPP=5 环
 
 - 已完成：P0 地基与门控；P1 图元（GroundMark 法阵 / 扩散环 / 爪痕 + 形态参数、Pillar 光柱、Burst GPU 粒子、Beam 飘带 + 头部火星、Emitter 循环发射器）；适配器把 sigil / ring / beam / burst / flare / dust / grab / swap / claw / ambient 路由到 three；P2 41 个家族签名脚本（`scripts/families.ts`），标准龙按点数调幅；P3 等待选择 / 场地 / 牌阵与传说到场形态；P4 Shell 冲击壳、Collar 站立光环、顶栏画质开关（自动 / 高 / 中 / 低 / 关）、自适应降档；P5 尘土分档、署名登记（ASSETS.md + THIRD_PARTY）、VISUAL_SPEC 口径。
 - 帧率：金币滤镜层风暴已修（6 人局软件渲染 5 → 56 fps）；fx3d 画布空闲隐藏。
-- 独立审计（Opus，范围 8d23298..4d0d414）在原机器上已发起；若结果没有记进 runbook kickoff §4，说明原机器中断了，新机器要**自己再做一次**（§5 第 8 条）。
+- 独立审计（Opus，范围 8d23298..4d0d414）：不通过（2 高 4 中 8 低），已全部整改（runbook kickoff §4，commit `c3f67fc`），复查被用户于 2026-10-04 叫停，**没有终裁**；新机器要**自己再审一次**（§5 第 8 条：换模型只读审计，范围 `8d23298..HEAD`，重点 H1 单条渲染链、H2 软件 GL 不留白方块、M1 不误降、M2 颜色 = token）。
 
 ### 5. 待做清单（按序；每项一个 commit + 截图 + runbook 小节）
 

@@ -4,7 +4,7 @@
  *  - 地面画布（.tda-fx3d-ground）：放在 .tda-plane 里、随平面一起被 CSS 倾斜，画在毛毡之上、卡牌之下；
  *    正交相机 y 向上、原点在平面中心，与空中画布共用同一套 `local(x, y, z)`（评审指出：直接用 y 向下的正交相机会翻转手性，
  *    three 只按物体矩阵的行列式补绕序，默认 FrontSide 的网格会整片被剔除）。负责法阵 / 光池 / 裂痕 / 焦痕这类必须被卡牌盖住的贴地效果。
- *  按需渲染：没有活动效果就不跑循环。WebGL 不可用时 mount 返回 null，调用方退回贴图粒子层。 */
+ *  单条按需 rAF 链；只剩驻留效果时按 30 fps 渲染。软件 GL 探测只使用离屏画布。 */
 import { Group, NoToneMapping, OrthographicCamera, PerspectiveCamera, Scene, Vector2, Vector3, WebGLRenderer } from "three";
 import { fitPlane, type Orientation, type PlaneSpec } from "../model/layout";
 import { airCamera, screenToPlane, stageMetrics, type StageMetrics } from "./stage";
@@ -15,10 +15,11 @@ export interface Effect {
   /** 每帧调用；返回 false 表示结束（会被移除并 dispose） */
   update(dt: number, now: number): boolean;
   dispose?(): void;
+  idleOk?: boolean;
 }
 export interface FxStage {
   /** 写进 root 的 data-fx：three-high / three-medium / three-low */
-  readonly mode: `three-${Tier}`;
+  readonly mode: `three-${Tier}` | "canvas2d";
   /** Both live canvases must have their contexts, and the stage must not be destroyed. */
   readonly available: boolean;
   schedule(callback: () => void, ms: number): () => void;
@@ -43,55 +44,56 @@ export interface FxStage {
   add(effect: Effect): void;
   /** 唤醒渲染循环（场景里有东西变了） */
   wake(): void;
+  frameStats(): { frames: number; renders: number; effects: number; names: string[] };
   destroy(): void;
 }
 
-/** 用户三态开关（帮助面板）：localStorage["tda.fx"] = auto | off | low | high；URL ?fx3d=0 关、?fx3d=1 强制开（含软件 GL，测试用） */
-export function fxPreference(): "auto" | "off" | "low" | "medium" | "high" {
-  const url = typeof location !== "undefined" ? new URLSearchParams(location.search).get("fx3d") : null;
-  if (url === "0") return "off"; if (url === "1") return "auto";
-  try { const v = localStorage.getItem("tda.fx"); if (v === "off" || v === "low" || v === "medium" || v === "high") return v; } catch { /* 隐私模式 */ }
-  return "auto";
+import { forced, fxPreference } from "./preference";
+function probeSoftwareGL(): boolean | null {
+  try {
+    const canvas = document.createElement("canvas"), gl = (canvas.getContext("webgl2") ?? canvas.getContext("webgl")) as WebGLRenderingContext | null;
+    if (!gl) return null;
+    const info = gl.getExtension("WEBGL_debug_renderer_info"), name = info ? String(gl.getParameter(info.UNMASKED_RENDERER_WEBGL)) : "";
+    gl.getExtension("WEBGL_lose_context")?.loseContext();
+    return /swiftshader|llvmpipe|software/i.test(name);
+  } catch { return null; }
 }
-const forced = () => typeof location !== "undefined" && new URLSearchParams(location.search).get("fx3d") === "1";
-const softwareGL = (renderer: WebGLRenderer) => { const gl = renderer.getContext(); const info = gl.getExtension("WEBGL_debug_renderer_info"); const name = info ? String(gl.getParameter(info.UNMASKED_RENDERER_WEBGL)) : ""; return /swiftshader|llvmpipe|software/i.test(name); };
-
-function detectTier(renderer: WebGLRenderer, hostW: number): Tier {
-  if (reducedMotion()) return "low";
-  if (softwareGL(renderer)) return "low";
-  const coarse = matchMedia("(pointer: coarse)").matches;
-  if (hostW < 640 || (coarse && (navigator.hardwareConcurrency ?? 4) <= 4)) return "low";
-  if (coarse || (navigator.hardwareConcurrency ?? 4) <= 4) return "medium";
+function detectTier(software: boolean, hostW: number): Tier {
+  if (reducedMotion() || software) return "low";
+  const coarse = matchMedia("(pointer: coarse)").matches, cores = navigator.hardwareConcurrency ?? 4;
+  if (hostW < 640 || coarse) return cores >= 6 ? "medium" : "low";
+  if (cores <= 4) return "medium";
   return "high";
 }
 
 const DPR_CAP: Record<Tier, number> = { high: 1.5, medium: 1.25, low: 1 };
 
-function makeRenderer(canvas: HTMLCanvasElement, antialias: boolean): WebGLRenderer | null {
+function makeRenderer(canvas: HTMLCanvasElement, tier: Tier): WebGLRenderer | null {
   try {
-    const renderer = new WebGLRenderer({ canvas, alpha: true, antialias, premultipliedAlpha: true, powerPreference: "high-performance", stencil: false, preserveDrawingBuffer: false });
+    const renderer = new WebGLRenderer({ canvas, alpha: true, antialias: tier === "high", premultipliedAlpha: true, powerPreference: tier === "low" ? "low-power" : "high-performance", stencil: false, preserveDrawingBuffer: false });
     renderer.setClearColor(0x000000, 0);
     renderer.autoClear = true; renderer.toneMapping = NoToneMapping;
     return renderer;
   } catch { return null; }
 }
 
-/** host = .tda-table；airCanvas 盖在 host 上；groundCanvas 位于 .tda-plane 内（可为 null：只要空中层） */
+/** host = .tda-table；airCanvas 盖在 host 上；groundCanvas 位于 .tda-plane 内；缺任一画布时保留 2D 回退。 */
 export function mountFxStage(host: HTMLElement, airCanvas: HTMLCanvasElement, groundCanvas: HTMLCanvasElement | null): FxStage | null {
   const pref = fxPreference();
   const hostRect = () => host.getBoundingClientRect();
   const r0 = hostRect();
   // 门控：用户关掉 / 减少动态 / 枭熊紧凑弹窗（< 420×320）→ 不建；软件 GL 默认不建（?fx3d=1 可强制，测试用）
   if (pref === "off" || (!forced() && (reducedMotion() || (r0.width > 0 && r0.width < 420 && r0.height < 320)))) return null;
-  const made = makeRenderer(airCanvas, true);
+  if (!groundCanvas) return null;
+  const software = probeSoftwareGL();
+  if (software === null || software && !forced()) return null;
+  let tier: Tier = pref === "low" ? "low" : pref === "medium" ? "medium" : pref === "high" ? "high" : detectTier(software, r0.width || 1440);
+  const made = makeRenderer(airCanvas, tier);
   if (!made) return null;
   const airRenderer: WebGLRenderer = made;
-  if (!forced() && softwareGL(airRenderer)) { airRenderer.dispose(); airRenderer.forceContextLoss(); return null; }
-  let tier: Tier = pref === "low" ? "low" : pref === "medium" ? "medium" : pref === "high" ? "high" : detectTier(airRenderer, r0.width || 1440);
-  if (tier !== "high") { /* 低档：关掉抗锯齿，重建一次更省 */ }
   let dpr = Math.min(DPR_CAP[tier], devicePixelRatio || 1);
   airRenderer.setPixelRatio(dpr);
-  const groundRenderer = groundCanvas ? makeRenderer(groundCanvas, false) : null;
+  const groundRenderer = makeRenderer(groundCanvas, "low");
   if (groundCanvas && !groundRenderer) { airRenderer.dispose(); airRenderer.forceContextLoss(); return null; }
   groundRenderer?.setPixelRatio(dpr);
 
@@ -101,7 +103,7 @@ export function mountFxStage(host: HTMLElement, airCanvas: HTMLCanvasElement, gr
   groundCam.position.set(0, 0, 1000);
 
   const effects: Effect[] = [];
-  let raf = 0, last = 0, dirty = true, destroyed = false;
+  let raf = 0, last = 0, destroyed = false, frames = 0, renders = 0, lastRender = 0;
   const lostCanvases = new Set<HTMLCanvasElement>();
   const timers = new Map<ReturnType<typeof setTimeout>, () => void>();
   const invalidated = new Set<() => void>();
@@ -115,7 +117,7 @@ export function mountFxStage(host: HTMLElement, airCanvas: HTMLCanvasElement, gr
   function disposeEffect(effect: Effect) { try { effect.dispose?.(); } catch (err) { console.error("fx3d dispose failed", err); } }
   function invalidate() {
     if (raf) { cancelAnimationFrame(raf); raf = 0; }
-    last = 0;
+    last = 0; lastRender = 0; ema = 16.7; slowSince = 0;
     for (const [timer, cancel] of timers) { clearTimeout(timer); cancel(); }
     timers.clear();
     for (const effect of effects.splice(0)) disposeEffect(effect);
@@ -151,7 +153,6 @@ export function mountFxStage(host: HTMLElement, airCanvas: HTMLCanvasElement, gr
       groundCanvas.style.width = `${spec.w}px`; groundCanvas.style.height = `${spec.h}px`;
       groundCam.left = -spec.w / 2; groundCam.right = spec.w / 2; groundCam.top = spec.h / 2; groundCam.bottom = -spec.h / 2; groundCam.updateProjectionMatrix();
     }
-    dirty = true;
   }
   // three 内部可能调用 updateProjectionMatrix（例如 setViewOffset）；锁定为我们的视锥
   airCam.updateProjectionMatrix = () => { const f = airCamera(metrics); airCam.projectionMatrix.makePerspective(f.left, f.right, f.top, f.bottom, f.near, f.far); airCam.projectionMatrixInverse.copy(airCam.projectionMatrix).invert(); };
@@ -168,25 +169,27 @@ export function mountFxStage(host: HTMLElement, airCanvas: HTMLCanvasElement, gr
     if (tier === "low") return;
     tier = tier === "high" ? "medium" : "low";
     dpr = Math.min(DPR_CAP[tier], devicePixelRatio || 1); airRenderer.setPixelRatio(dpr); groundRenderer?.setPixelRatio(dpr); layout();
-    (stage as { mode: string }).mode = `three-${tier}`;
     window.dispatchEvent(new CustomEvent("tda-fx-tier", { detail: tier }));
   }
   function frame(now: number) {
-    raf = 0; if (!available()) return;
-    const dt = Math.min(0.05, last ? (now - last) / 1000 : 0.016); last = now;
-    if (last) { ema = ema * 0.9 + Math.min(100, dt * 1000) * 0.1; if (ema > 28) { if (!slowSince) slowSince = now; else if (now - slowSince > 1500) { downgrade(); slowSince = 0; ema = 16.7; } } else slowSince = 0; }
+    if (!available()) { raf = 0; return; }
+    frames++;
+    const gap = last ? now - last : 0;
+    const dt = Math.min(0.05, last ? gap / 1000 : 0.016); last = now;
+    if (gap > 0) { ema = ema * 0.9 + Math.min(100, gap) * 0.1; if (ema > 28) { if (!slowSince) slowSince = now; else if (now - slowSince > 1500) { downgrade(); slowSince = 0; ema = 16.7; } } else slowSince = 0; }
     for (let i = effects.length - 1; i >= 0; i--) { let alive = false; try { alive = effects[i].update(dt, now); } catch (err) { alive = false; console.error("fx3d effect failed", effects[i]?.constructor?.name, err); } if (!alive) { const e = effects.splice(i, 1)[0]; try { e.dispose?.(); } catch (err) { console.error("fx3d dispose failed", err); } } }
-    airRenderer.render(airScene, airCam);
-    if (groundRenderer) groundRenderer.render(groundScene, groundCam);
-    dirty = false;
-    if (effects.length) raf = requestAnimationFrame(frame); else { last = 0; setVisible(false); }
+    if (!available()) { raf = 0; return; }
+    const idleOnly = effects.length > 0 && effects.every(effect => effect.idleOk);
+    if (!idleOnly || now - lastRender >= 31) { airRenderer.render(airScene, airCam); groundRenderer?.render(groundScene, groundCam); renders++; lastRender = now; }
+    // Keep the current rAF handle until the frame ends, so nested add/wake cannot start another chain.
+    if (effects.length) raf = requestAnimationFrame(frame); else { raf = 0; last = 0; lastRender = 0; ema = 16.7; slowSince = 0; setVisible(false); }
   }
   // 没有活动效果时两张画布都不参与合成
-  function setVisible(on: boolean) { airCanvas.style.display = on ? "" : "none"; if (groundCanvas) groundCanvas.style.display = on ? "" : "none"; }
+  function setVisible(on: boolean) { airCanvas.style.display = on ? "block" : "none"; if (groundCanvas) groundCanvas.style.display = on ? "block" : "none"; }
   function wake() { if (!raf && available()) { setVisible(true); raf = requestAnimationFrame(frame); } }
 
   const stage: FxStage = {
-    mode: `three-${tier}`,
+    get mode() { return available() ? `three-${tier}` as const : "canvas2d"; },
     get available() { return available(); },
     schedule,
     repeat(callback, ms) {
@@ -212,6 +215,7 @@ export function mountFxStage(host: HTMLElement, airCanvas: HTMLCanvasElement, gr
     pointScale: () => pointScaleValue,
     add(effect) { if (!available()) { disposeEffect(effect); return; } effects.push(effect); wake(); },
     wake,
+    frameStats: () => ({ frames, renders, effects: effects.length, names: effects.map(effect => effect.constructor?.name ?? "?") }),
     destroy() {
       if (destroyed) return; destroyed = true; observer.disconnect(); invalidate(); invalidated.clear();
       for (const c of [airCanvas, groundCanvas]) if (c) { c.removeEventListener("webglcontextlost", onLost); c.removeEventListener("webglcontextrestored", onRestored); }

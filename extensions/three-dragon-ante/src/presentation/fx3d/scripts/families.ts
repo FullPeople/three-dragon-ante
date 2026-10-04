@@ -44,8 +44,9 @@ const red: FamilyScript = { async cast(c) {
   c.kit.mark(c.source, { kind: "ember", radius: R(c, 120), duration: 1500, form: form(c, { points: 8, sharp: true, ticks: 8 }) });
   c.kit.pillar(c.source, { kind: "ember", height: R(c, 220), width: 110, duration: 900 });
   await c.wait(220);
-  for (const [i, id] of ids.entries()) { const h = c.handPoint(id); if (!h) continue; c.stage.schedule(() => { c.kit.strike(c.source, h, { kind: "ember", duration: 620, lift: 120, width: 22, impact: 1.1, impactZ: 40 }); c.stage.schedule(() => c.kit.claw(h, { kind: "ember", radius: 70, duration: 700 }), 420); }, i * 140); }
-  await c.wait(620 + ids.length * 140 + 500);
+  const st = Math.min(140, 420 / Math.max(1, ids.length));
+  for (const [i, id] of ids.entries()) { const h = c.handPoint(id); if (!h) continue; c.stage.schedule(() => { c.kit.strike(c.source, h, { kind: "ember", duration: 620, lift: 120, width: 22, impact: 1.1, impactZ: 40 }); c.stage.schedule(() => c.kit.claw(h, { kind: "ember", radius: 70, duration: 700 }), 420); }, i * st); }
+  await c.wait(620 + ids.length * st + 380);
 } };
 const redDestroyer: FamilyScript = { async cast(c) {
   c.kit.mark(c.source, { kind: "ember", radius: 150, duration: 2000, form: { points: 8, sharp: true, ticks: 16, ribs: 8 } });
@@ -53,8 +54,9 @@ const redDestroyer: FamilyScript = { async cast(c) {
   c.kit.burst(c.source, 30, { kind: "ember", count: 40, speed: 260, up: 0.9, size: 40, life: 1.0 });
   await c.wait(320);
   const hands = c.others.map(id => c.handPoint(id));
-  hands.forEach((h, i) => { if (h) c.stage.schedule(() => { c.kit.strike(c.source, h, { kind: "ember", duration: 640, lift: 150, width: 24, impact: 1.2, impactZ: 40 }); c.stage.schedule(() => c.kit.claw(h, { kind: "ember", radius: 80, duration: 800 }), 440); }, i * 110); });
-  await c.wait(640 + hands.length * 110 + 600);
+  const st = Math.min(110, 400 / Math.max(1, hands.length));
+  hands.forEach((h, i) => { if (h) c.stage.schedule(() => { c.kit.strike(c.source, h, { kind: "ember", duration: 640, lift: 150, width: 24, impact: 1.2, impactZ: 40 }); c.stage.schedule(() => c.kit.claw(h, { kind: "ember", radius: 80, duration: 800 }), 440); }, i * st); });
+  await c.wait(640 + hands.length * st + 420);
 } };
 
 // ---------- 潮 · 雷霜月 ----------
@@ -113,8 +115,9 @@ const green: FamilyScript = { async cast(c) {
   const ids = c.targets.length ? c.targets : c.others.slice(0, 1);
   c.kit.mark(c.source, { kind: "grove", radius: R(c, 100), duration: 1500, form: form(c, { points: 3, hooks: true, ticks: 0 }) });
   await c.wait(200);
-  for (const [i, id] of ids.entries()) { const h = c.handPoint(id); if (!h) continue; c.stage.schedule(() => { c.kit.strike(c.source, h, { kind: "grove", duration: 640, lift: 110, width: 18, impact: 0.9, impactZ: 40 }); c.stage.schedule(() => c.kit.burst(h, 30, { kind: "grove", count: 20, speed: 90, up: 1.0, size: 30, life: 1.1, sprites: ["smoke_03", "star_01"] }), 460); }, i * 160); }
-  await c.wait(640 + ids.length * 160 + 500);
+  const st = Math.min(160, 420 / Math.max(1, ids.length));
+  for (const [i, id] of ids.entries()) { const h = c.handPoint(id); if (!h) continue; c.stage.schedule(() => { c.kit.strike(c.source, h, { kind: "grove", duration: 640, lift: 110, width: 18, impact: 0.9, impactZ: 40 }); c.stage.schedule(() => c.kit.burst(h, 30, { kind: "grove", count: 20, speed: 90, up: 1.0, size: 30, life: 1.1, sprites: ["smoke_03", "star_01"] }), 460); }, i * st); }
+  await c.wait(640 + ids.length * st + 380);
 } };
 const greenSchemer: FamilyScript = { async cast(c) {
   c.kit.mark(c.source, { kind: "grove", radius: 140, duration: 1900, form: { points: 3, hooks: true, ribs: 9, ticks: 9 } });
@@ -259,8 +262,9 @@ const queen: FamilyScript = { async cast(c) {
   c.kit.pillar(c.source, { kind: "crown", height: 240, width: 120, duration: 1000 });
   await c.wait(300);
   const ids = c.targets.length ? c.targets : c.others;
-  for (const [i, id] of ids.entries()) { const co = c.coinsPoint(id), h = c.handPoint(id); c.stage.schedule(() => { if (co) c.kit.strike(c.source, co, { kind: "crown", duration: 560, lift: 100, width: 16, impact: 0.8, impactZ: 20 }); if (h) c.kit.strike(c.source, h, { kind: "arcane", duration: 620, lift: 140, width: 16, impact: 0.8, impactZ: 40 }); }, i * 140); }
-  await c.wait(620 + ids.length * 140 + 300);
+  const st = Math.min(140, 420 / Math.max(1, ids.length));
+  for (const [i, id] of ids.entries()) { const co = c.coinsPoint(id), h = c.handPoint(id); c.stage.schedule(() => { if (co) c.kit.strike(c.source, co, { kind: "crown", duration: 560, lift: 100, width: 16, impact: 0.8, impactZ: 20 }); if (h) c.kit.strike(c.source, h, { kind: "arcane", duration: 620, lift: 140, width: 16, impact: 0.8, impactZ: 40 }); }, i * st); }
+  await c.wait(620 + ids.length * st + 300);
 } };
 const princess: FamilyScript = { async cast(c) {
   c.kit.mark(c.source, { kind: "crown", radius: 130, duration: 1700, form: { points: 5, sharp: true, ticks: 10, ribs: 5 } });
@@ -287,9 +291,9 @@ const bahamut: FamilyScript = { async cast(c) {
   c.kit.collar(c.source, { kind: "crown", radius: 150, height: 120, duration: 1800, ticks: 28, pulse: 1.5 });
   c.kit.shell(c.source, 30, { kind: "crown", r1: 220, duration: 900, squash: 0.6 });
   c.kit.burst(c.source, 30, { kind: "crown", count: 70, speed: 300, up: 0.95, size: 44, life: 1.1 });
-  await c.wait(500);
+  await c.wait(420);
   await c.kit.volley(c.source, c.targets.map(id => c.coinsPoint(id)), { kind: "crown", duration: 620, stagger: 100, lift: 140, width: 20, impact: 1, impactZ: 20 });
-  await c.wait(400);
+  await c.wait(300);
 } };
 const tiamat: FamilyScript = { async cast(c) {
   c.kit.mark(c.source, { kind: "ember", radius: 200, duration: 2300, form: { points: 5, sharp: true, ribs: 15, ticks: 5, hooks: true } });

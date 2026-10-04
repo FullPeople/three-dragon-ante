@@ -14,7 +14,8 @@ import { Lobby } from "../hud/Lobby";
 import { waitingLine, type PresentationFlags } from "../model/flow";
 import { t } from "../i18n";
 import type { FxLayer } from "../fx/particles";
-import { fxPreference, type FxStage } from "../fx3d/FxStage";
+import type { FxStage } from "../fx3d/FxStage";
+import { fxPreference } from "../fx3d/preference";
 import type { Orientation } from "../model/layout";
 import { bindHiddenOmniscient } from "../../site/hidden-omniscient";
 

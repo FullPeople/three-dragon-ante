@@ -14,9 +14,7 @@ import { GhostLayer } from "./GhostLayer";
 import { t } from "../i18n";
 import { mountFx, type FxLayer } from "../fx/particles";
 import { card } from "../../game/rules/cards";
-import { mountFxStage, type FxStage } from "../fx3d/FxStage";
-import { composeFx } from "../fx3d/composeFx";
-import { debugMarkers } from "../fx3d/debug";
+import type { FxStage } from "../fx3d/FxStage";
 
 export interface TableSceneProps { state: UIState; controller: Controller; onFx(fx: FxLayer | null): void; onFx3d?(stage: FxStage | null): void; onOrientation(orientation: Orientation): void; onLand?(key: string, zone: string): void }
 
@@ -41,6 +39,9 @@ function PointerArrow({ from, to, legal }: { from: { x: number; y: number }; to:
 export function TableScene({ state, controller, onFx, onFx3d, onOrientation, onLand }: TableSceneProps) {
   const host = useRef<HTMLDivElement>(null), canvas = useRef<HTMLCanvasElement>(null), airCanvas = useRef<HTMLCanvasElement>(null), groundCanvas = useRef<HTMLCanvasElement>(null);
   const fxRef = useRef<FxLayer | null>(null), fx3dRef = useRef<FxStage | null>(null);
+  const shape = tableShape(state.display?.game?.seats.length ?? 3), shapeRef = useRef(shape);
+  shapeRef.current = shape;
+  const fxGeneration = useRef(0), [fxReady, setFxReady] = useState(0);
   const fx3dDebug = typeof location !== "undefined" && new URLSearchParams(location.search).get("fx3dDebug") === "1";
   // 画质开关：每次切换都重建 2D 层 + 舞台
   const [fxEpoch, setFxEpoch] = useState(0);
@@ -56,13 +57,35 @@ export function TableScene({ state, controller, onFx, onFx3d, onOrientation, onL
   useEffect(() => { onOrientation(fit.orientation); }, [fit.orientation]);
   // 2D 贴图层 + three.js 舞台（空中 + 地面两张画布）合成一个 FxLayer：舞台不可用（WebGL / 减少动态 / 用户关掉 / 软件 GL）时就是纯 2D 层
   useEffect(() => {
-    const c = canvas.current, h = host.current, a = airCanvas.current; if (!c || !h || !a) return;
-    const fx2d = mountFx(c, h);
-    const stage = mountFxStage(h, a, groundCanvas.current); stage?.setShape(tableShape(state.display?.game?.seats.length ?? 3)); fx3dRef.current = stage; onFx3d?.(stage);
-    if (stage && (fx3dDebug || fx3dGallery || fx3dScripts)) (window as unknown as { __tdaFx3d?: FxStage }).__tdaFx3d = stage;
-    const fx = composeFx(fx2d, stage); fxRef.current = fx; onFx(fx);
-    if (stage && (fx3dDebug || fx3dGallery || fx3dScripts)) (window as unknown as { __tdaFx?: FxLayer }).__tdaFx = fx;
-    return () => { fx.destroy(); stage?.destroy(); fxRef.current = null; fx3dRef.current = null; onFx(null); onFx3d?.(null); };
+    const c = canvas.current, h = host.current, a = airCanvas.current, g = groundCanvas.current; if (!c || !h || !a) return;
+    const generation = ++fxGeneration.current;
+    const fx2d = mountFx(c, h); let fx: FxLayer = fx2d, stage: FxStage | null = null, cancelled = false;
+    const current = () => !cancelled && fxGeneration.current === generation;
+    fxRef.current = fx2d; fx3dRef.current = null; onFx(fx2d); onFx3d?.(null);
+    const debugWindow = window as unknown as { __tdaFx3d?: FxStage; __tdaFx?: FxLayer };
+    // The first paint uses 2D. A retired import cannot publish a stage into a newer table or quality generation.
+    void import("../fx3d/index").then(m => {
+      if (!current()) return;
+      stage = m.mountFxStage(h, a, g);
+      if (!current()) { stage?.destroy(); stage = null; return; }
+      stage?.setShape(shapeRef.current);
+      const composed = m.composeFx(fx2d, stage);
+      if (!current()) { composed.destroy(); stage?.destroy(); stage = null; return; }
+      fx = composed; fxRef.current = fx; fx3dRef.current = stage; onFx(fx); onFx3d?.(stage);
+      if (stage && (fx3dDebug || fx3dGallery || fx3dScripts)) { debugWindow.__tdaFx3d = stage; debugWindow.__tdaFx = fx; }
+      setFxReady(generation);
+    }).catch(err => {
+      stage?.destroy(); stage = null;
+      if (current()) { fx3dRef.current = null; onFx3d?.(null); console.error("fx3d failed to load", err); }
+    });
+    return () => {
+      cancelled = true; fxGeneration.current++;
+      if (debugWindow.__tdaFx === fx) delete debugWindow.__tdaFx;
+      if (debugWindow.__tdaFx3d === stage) delete debugWindow.__tdaFx3d;
+      fx.destroy(); stage?.destroy();
+      if (fxRef.current === fx) { fxRef.current = null; onFx(null); }
+      if (fx3dRef.current === stage) { fx3dRef.current = null; onFx3d?.(null); }
+    };
   }, [fxEpoch]);
 
   const view = state.display, game = view?.game ?? null, own = privateGame(view);
@@ -75,12 +98,15 @@ export function TableScene({ state, controller, onFx, onFx3d, onOrientation, onL
   useEffect(() => {
     const stage = fx3dRef.current; if (!stage || !fx3dDebug || !game) return;
     const pts = [center.deck, center.discard, center.stakes, center.hole, ...seats.flatMap(s => [s.ante, s.coins, s.flight])];
-    return debugMarkers(stage, pts);
-  }, [fx3dDebug, game?.id, seats.length, orientation, fxEpoch]);
+    let stopped = false, off: (() => void) | undefined;
+    void import("../fx3d/debug").then(m => { if (!stopped && stage === fx3dRef.current && stage.available) off = m.debugMarkers(stage, pts); }).catch(err => { if (!stopped) console.error("fx3d debug failed to load", err); });
+    return () => { stopped = true; off?.(); };
+  }, [fx3dDebug, game?.id, seats.length, orientation, fxEpoch, fxReady]);
   // 画廊（截图验收用）：开局 0.8 s 后在固定锚点各放一个图元
   useEffect(() => {
     const stage = fx3dRef.current, fx = fxRef.current; if (!stage || !fx || !fx3dGallery || !game || !seats.length) return;
     const at = (p: { x: number; y: number }) => stage.project(p.x, p.y, 0);
+    let release = () => {};
     const cancel = stage.schedule(() => {
       void fx.sigil(at(center.deck), "arcane", 130, 1800);
       void fx.beam(at(center.discard), at(center.stakes), "tide", 800);
@@ -96,13 +122,12 @@ export function TableScene({ state, controller, onFx, onFx3d, onOrientation, onL
       const hand = at(seats[0].anchor); fx.ambient("gallery", { kind: "grove", rate: 36, area: { x: hand.x - 150, y: hand.y + 120, w: 300, h: 90 }, drift: { x: 0, y: -22 }, size: 2.4, life: 2, alpha: 0.75 });
       const oh = at(other.hand); fx.ambient("gallery:hold", { kind: "ember", rate: 3, area: { x: oh.x - 90, y: oh.y - 50, w: 180, h: 100 }, drift: { x: 0, y: -22 }, size: 2.4, life: 2, alpha: 0.75, hold: { who: "other", code: "GIVE_DRAGON_OR_GOLD", from: at(center.deck) } });
       fx.ambient("gallery:field", { kind: "grove", rate: 5, area: null, drift: { x: -14, y: 26 }, size: 3.2, life: 4, alpha: 0.6, field: "druid" });
-      stage.schedule(() => { fx.ambient("gallery", null); fx.ambient("gallery:hold", null); fx.ambient("gallery:field", null); }, 2600);
+      release = stage.schedule(() => { fx.ambient("gallery", null); fx.ambient("gallery:hold", null); fx.ambient("gallery:field", null); }, 2600);
     }, 800);
-    return cancel;
-  }, [fx3dGallery, game?.id, seats.length, fxEpoch]);
+    return () => { cancel(); release(); fx.ambient("gallery", null); fx.ambient("gallery:hold", null); fx.ambient("gallery:field", null); };
+  }, [fx3dGallery, game?.id, seats.length, fxEpoch, fxReady]);
   const handAt = handLayerPlacement(orientation);
-  const shape = tableShape(game?.seats.length ?? 3);
-  useEffect(() => { fx3dRef.current?.setShape(shape); }, [shape, fxEpoch]);
+  useEffect(() => { fx3dRef.current?.setShape(shape); }, [shape, fxEpoch, fxReady]);
   const legalZone = controller.legalZone();
   const targetSeatId = state.show.power?.targetSeatIds?.[0] ?? game?.resolutionStack.find(step => step.status === "active")?.targetSeatId ?? null;
   const waitingIds = new Set(game?.waitingSeatIds ?? []);

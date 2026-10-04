@@ -48,6 +48,7 @@ const FAMILY_SPRITES: Record<FxKind, SpriteName[]> = {
 };
 
 export class Emitter implements Effect {
+  readonly idleOk = true;
   readonly points: Points[] = [];
   private readonly materials: ShaderMaterial[] = [];
   private readonly stage: FxStage; private released = -1;

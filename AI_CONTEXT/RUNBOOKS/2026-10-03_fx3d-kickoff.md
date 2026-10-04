@@ -1,5 +1,7 @@
 # 2026-10-03 · three.js 特效层（fx3d）开场 runbook
 
+> 来源附件 `c3960047` 的历史演进记录。原机器后续自测/停止复查的数字和指令保留为历史；当前网站规则、授权与待验证状态见 GOAL §10–§11 和 `2026-10-04_fx3d-refresh.md`。本次整合未将旧测试报告当作当前通过证据。
+
 ## 0. 红线复述与档位
 
 - 红线：规则引擎 / 协议 / 私牌边界 / 服务端 / 旧频道 / 卡面扫描件不碰；打包零外部请求；不用 AI 生成美术；新贴图只能来自 CC0（Kenney / Poly Haven / ambientCG），程序化 GLSL 不受此限；移植自 MIT 的 Elemental Sandbox 必须保留署名；push / 部署 / 合并由用户定。
@@ -101,7 +103,7 @@
 
 ## 3. 下一步
 
-- 独立审计（换模型，范围 `8d23298..HEAD`：帧率修复 + fx3d P0–P5）→ 必修项整改 → 终裁记入 §4。
+- 审计复查（见 §4）→ 终裁记入 §4。
 - 可选：Wisps 丝带、Volume 气柱（仅 high + 传说）、真实手掌照片（拍桌）。
 - 真实弱机复测由用户完成。
 
@@ -113,3 +115,28 @@
 
 - 每期：typecheck 0、`npm test` / `test:server` / `test:browser` / `test:server-browser` / `test:fx3d` 全绿；真实截图与（必要时）录屏；bundle 增量记录；减少动态与 WebGL 丢失回退可演示。
 - 终局：全部卡牌都有独一份的发动 / 结算特效，持续与环境类有驻留态与自然消散；用户在本地浏览器验收；独立审计通过。
+
+## 4. 独立审计（Opus，范围 8d23298..4d0d414）：不通过 → 整改
+
+裁决：五条红线成立、全部测试通过、帧率修复复现（6 人局 5 → 57 fps）；但 2 高 4 中 8 低。整改如下（commit 见 git log "fx3d audit fixes"）：
+
+| 项 | 问题 | 整改 | 证据 |
+|---|---|---|---|
+| H1 | 帧内新建效果会再申请 rAF，渲染链成倍叠加（高档驻留 + 飘带 15 s 后每帧 45 次渲染），`dt=0` 样本把 EMA 拉低让降档失效 | `frame()` 不再先把 `raf` 清零：帧内 `wake()` 看到 raf≠0 不申请；帧末统一续链；EMA 忽略 gap≤0；只剩驻留效果（`idleOk`：发射器 / 驻留法阵 / 驻留光环）时按 30 fps 节拍渲染 | `test:fx3d` 新增"高档 驻留 + 4 条飘带 → 渲染次数 ≤ 帧数"：71 / 71 |
+| H2 | 软件 GL 探测在可见画布上建上下文后 `forceContextLoss`，留下白色"崩溃"方块 | 探测改用离屏画布（读完渲染器名即 `loseContext`）；两张 fx3d 画布 CSS 默认 `display:none`，只在有效果时 `block` | `test:fx3d` 新增"默认 URL + 软件 GL：data-fx=canvas2d，两张画布 display:none" |
+| M1 | 降档的 EMA / slowSince 在循环停下时不复位，陈旧卡顿会在下一个效果第一帧误降 | 循环停下时复位；只在连续活跃帧里计数 | 代码 |
+| M2 | `new Color(hex)` 被 ColorManagement 转成线性值，着色器直接输出 → 比 token 深、更饱和 | `palette.ts` 改 `setStyle(hex, LinearSRGBColorSpace)` 原样存 sRGB 数值；`lib.ts` 口径注释同步 | 画廊截图重拍（`shots/fx3d-script-*.png`） |
+| M3 | 6 人局最坏情况 red-destroyer / green / red / bahamut 超 2.0–2.1 s | `kit.volley` 总错开 ≤ 420 ms；red / red-destroyer / green / queen 的手工错开按目标数压缩，收尾缩短 | 脚本画廊时长 ≤ 1.75 s（2 对手） |
+| M4 | `power-verdigris` / `power-necro` 没有音效键 | `audio/player.ts` 补两个键（复用 round） | 代码 |
+| L1 | `coin-gold.webp` 未登记 | `ASSETS.md` 新增"衍生贴图"表（11416 B，`132c0220…`） | 文档 |
+| L2 | 舞台销毁后在途定时器仍 `add` | `stage.add()` 在 destroyed / lost 时直接 dispose 不入队 | 代码 |
+| L3 | 上下文丢失期间仍标 three-* 且效果发给看不见的层 | 丢失 → 清空效果、`mode=canvas2d`、广播 `tda-fx-tier`；适配器每个方法先查 `stage.available()`，不可用就走 2D | 代码 |
+| L4 | 未建舞台时画布不隐藏 | 同 H2（CSS 默认隐藏） | `test:fx3d` |
+| L5 | 未懒加载、窄屏一律低档、低档也抗锯齿、`?fx3d=1` 忽略偏好、地面渲染器失败仍标 three | `TableScene` 用 `import("../fx3d/index")` 懒加载（`fxPreference` 拆到不依赖 three 的 `preference.ts`），四个 HTML 都不再静态引用 three chunk（分包闸改为此断言）；手机 / 窄屏按核数判中 / 低；低档关抗锯齿、`low-power`；`?fx3d=1` 尊重已选档位（只覆盖 off）；地面渲染器失败 → 返回 null（canvas2d） | `test:fx3d` 分包闸；`dist/*.html` 零 three 引用 |
+| L6 | 金币堆倾角不随横竖屏更新 | `CoinStack` 增加 `tilt` prop 并进依赖（SeatBlock / TableScene 传 `spec.tilt`） | 代码 |
+| L7 | GroundMark 死赋值、throw 时机、`if (last)` 恒真 | 已清理 | 代码 |
+| L8 | 签名表只做到家族级 + 点数调幅 | 接受为第一版；Wisps / Volume / Etch / Fissure / Lens 留作后续 | TODO |
+
+验证：`test:fx3d` 9/9、自测 16/16、`npm test` 8/8、`test:server` 2/2、`test:browser` 20/20、`test:server-browser` 4/4；画廊（图元 / 家族脚本）零错误。
+
+复查：已发起，但用户于 2026-10-04 要求停下全部工作，**复查未完成、无终裁**。下一会话 / 下一台机器需重新审计（`HANDOFF_FX3D.md` §5 第 8 条）。

@@ -32,6 +32,7 @@ void main(){
 export class Collar implements Effect {
   readonly mesh: Mesh<CylinderGeometry, ShaderMaterial>;
   private readonly start: number; private readonly duration: number; private released = -1;
+  get idleOk() { return this.duration === 0; }
   constructor(stage: FxStage, x: number, y: number, o: { kind: FxKind; radius: number; height: number; duration: number; ticks?: number; pulse?: number }) {
     this.start = performance.now(); this.duration = o.duration;
     const p = palette(o.kind);

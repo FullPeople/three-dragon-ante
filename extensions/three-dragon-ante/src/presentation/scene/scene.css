@@ -154,8 +154,8 @@
 /* 特效画布与拖动影子 */
 .tda-fx { position: absolute; inset: 0; pointer-events: none; z-index: 50; }
 /* three.js 特效：空中画布盖在卡牌之上（金币 DOM 精灵 55 仍在其上）；地面画布在平面内、毛毡之上、卡牌之下 */
-.tda-fx3d-air { position: absolute; inset: 0; pointer-events: none; z-index: 52; }
-.tda-fx3d-ground { position: absolute; left: 0; top: 0; pointer-events: none; transform: translateZ(0.5px); }
+.tda-fx3d-air { position: absolute; inset: 0; pointer-events: none; z-index: 52; display: none; }
+.tda-fx3d-ground { position: absolute; left: 0; top: 0; pointer-events: none; transform: translateZ(0.5px); display: none; }
 /* 指向器：从抬起的手牌到指针的弧线箭头（杀戮尖塔式）。实色 chevron，无发光 */
 .tda-pointer { position: absolute; inset: 0; z-index: 60; pointer-events: none; overflow: visible; }
 .tda-pointer-chev { fill: #c9a24d; stroke: #15100b; stroke-width: 1; }
