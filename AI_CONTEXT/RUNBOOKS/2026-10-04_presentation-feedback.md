@@ -53,3 +53,18 @@
 ## 遗留
 
 本轮演出/几何/撤权专项与受控性能比较已收口，生产源换模型复审通过；最终全回归/CI、冻结包终审、freshbaseline定向发布与公网验收仍待完成并双落TODO。当前线上仍0.9.0，不能以本地候选冒称上线。软件GL交互长帧与真实弱机/手机体验保留为明确遗留。
+
+## 冻结7523d850的验收阻塞（查证中）
+
+- origin已推送7523d8502b433de804df08404fbb425b4aa5d715，git fetch核对同SHA。GitHub CI37179407116失败：构建/typecheck、npm test8/8和此前服务/浏览器项通过；网站联机通过17项后，tools/site-multiplayer-browser.mjs:289等待过期连接中文提示30秒超时。后续fx3d/全能/铭牌/飞牌/演出/生命周期/性能结构均被跳过，不视为成功。失败日志.local-evidence/feedback-ci-37179407116-failure.log。正在读取仅合成夹具的失败证据查因，未放宽断言或重试掩盖。
+- 本地顺序全回归到铭牌前9项通过（网站联机22/22、fx3d7/7），test:nameplate首次run-fn9M3m及单独run-zVcmvu均在首个page.goto load超时，checks为0，未进入21项断言。原失败完整保留；诊断副本记录HTTP模块响应，尚不能认定系统代理原因。
+- 冻结包独立审计确认源、1947个tar文件、413个源ZIP文件、四目标与保护白名单，但发布结论仅有条件通过，要求上述阻塞查明并完整CI成功。7523候选包保留不apply，线上仍0.9.0。
+
+- CI上传步骤显示success，但Actions artifacts API的total_count=0：upload-artifact v4默认不包含隐藏目录，.local-evidence未上传。调整为include-hidden-files且仅JSON/PNG/log证据白名单，不包含合成SQLite/生成页面或源码夹具；失败截图此次无法取回，未冒称看过。新增工作流证据范围改动需新freeze/CI，旧失败仍保留。
+
+- 本地预览：核对旧自有5013进程确为本仓库dist-server/server.mjs，并通过原exec session88898停止；新session49733/PID11168沿用.local-data/preview-online-only-20261004.sqlite，仅更新候选bundle，无数据库读取/清空。4173网站页面和反代health均200，线上两个release元数据仍7555f99/0.9.0(-dev)。
+
+- 铭牌专项收口：旧dev-harness在当前D根浏览器请求实际入口module挂起；并发Node fetch同module也5秒abort，主文档65ms200；无浏览器直接module fetch265ms200。代理绕过、缩小/规范entries均未解决，optimizer cached/discovered0，故不能归咎代理或136HTML扫描。初两份trace被副本复用覆盖，改为独立mkdtemp后保留trace-debug-default-XJlp2z等，覆盖trace不计独立证据。
+- 仅nameplate工具改为先Vite build真实SeatBlock/CSS/原素材，再staticHTTP加载，与生产路径一致；原21实际DOM/数字/材质/2–6席/桌面窄屏断言和30秒均保留。基于实际originalFileNames保留材质目录名，未放宽metal_plate/dark_wood断言；首次默认hash资源命名导致材质URL断言失败run-KoVF4E（1项）保留。最终run-v0eA1h/result.json完整21/21，脚本/外域/失败资源0；新增同源404/requestfailed也计入原最终zero断言。开发服务器挂起的底层原因未查明，产品和其他工具未为此更改。
+
+- 网站联机工具仅加有界公共诊断，服务/proxy/重试/22项完整断言保持原样；每actor读取上限3秒，数组有界。reconnect-only实际13/13：.local-evidence/site-multiplayer-FItBdl/result.json，真实关闭1008/wasClean=true/notAllowed后4001/wasClean=true/sessionReplaced，中文终态正确，TCP33项/drop0，脚本/外域/资源失败0。旧Linux失败原因仍未证实，下一CI利用真实上传证据确认，不声称已修产品auth问题。

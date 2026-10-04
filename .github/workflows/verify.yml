@@ -40,4 +40,8 @@ jobs:
         if: always()
         with:
           name: three-dragon-validation
-          path: .local-evidence/
+          include-hidden-files: true
+          path: |
+            .local-evidence/**/*.json
+            .local-evidence/**/*.png
+            .local-evidence/**/*.log
