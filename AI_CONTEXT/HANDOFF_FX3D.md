@@ -51,12 +51,15 @@ node .local-evidence/perf-probe.mjs default all-off   # 帧率探针（OPP=5 环
 - 不用 AI 生成美术；新贴图只能来自 CC0（Kenney / Poly Haven / ambientCG），下载前列清单经用户确认并登记 `docs/design/ASSETS.md`；程序化 GLSL 不受限。沙盒 Elemental Sandbox（MIT）的移植要在 `docs/design/ASSETS.md` 或 THIRD_PARTY 里保留署名（尚未写，见 §5）。
 - 打包零外部请求；不破坏现有测试断言。
 
-### 4. 当前状态（2026-10-04，commit 见 `git log`）
+### 4. 当前状态（2026-10-04 晚，commit `4d0d414`；之后以 `git log` 为准）
 
-- 已完成：P0 地基与门控；P1 图元（GroundMark 法阵 / 扩散环 / 爪痕 + 形态参数、Pillar 光柱、Burst GPU 粒子、Beam 飘带、Emitter 循环发射器）；适配器把 sigil / ring / beam / burst / flare / dust / grab / swap / claw / ambient 路由到 three；P2 41 个家族签名脚本（`scripts/families.ts`），标准龙按点数调幅。
+- 已完成：P0 地基与门控；P1 图元（GroundMark 法阵 / 扩散环 / 爪痕 + 形态参数、Pillar 光柱、Burst GPU 粒子、Beam 飘带 + 头部火星、Emitter 循环发射器）；适配器把 sigil / ring / beam / burst / flare / dust / grab / swap / claw / ambient 路由到 three；P2 41 个家族签名脚本（`scripts/families.ts`），标准龙按点数调幅；P3 等待选择 / 场地 / 牌阵与传说到场形态；P4 Shell 冲击壳、Collar 站立光环、顶栏画质开关（自动 / 高 / 中 / 低 / 关）、自适应降档；P5 尘土分档、署名登记（ASSETS.md + THIRD_PARTY）、VISUAL_SPEC 口径。
 - 帧率：金币滤镜层风暴已修（6 人局软件渲染 5 → 56 fps）；fx3d 画布空闲隐藏。
+- 独立审计（Opus，范围 8d23298..4d0d414）在原机器上已发起；若结果没有记进 runbook kickoff §4，说明原机器中断了，新机器要**自己再做一次**（§5 第 8 条）。
 
 ### 5. 待做清单（按序；每项一个 commit + 截图 + runbook 小节）
+
+> 1–3、5、6（除拍桌的手）与 7 已在原机器完成（见 §4）；剩余：4 的可选图元、6 的拍桌手、8 审计。为便于核对保留原清单：
 
 1. **等待选择 W 变体**：presenter `ambient("hold:…")` 现只给家族色与手牌区；给 `AmbientSpec` 加可选 `hold: { who: "self"|"other"; code: Choice.code; from?: Point }`（presenter 加一行，不改时序），适配器按 who / code 做：等自己 → 环绕本家手牌的驻留法阵 + 上升粒子；等对手 → 对手手牌下冷色法阵 + 源牌到等待者的低亮度"系绳"飘带；demand → 刻度金环，destination → 奖池与金币堆各一环呼吸，order → 星角数 = 剩余善龙数，pick → 慢转法阵。
 2. **场地 G / E 按种类**：`FieldLayer` 的 `ambient(item.id, …)`，id 形如 `${kind}:${seatId}:${sourceCardId}` / `archmage:${seatId}`；适配器按 kind 做驻留态（德鲁伊：落叶 + 藤纹；祭司：暖光上升；龙巫妖：磷火 + 骨灰环；大法师：秘法刻度环），淡出 820 ms 与 FieldLayer 一致。
