@@ -5,6 +5,9 @@
 
 ## 待办
 
+- [ ] 最新1117450首次CI37199170133多人17checks后expired30s等待失败，FX未执行；安全凭据拒绝与事后expired不代原结果，延迟未知。隔离分支仅准备连接/lifecycle诊断，原断言/期限保持；旧指针及缺失ticks证据保留，0.9.2未发布。
+- [x] 首次有界性能profiling两窗口/原5checks18样本完成，surface/coin原生计数零增量；原基线不被插桩FPS替代。后续CSS/输入/GPU归因与实体体验仍待，详见隔离整合工作区同日performance-profiling runbook及本地website-release-status。
+
 - [x] 线上0.9.1/801已发布双网站及必要server，公网12/默认GPU隐藏8完整通过；其他插件保留网站链接，不重发。
 - [x] d580真实hold画质6/生产驻留参数14和冻结973×2/GPL434blob包审核完成，仅本地候选；见同日website-release-status runbook。
 - [ ] d580精确CI37196321804原test:fx3d第27步骤失败（airShown && hitIsCard未分开记录）；后六CI检查跳过，停止0.9.2发布。先安全诊断真实原语，不改原断言/期限凑数或用旧CI代替；再完整CI/终审/冻结与部署。

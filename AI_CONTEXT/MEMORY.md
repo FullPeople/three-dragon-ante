@@ -23,6 +23,8 @@
 
 ## B. 当前状态（最近为真；过时即更新）
 
+- **后续诊断当前**：热修复801/0.9.1线上保持，两个网站manifest/正确release marker/health新读均200。隔离整合1117450首次CI37199170133在多人17checks后过期提示30s等待失败，FX全skipped、没有新ticks；安全artifact显示第二连接1008/notAllowed拒绝，失败后已expired，但不能替代原等待或猜延迟根因。首次有界profiling已完成、surface/coin计数零增量，具体CSS/GPU/输入因果未知，不以插桩FPS替原基线；均未部署候选。完整源码/细节在U:/CodexWork/2026-10-04/three-dragon-integrated-refresh-c3960047（远端integrate/fx3d-refresh-c3960047），本分支只同步留痕不混入产品。见website-release-status runbook。
+
 - **2026-10-04 最新状态**：线上仍801/0.9.1(-dev)，一般公网12/默认GPU隐藏8完整通过；Suite/枭熊维持网站链接不重发。附件d580独立分支已推送，真实hold画质6/生产参数14通过且包审查通过，但精确CI37196321804特效合取断言失败、后六CI检查跳过，停止0.9.2发布。两个boolean未记录，根因未证实，未改断言期限凑数。软件hover/drag长帧仍在；正本RUNBOOKS/2026-10-04_website-release-status.md。
 
 - **第二轮纠错（2026-10-03 晚）**：用户看过演示后九条纠错已实施；独立审计（Opus）第一轮"不通过"，三高六中已整改；复审"有条件通过"，条件已满足，**终裁通过**（runbook `RUNBOOKS/2026-10-03_presentation-round2.md` §5–§6）：等待时序重排 + 拼点 + 特殊牌阵说明层、手牌 / 指向器 / 两段落牌 + 尘土、每牌特效脚本 + 传说法阵、场地层、桌形随人数、拍桌、酒馆背景、选择面板瓦片、措辞统一"前注"。遗留：持续效果的循环音效素材。
