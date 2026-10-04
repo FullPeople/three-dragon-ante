@@ -41,10 +41,11 @@ const server = createServer((req, res) => {
 });
 await new Promise(done => server.listen(0, '127.0.0.1', done));
 const origin = 'http://127.0.0.1:' + server.address().port;
-service = createTableService({ database: ':memory:', origin, hostGraceMs: 4000, injectFailure() { if (failCommit) { failCommit = false; throw Error('storageFailed'); } } });
+service = createTableService({ database: ':memory:', origin, injectFailure() { if (failCommit) { failCommit = false; throw Error('storageFailed'); } } });
 server.on('upgrade', (req, socket, head) => {
   const key = req.headers['user-agent']; transports.set(key, socket);
   traceTransport('upgrade', key);
+  socket.once('data', () => traceTransport('first-client-data', key));
   socket.on('close', () => { traceTransport('close', key); if (transports.get(key) === socket) transports.delete(key); });
   service.server.emit('upgrade', req, socket, head);
 });
@@ -140,7 +141,7 @@ try {
   assert.equal(await host.page.locator('#table-editor').count(), 0); assert.deepEqual(state(admission.room.id), before);
   await shortcut(host); await host.page.locator('#table-editor').waitFor();
   const priorGeneration = host.connectionGeneration;
-  refreshDiagnostics = { startedMs: Date.now(), configuredGraceMs: 4000, initiallyOwner: state(admission.room.id).table.hostPlayerId === admission.session.memberId };
+  refreshDiagnostics = { startedMs: Date.now(), configuredGraceMs: 'production-default-8000', initiallyOwner: state(admission.room.id).table.hostPlayerId === admission.session.memberId };
   host.view = null;
   const refreshSampler = setInterval(() => { if (!refreshDiagnostics.ownerChangedMs && state(admission.room.id).table.hostPlayerId !== admission.session.memberId) refreshDiagnostics.ownerChangedMs = Date.now(); }, 20);
   try {

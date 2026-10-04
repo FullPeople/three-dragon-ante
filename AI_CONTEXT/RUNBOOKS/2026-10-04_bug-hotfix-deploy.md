@@ -55,6 +55,14 @@ gpt-6.1-sol最初只读产品与发布工具增量审计通过：当时产品相
 
 该整改本地再跑build含typecheck exit0、npm test8/8；日志build-measured-fit/rules-measured-fit。gpt-6.1-sol独立复核通过：已实测可容纳的lower保证退出采用合格尺寸、不依赖严格线性；RO观测固定高度/宽度outer不会因inner字号缩小而自循环；字体ready/observer/listener/alive清理保持。最终冻结包与精确新head完整Linux CI仍为发布门槛。
 
+### 刷新身份失败与测试范围查证
+
+新产品冻结8bce32baa596f3be0e941eb1a3f758f234032a19的CI37184313948铭牌/联机/fx均实际通过，但全能测试5项后在刷新isHost===true断言失败，后面的飞牌/演出未执行；仍未apply。该13项测试人为hostGraceMs=4000，真实服务默认8000；服务端代码不变。补测试连接generation和fresh-view等待、最多64条安全TCP/权威帧时间及20ms合成自身房间ownership布尔采样，原断言/20秒wait/500ms清私DOM/8秒receipt保持。诊断head b77922b011c1aa6ac473e44fb8b6862c8604a65e的CI37184908911实际再失败，`.local-evidence/ci-37184908911-artifact/website-omniscient/run-*/result.json`：旧hostTCPclose1791097797792、重连upgrade+2798ms、ownerChanged+4013ms、fresh authorityview+8594ms。**view接收时间不是auth到达时间**，不把8594ms当实际服务器认证延迟，不由本记录反推先前8bce每个失败的具体根因。
+
+独立gpt-6.1-sol纯Node真实服务控制3/3：4s宽限/5s断线后重连旧主false，默认8s/5s仍true，默认8s/9s旧主false；三例牌局hash和2席保持、重连全能关闭。正式工具 `tools/website-refresh-grace-selftest.mjs`保留所有控制断言并接CI，`.local-evidence/host-refresh-grace/run-KtRdUc/result.json`实际gap5028/5031/9018ms；不把控制实验冒称真实浏览器复现。
+
+网站13项测试移除非生产4s override，使用真实默认8s；不改生产宽限、不扩大任何浏览器wait或500ms/8s私牌断言，且另保留4s5s必交接/default8s9s必交接的负控制。新增首客户端TCP data时间用于区分认证到达与页面帧处理。旧4s诊断本地run-gVAuZ1在刷新成功后500ms清DOM时间断言失败，保留原结果不包装通过；真实默认8s完整原13/13通过run-aR45Bs，任何未证实的延迟原因不归为字体/软件GL或“只夹具”。新精确head完整Linux CI和最终包审计仍必须另过。
+
 ## 仅网站发布与回滚
 
 发布准备新增显式 `--website-only`，和 `--overlay` 互斥。manifest 必须声明 `scope=website-only`，只可选择两个独立网站目标且 `hostOverlay=null`；缺 scope 的历史包/回执仍按原四目标处理，不能用省略字段绕过目标限制。
