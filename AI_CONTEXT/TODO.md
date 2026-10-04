@@ -5,7 +5,7 @@
 
 ## 待办
 
-- [ ] 55218ea的Linux演出两次在第二页等connected失败，其他检查全过但尚未部署；补公开auth/close/view诊断后查证，不修改生产计时器或放宽测试。失败与新冻结包/基线/完整CI/公网门槛见bug-hotfix-deploy runbook。
+- [ ] 552两次失败及e347诊断已留痕；现已查证1008/authenticationRequired晚认证被误判终态，最小客户端重连修复同次超时实际恢复、原演出13/13。新正反控制、精确head完整CI/冻结包/freshbaseline/公网仍须完成，见bug-hotfix-deploy runbook。
 
 - [x] 0.9.1本家能力/切换/结算和买牌先后实际非reduced网络专项13/13；首次加载超时保留且原因未证实，补安全诊断后原全部断言通过，不把失败算通过。见bug-hotfix-deploy runbook。
 - [x] 0.9.1飞牌独立覆盖/真实旧版遮挡阴性对照10/10；桌面/390px长名完整财务及金属点数材质21/21。

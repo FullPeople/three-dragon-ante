@@ -65,6 +65,16 @@ gpt-6.1-sol最初只读产品与发布工具增量审计通过：当时产品相
 
 ## 仅网站发布与回滚
 
+### 查证认证期限与最小客户端修复
+
+诊断冻结e347a24a09870b492d49d10b1202965a7ef3179a的Linux CI37186698214在演出0项失败，和本地诊断`site-presentation/run-PyVfBO`均实证第二连接因`1008/authenticationRequired`关闭：Linux upgrade1791099971115→服务端close+5014ms→浏览器open/auth-send+7001ms；本地对应+5039ms/+6074ms，全部view计数0。服务端5000ms期限有效，browser发送认证已晚于服务端关闭；**具体浏览器/GL函数耗时尚无profile证据**，不归因为某个shader或软件GL底层函数。这不能反推旧552及score首次的每次关闭原因。
+
+生产仅改ServerTableClient一条终态条件：精确的1008/authenticationRequired走已有500至8000ms退避；notAllowed、未知1008与4001仍终止，stop仍清timer。服务端认证期限、规则/协议/投影、名字、房间、私牌、pending命令id与幂等逻辑不变；新socket仍须真实认证及full view，不能凭close reason授予连接或权限。
+
+本地原非reduced演出13/13实际通过`site-presentation/run-SCGmQg`：连接2仍在upgrade后5037ms被1008关闭，随后连接3真实upgrade/fullview恢复，全部原能力/回合/结算/买牌检查完成；说明→价牌1804/1806ms，翻面→补牌1249/1297ms，错误/外域0。这是同次超时后的真实恢复，非无故障偶然复跑。新增纯Node真实客户端/WS正反控制另验，最终精确head完整CI、打包、独立终审和公网仍为门槛。
+
+纯Node编译真实ServerTableClient与RAM权威服务专项5/5：`website-auth-timeout/run-cKMHDH`，首auth仅在测试Socket适配层故障注入丢弃，实际原服务默认5秒deadline发出1008，第二真实认证5529ms/fullview5541ms恢复原房主与live game；此前显式inspection不复开，无command自动发送（用户显式sync一次另验）。真实坏凭据notAllowed、unknown1008、4001、stop在退避中都保持1attempt且断连；后三项为真实WS关闭控制，非真实auth5秒复现。Node证据不冒称浏览器验收。工具finally的1006是主动terminate清理，不是恢复失败。新脚本接入CI，原全部检查仍保留。追加build含tsc exit0、npm原8/8；gpt-6.1-sol独立最小条件边界审核通过，最终冻结发布仍单独核验。
+
 ### 55218ea 两次 Linux 演出连接失败
 
 冻结55218ea673d388003bffa2ac554e033f048f35c0的CI37185442912两次完整attempt均失败，除最后site-presentation外全部原检查通过。attempt1 run-WxGoJy与attempt2 run-XhRZFl均0项：第一合成浏览器ready/play且1游戏view，第二page.goto已返回，但在等网站connected UI超时，尚未进入手牌等待；第二游戏帧计数0、一次WebSocket close、初始lobby，无脚本/外域错误。不能称导航超时、不能由0游戏帧计数断言全部view为0；旧工具未记录close码与认证发送时刻，认证超时/拒绝的原因未证实。两次失败分别保存在`.local-evidence/ci-37185442912-artifact/`与`ci-37185442912-attempt2-artifact/`，没有把失败或未执行的13项算通过。

@@ -31,7 +31,8 @@ export class ServerTableClient {
     if(packet.id!==this.pending?.id)return;clearTimeout(this.commandTimer);this.pending=undefined;this.apply(packet.page);
    }else if(packet.type==='gestures')for(const item of packet.values||[])this.gesture(item.seatId,item.gesture);
   }catch{this.message='protocolMismatch';this.apply();}};
-  ws.onclose=event=>{if(this.socket!==ws||this.stopped)return;if(event.code===4001||event.code===1008&&!authenticated){this.stopped=true;clearTimeout(this.commandTimer);this.pending=undefined;this.viewValue={...this.viewValue,connected:false,pending:false,message:event.code===4001?'sessionReplaced':'notAllowed'};this.changed(this.viewValue);return;}this.viewValue={...this.viewValue,connected:false,message:'connecting'};this.changed(this.viewValue);if(this.pending)this.stalled();this.timer=setTimeout(()=>this.connect(),Math.min(8000,500*2**Math.min(4,this.retry++)));};
+  // The service's pre-authentication deadline is temporary; rejected credentials remain terminal.
+  ws.onclose=event=>{if(this.socket!==ws||this.stopped)return;if(event.code===4001||event.code===1008&&!authenticated&&event.reason!=='authenticationRequired'){this.stopped=true;clearTimeout(this.commandTimer);this.pending=undefined;this.viewValue={...this.viewValue,connected:false,pending:false,message:event.code===4001?'sessionReplaced':'notAllowed'};this.changed(this.viewValue);return;}this.viewValue={...this.viewValue,connected:false,message:'connecting'};this.changed(this.viewValue);if(this.pending)this.stalled();this.timer=setTimeout(()=>this.connect(),Math.min(8000,500*2**Math.min(4,this.retry++)));};
   ws.onerror=()=>{};
  }
  private apply(historyPage?:TableView['historyPage']){

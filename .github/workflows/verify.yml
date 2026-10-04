@@ -20,6 +20,7 @@ jobs:
       - run: npm run build
       - run: npm run build:server
       - run: npm run test:host-refresh-grace
+      - run: npm run test:website-auth-timeout
       - run: npx playwright install --with-deps chromium
       - run: npm run test:nameplate
       - run: npm run test:website-omniscient
