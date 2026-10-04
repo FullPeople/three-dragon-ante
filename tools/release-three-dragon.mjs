@@ -8,14 +8,22 @@ const root = resolve(import.meta.dirname, '..');
 const args = process.argv.slice(2);
 const option = name => { const i = args.indexOf(name); return i < 0 ? undefined : args[i + 1]; };
 if (args.includes('--help')) {
-  console.log('node tools/release-three-dragon.mjs --out <new-directory> --overlay <frozen-suite-overlay>');
+  console.log('node tools/release-three-dragon.mjs --out <new-directory> (--overlay <frozen-suite-overlay> | --website-only)');
   process.exit(0);
 }
-for (let i = 0; i < args.length; i += 2) {
-  if (!['--out', '--overlay'].includes(args[i]) || !args[i + 1]) throw Error('Unknown or incomplete argument: ' + args[i]);
+const websiteOnly = args.includes('--website-only');
+const seenOptions = new Set();
+for (let i = 0; i < args.length; i++) {
+  const name = args[i];
+  if (seenOptions.has(name)) throw Error('Duplicate argument: ' + name);
+  seenOptions.add(name);
+  if (name === '--website-only') continue;
+  if (!['--out', '--overlay'].includes(name) || !args[i + 1] || args[i + 1].startsWith('--')) throw Error('Unknown or incomplete argument: ' + name);
+  i++;
 }
-if (!option('--out') || !option('--overlay')) throw Error('Both --out and --overlay are required.');
-const out = resolve(option('--out')), overlay = resolve(option('--overlay'));
+if (!option('--out') || (!websiteOnly && !option('--overlay'))) throw Error('--out and either --overlay or --website-only are required.');
+if (websiteOnly && option('--overlay')) throw Error('--website-only cannot include a Suite overlay.');
+const out = resolve(option('--out')), overlay = websiteOnly ? null : resolve(option('--overlay'));
 if (existsSync(out)) throw Error('Release output must be a new directory; existing artifacts are never removed.');
 if (out === root || out.startsWith(root + '\\') || out.startsWith(root + '/')) throw Error('Keep release artifacts outside the source repository.');
 const git = (...argv) => execFileSync('git', argv, { cwd: root, encoding: 'utf8' }).trim();
@@ -25,11 +33,13 @@ if (untracked.length) throw Error('Commit the reviewed release/runtime source be
 const head = git('rev-parse', 'HEAD');
 const version = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version.replace(/-dev$/, '');
 const api = '/three-dragon-api/v1';
-const overlays = JSON.parse(readFileSync(join(overlay, 'overlay-manifest.json'), 'utf8'));
-if (overlays.tdaSource !== head || overlays.api !== api) throw Error('Suite overlay must match the exact frozen source and same-origin API.');
-if (JSON.stringify([...overlays.targets].sort()) !== JSON.stringify(['suite', 'suite-dev'])) throw Error('Both Suite overlays are required.');
-const hostOutputs = new Map((overlays.hostOverlay?.outputs || []).map(item => [item.path, item]));
-if (overlays.hostOverlay && (overlays.hostOverlay.mode !== 'website-link-only' || overlays.hostOverlay.website !== 'https://obr.dnd.center/three-dragon-ante/')) throw Error('Only the reviewed website-link host overlay is allowed.');
+const overlays = websiteOnly ? null : JSON.parse(readFileSync(join(overlay, 'overlay-manifest.json'), 'utf8'));
+if (overlays) {
+  if (overlays.tdaSource !== head || overlays.api !== api) throw Error('Suite overlay must match the exact frozen source and same-origin API.');
+  if (JSON.stringify([...overlays.targets].sort()) !== JSON.stringify(['suite', 'suite-dev'])) throw Error('Both Suite overlays are required.');
+  if (overlays.hostOverlay && (overlays.hostOverlay.mode !== 'website-link-only' || overlays.hostOverlay.website !== 'https://obr.dnd.center/three-dragon-ante/')) throw Error('Only the reviewed website-link host overlay is allowed.');
+}
+const hostOutputs = new Map((overlays?.hostOverlay?.outputs || []).map(item => [item.path, item]));
 const slash = value => value.replaceAll('\\', '/');
 const safeRelative = value => {
   if (!value || isAbsolute(value) || value.includes('\\') || value.split('/').some(part => !part || part === '.' || part === '..')) throw Error('Unsafe package path: ' + value);
@@ -71,7 +81,7 @@ const sourceName = `three-dragon-source-${head.slice(0, 12)}.zip`;
 const sourceArchive = join(payload, sourceName);
 execFileSync('git', ['archive', '--format=zip', '--prefix=three-dragon-ante/', '--output=' + sourceArchive, head], { cwd: root, stdio: 'inherit' });
 const sourceInfo = { path: sourceName, sha256: sha(sourceArchive), files: sourcePaths.length, head };
-for (const name of ['suite-dev', 'suite']) {
+for (const name of websiteOnly ? [] : ['suite-dev', 'suite']) {
   const entries = overlays.outputs.filter(item => item.path.startsWith(name + '/'));
   if (!entries.length) throw Error('Missing overlay files for ' + name);
   const seen = new Set();
@@ -92,14 +102,15 @@ for (const name of ['suite-dev', 'suite']) {
 }
 run('tools/build-three-dragon-server.mjs', { TDA_SERVER_OUT: join(payload, 'server') });
 const server = { path: 'server/server.mjs', sha256: sha(join(payload, 'server/server.mjs')), size: statSync(join(payload, 'server/server.mjs')).size };
-const manifest = { format: 1, repository: 'FullPeople/three-dragon-ante', source: head, version, api, sourceArchive: sourceInfo, server, targets, hostOverlay: overlays.hostOverlay || null,
+const scope = websiteOnly ? 'website-only' : 'all-four';
+const manifest = { format: 1, repository: 'FullPeople/three-dragon-ante', source: head, version, api, scope, sourceArchive: sourceInfo, server, targets, hostOverlay: overlays?.hostOverlay || null,
   preservation: 'Merge compiled files only; preserve existing cached assets, Suite manifests/runtime/legacy modules, nginx, unit, relay, card and live SQLite.' };
 writeFileSync(join(payload, 'release-manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
 const deployScript = join(root, 'tools/deploy-three-dragon-release.py');
 copyFileSync(deployScript, join(out, 'deploy-three-dragon-release.py'));
 const archive = join(out, 'three-dragon-release.tar.gz');
 execFileSync('python', ['-c', 'import pathlib,sys,tarfile; p=pathlib.Path(sys.argv[1]); t=tarfile.open(sys.argv[2],"w:gz"); [t.add(f,arcname=f.relative_to(p).as_posix(),recursive=False) for f in sorted(p.rglob("*")) if f.is_file() and f.relative_to(p).as_posix()!="server/service.mjs"]; t.close()', payload, archive], { stdio: 'inherit' });
-const result = { out, source: head, version, api, targets: targets.map(target => ({ name: target.name, files: target.files.length })), sourceArchive: sourceInfo,
+const result = { out, source: head, version, api, scope, targets: targets.map(target => ({ name: target.name, files: target.files.length })), sourceArchive: sourceInfo,
   archive: { path: archive, sha256: sha(archive), size: statSync(archive).size }, deployScript: { path: join(out, 'deploy-three-dragon-release.py'), sha256: sha(join(out, 'deploy-three-dragon-release.py')) } };
 writeFileSync(join(out, 'release-preparation.json'), JSON.stringify(result, null, 2) + '\n');
 console.log(JSON.stringify(result, null, 2));

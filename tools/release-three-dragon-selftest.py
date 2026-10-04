@@ -14,11 +14,13 @@ import os
 import pathlib
 import shutil
 import sqlite3
+import subprocess
 import sys
 import tarfile
 import tempfile
 import types
 import uuid
+import zipfile
 from unittest import mock
 
 SOURCE = pathlib.Path(__file__).with_name('deploy-three-dragon-release.py')
@@ -34,10 +36,10 @@ def load():
     return module
 
 
-def make_archive(module, destination, defect=None):
+def make_archive(module, destination, defect=None, target_names=None, scope=None, host_overlay=None):
     contents = {}
     targets = []
-    for name in module.TARGETS:
+    for name in module.TARGETS if target_names is None else target_names:
         path = 'workbench-panels/table.html' if name == 'suite-dev' else 'three-dragon-ante.html' if name == 'suite' else 'index.html'
         if defect == 'suite-outside' and name == 'suite':
             path = 'manifest.json'
@@ -55,6 +57,10 @@ def make_archive(module, destination, defect=None):
                 'version': '0.8.0', 'api': '/three-dragon-api/v1', 'targets': targets,
                 'server': {'path': 'server/server.mjs', 'sha256': hashlib.sha256(server).hexdigest(), 'size': len(server)},
                 'sourceArchive': {'path': 'three-dragon-source-' + 'a' * 12 + '.zip', 'sha256': hashlib.sha256(source).hexdigest()}}
+    if scope is not None:
+        manifest['scope'] = scope
+    if host_overlay is not None:
+        manifest['hostOverlay'] = host_overlay
     if defect == 'sha':
         manifest['server']['sha256'] = 'b' * 64
     if defect in ('declared-host', 'host-path', 'host-sha', 'host-missing'):
@@ -88,7 +94,7 @@ def make_archive(module, destination, defect=None):
             archive.addfile(info, io.BytesIO(data))
 
 
-def fixture(directory, defect=None):
+def fixture(directory, defect=None, website_only=False):
     module = load()
     module.BASE = directory / 'sites'
     module.SERVER = directory / 'server' / 'server.mjs'
@@ -129,7 +135,7 @@ def fixture(directory, defect=None):
     baseline_file = module.UPLOAD / 'baseline.json'
     baseline_file.write_text(json.dumps(baseline))
     archive = module.UPLOAD / 'release.tar.gz'
-    make_archive(module, archive, defect)
+    make_archive(module, archive, defect, target_names=module.WEBSITE_TARGETS if website_only else None, scope='website-only' if website_only else None)
     args = types.SimpleNamespace(command='apply', archive=str(archive), baseline=str(baseline_file), sha256=module.digest(archive), release_id='synthetic-test')
     return module, baseline, args
 
@@ -147,8 +153,8 @@ def record(name, callback):
     RESULT.append({'name': name, 'ok': True})
 
 
-def transaction(directory, point=None, interrupted=False, host=False):
-    module, baseline, args = fixture(directory, 'declared-host' if host else None)
+def transaction(directory, point=None, interrupted=False, host=False, website_only=False):
+    module, baseline, args = fixture(directory, 'declared-host' if host else None, website_only)
     original_exchange = module.exchange
     count = 0
     def injected(a, b):
@@ -210,13 +216,108 @@ def transaction(directory, point=None, interrupted=False, host=False):
                 assert (module.BASE / name / 'manifest.json').read_text() == 'protected original manifest'
                 assert (module.BASE / name / 'old-hashed-asset.js').read_text() == 'must remain readable'
             assert (module.BASE / 'three-dragon-ante').is_dir()
+            if website_only:
+                after = module.snapshot()
+                assert set(after['targets']) == set(module.TARGETS)
+                assert all(after['targets'][name] == baseline['targets'][name] for name in ('suite', 'suite-dev'))
+                work, private = module.release_paths(args.release_id)
+                receipt = json.loads((private / 'receipt.json').read_text())
+                assert receipt['scope'] == 'website-only' and set(receipt['targets']) == set(module.WEBSITE_TARGETS)
+                assert set(receipt['releaseTargets']) == set(module.WEBSITE_TARGETS)
+                assert set(item.name for item in (work / 'rollback').iterdir()) == {'three-dragon-ante-dev'}
+                assert not (work / 'stage' / 'suite').exists() and not (work / 'stage' / 'suite-dev').exists()
+                with sqlite3.connect(module.DATABASE) as database:
+                    database.execute("UPDATE synthetic SET value = 'synthetic live update after deployment'")
             args.command = 'rollback'
             module.rollback_release(args)
         assert module.snapshot() == baseline
         with sqlite3.connect(module.DATABASE) as database:
-            assert database.execute('SELECT value FROM synthetic').fetchone()[0] == 'synthetic private fixture'
+            expected = 'synthetic live update after deployment' if website_only and not point and not interrupted else 'synthetic private fixture'
+            assert database.execute('SELECT value FROM synthetic').fetchone()[0] == expected
         assert (module.PRIVATE / args.release_id / 'game.sqlite.private-backup').is_file()
         assert not (module.BASE / '.three-dragon-releases' / args.release_id / 'payload' / 'game.sqlite').exists()
+
+
+def package_cli_fixture(directory, website_only):
+    """Run the real packager with synthetic compiler outputs, never production builds.
+
+    This checks CLI scope, same-origin build inputs, exact tar/source manifests
+    and absence of any Suite payload when the overlay is intentionally absent.
+    """
+    repository = directory / 'source'
+    tools = repository / 'tools'
+    tools.mkdir(parents=True)
+    (repository / 'package.json').write_text(json.dumps({'type': 'module', 'version': '0.9.1-dev'}))
+    (repository / '.gitignore').write_text('node_modules/\n.local-evidence/\n.env.local\n')
+    (repository / 'SOURCE.txt').write_text('synthetic tracked source must be included in full GPL archive')
+    shutil.copy2(SOURCE.parent / 'release-three-dragon.mjs', tools / 'release-three-dragon.mjs')
+    shutil.copy2(SOURCE, tools / SOURCE.name)
+    shutil.copy2(SOURCE.parent.parent / 'LICENSE', repository / 'LICENSE')
+    compiler = repository / 'node_modules' / 'typescript' / 'bin'
+    compiler.mkdir(parents=True)
+    (compiler / 'tsc').write_text("import {appendFileSync} from 'node:fs';appendFileSync('.local-evidence/build-calls.txt','typecheck\\n');")
+    vite = repository / 'node_modules' / 'vite' / 'bin'
+    vite.mkdir(parents=True)
+    (vite / 'vite.js').write_text("""import {appendFileSync,mkdirSync,writeFileSync} from 'node:fs';
+import {join} from 'node:path';
+const out=process.argv[process.argv.indexOf('--outDir')+1],channel=process.env.THREE_DRAGON_CHANNEL,api=process.env.VITE_TDA_API;
+if(!['dev','stable'].includes(channel)||api!=='/three-dragon-api/v1')throw Error('Unexpected build target/API');
+appendFileSync('.local-evidence/build-calls.txt',channel+' '+api+'\\n');mkdirSync(out,{recursive:true});
+const name=channel==='dev'?'three-dragon-ante-dev':'three-dragon-ante';
+for(const path of ['index.html','table.html','background.html','launcher.html'])writeFileSync(join(out,path),'synthetic '+channel+' '+api);
+writeFileSync(join(out,'manifest.json'),JSON.stringify({version:'0.9.1'+(channel==='dev'?'-dev':''),background_url:'/'+name+'/background.html'}));
+""")
+    (tools / 'build-three-dragon-server.mjs').write_text("""import {appendFileSync,mkdirSync,writeFileSync} from 'node:fs';
+import {join} from 'node:path';appendFileSync('.local-evidence/build-calls.txt','server\\n');
+mkdirSync(process.env.TDA_SERVER_OUT,{recursive:true});writeFileSync(join(process.env.TDA_SERVER_OUT,'server.mjs'),'export const synthetic = true;');
+""")
+    evidence = repository / '.local-evidence'
+    evidence.mkdir()
+    (repository / '.env.local').write_text('DO_NOT_PACKAGE=synthetic fixture only')
+    subprocess.run(['git', 'init', '-q'], cwd=repository, check=True, capture_output=True)
+    subprocess.run(['git', 'add', '.gitignore', 'LICENSE', 'SOURCE.txt', 'package.json', 'tools'], cwd=repository, check=True, capture_output=True)
+    subprocess.run(['git', '-c', 'user.name=Synthetic Release Test', '-c', 'user.email=synthetic@example.invalid', '-c', 'core.hooksPath=.local-evidence/no-hooks', 'commit', '-qm', 'synthetic fixture'], cwd=repository, check=True, capture_output=True)
+    head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=repository, text=True).strip()
+    out = directory / 'artifacts'
+    command = ['node', str(tools / 'release-three-dragon.mjs'), '--out', str(out)]
+    if website_only:
+        for invalid in (['--website-only', '--overlay', str(directory / 'missing-overlay')], ['--website-only', '--website-only'], ['--website-only', '--target', 'suite']):
+            result = subprocess.run(command + invalid, cwd=repository, capture_output=True, text=True)
+            assert result.returncode != 0 and not out.exists()
+        command += ['--website-only']
+    else:
+        overlay = directory / 'overlay'
+        overlay.mkdir()
+        outputs = []
+        for name, path in (('suite-dev', 'workbench-panels/table.html'), ('suite', 'three-dragon-ante.html')):
+            file = overlay / name / path
+            file.parent.mkdir(parents=True)
+            file.write_text('synthetic frozen overlay ' + name)
+            outputs.append({'path': name + '/' + path, 'sha256': hashlib.sha256(file.read_bytes()).hexdigest()})
+        (overlay / 'overlay-manifest.json').write_text(json.dumps({'tdaSource': head, 'api': '/three-dragon-api/v1', 'suiteSource': 'b' * 40, 'targets': ['suite', 'suite-dev'], 'outputs': outputs}))
+        command += ['--overlay', str(overlay)]
+    subprocess.run(command, cwd=repository, check=True, capture_output=True, text=True)
+    receipt = json.loads((out / 'release-preparation.json').read_text())
+    expected = set(load().WEBSITE_TARGETS if website_only else load().TARGETS)
+    assert {target['name'] for target in receipt['targets']} == expected
+    assert receipt['scope'] == ('website-only' if website_only else 'all-four')
+    assert (evidence / 'build-calls.txt').read_text().splitlines() == ['typecheck', 'dev /three-dragon-api/v1', 'stable /three-dragon-api/v1', 'server']
+    with tarfile.open(receipt['archive']['path'], 'r:gz') as archive:
+        names = archive.getnames()
+        manifest = json.load(archive.extractfile('release-manifest.json'))
+        assert {target['name'] for target in manifest['targets']} == expected
+        if website_only:
+            assert manifest['hostOverlay'] is None and not any(name.startswith(('suite/', 'suite-dev/')) for name in names)
+        source = archive.extractfile(manifest['sourceArchive']['path']).read()
+        assert hashlib.sha256(source).hexdigest() == manifest['sourceArchive']['sha256']
+        with zipfile.ZipFile(io.BytesIO(source)) as package:
+            tracked = subprocess.check_output(['git', 'ls-files', '-z'], cwd=repository).decode().split('\0')
+            assert {name for name in package.namelist() if not name.endswith('/')} == {'three-dragon-ante/' + name for name in tracked if name}
+            assert package.read('three-dragon-ante/LICENSE') == (repository / 'LICENSE').read_bytes()
+            assert not any('.env.local' in name or '.local-evidence' in name for name in package.namelist())
+    deployed = load()
+    parsed = deployed.package_manifest(out / 'three-dragon-release.tar.gz', directory / 'validated-payload')
+    assert set(deployed.manifest_targets(parsed)) == expected
 
 
 def main():
@@ -304,6 +405,102 @@ def main():
         assert deployed.digest(deployed.SERVER) == baseline['server']['sha256']
         assert file.read_text() == 'unrelated existing file'
     record('control paths reject non-directory parents before mutation', control_guard)
+    def selection_guards():
+        for index, (scope, targets, host) in enumerate((
+            ('website-only', ('suite',), None),
+            ('website-only', ('three-dragon-ante-dev',), None),
+            ('website-only', ('three-dragon-ante-dev', 'suite-dev'), None),
+            ('website-only', ('three-dragon-ante-dev', 'three-dragon-ante-dev'), None),
+            ('website-only', module.TARGETS, None),
+            (None, module.WEBSITE_TARGETS, None),
+            ('arbitrary-subset', module.WEBSITE_TARGETS, None),
+            ('website-only', module.WEBSITE_TARGETS, {}),
+        )):
+            archive = evidence / ('selection-' + str(index) + '.tar.gz')
+            make_archive(module, archive, target_names=targets, scope=scope, host_overlay=host)
+            expect_error(lambda archive=archive, index=index: module.package_manifest(archive, evidence / ('selection-' + str(index) + '-extracted')))
+    record('only explicit website pairs or all four targets are accepted; Suite subsets and website host overlays rejected', selection_guards)
+    for name, website_only in (('real packager website-only needs no overlay and retains exact API/full GPL source', True), ('real packager default remains compatible with all four targets', False)):
+        directory = evidence / ('packager-website' if website_only else 'packager-default')
+        directory.mkdir()
+        record(name, lambda directory=directory, website_only=website_only: package_cli_fixture(directory, website_only))
+    for name, point, interrupted in (
+        ('website-only apply and rollback preserve Suite bytes/attributes and post-deploy live database writes', None, False),
+        ('website-only switch failure restores both website targets without modifying Suite', 'after-exchange', False),
+        ('website-only interruption recovers using the exact two-target persisted intent', 'after-exchange', True),
+    ):
+        directory = evidence / ('website-transaction-' + str(len(RESULT)))
+        directory.mkdir()
+        record(name, lambda directory=directory, point=point, interrupted=interrupted: transaction(directory, point, interrupted, website_only=True))
+    def website_drift(before_apply=False, interrupted=False):
+        for index, mutation in enumerate(('content', 'mode')):
+            directory = evidence / ('website-drift-' + str(len(RESULT)) + '-' + str(index))
+            directory.mkdir()
+            deployed, baseline, args = fixture(directory, website_only=True)
+            if not before_apply:
+                if interrupted:
+                    original_exchange = deployed.exchange
+                    def interrupted_exchange(a, b):
+                        original_exchange(a, b)
+                        raise KeyboardInterrupt('synthetic website process interruption')
+                    deployed.exchange = interrupted_exchange
+                with mock.patch.object(os, 'chown', create=True, new=lambda *_: None), mock.patch.object(deployed.subprocess, 'run', return_value=types.SimpleNamespace(returncode=0)), contextlib.redirect_stdout(io.StringIO()):
+                    try:
+                        deployed.apply_release(args)
+                    except KeyboardInterrupt:
+                        assert interrupted
+                    else:
+                        assert not interrupted
+            file = deployed.BASE / 'suite-dev' / 'old-hashed-asset.js'
+            if mutation == 'content':
+                file.write_text('synthetic unrelated Suite deployment')
+            else:
+                os.chmod(file, 0o444)
+            before_rejection = deployed.snapshot()
+            assert before_rejection['targets']['suite-dev'] != baseline['targets']['suite-dev']
+            if before_apply:
+                expect_error(lambda: deployed.apply_release(args))
+                assert not deployed.PRIVATE.exists()
+            else:
+                args.command = 'recover' if interrupted else 'rollback'
+                with mock.patch.object(os, 'chown', create=True, new=lambda *_: None), mock.patch.object(deployed.subprocess, 'run', return_value=types.SimpleNamespace(returncode=0)), contextlib.redirect_stdout(io.StringIO()):
+                    expect_error(lambda: deployed.rollback_release(args))
+                receipt = json.loads((deployed.PRIVATE / args.release_id / 'receipt.json').read_text())
+                assert receipt['status'] == ('preparing' if interrupted else 'applied')
+            assert deployed.snapshot() == before_rejection
+    record('website-only fresh full baseline rejects Suite content and attribute drift before staging', lambda: website_drift(before_apply=True))
+    record('website-only rollback rejects unselected Suite content and attribute drift before touching code/assets', website_drift)
+    record('website-only interruption recovery rejects Suite drift before touching code/assets', lambda: website_drift(interrupted=True))
+    def switch_drift_guard():
+        directory = evidence / 'website-switch-drift'
+        directory.mkdir()
+        deployed, baseline, args = fixture(directory, website_only=True)
+        original_exchange = deployed.exchange
+        def drift_after_exchange(a, b):
+            original_exchange(a, b)
+            (deployed.BASE / 'suite' / 'old-hashed-asset.js').write_text('synthetic concurrent unrelated Suite write')
+        deployed.exchange = drift_after_exchange
+        with mock.patch.object(os, 'chown', create=True, new=lambda *_: None), mock.patch.object(deployed.subprocess, 'run', return_value=types.SimpleNamespace(returncode=0)), contextlib.redirect_stdout(io.StringIO()):
+            expect_error(lambda: deployed.apply_release(args))
+        assert not (deployed.BASE / 'three-dragon-ante').exists()
+        assert (deployed.BASE / 'suite' / 'old-hashed-asset.js').read_text() == 'synthetic concurrent unrelated Suite write'
+        receipt = json.loads((deployed.PRIVATE / args.release_id / 'receipt.json').read_text())
+        assert receipt['status'] == 'preparing' and receipt['targets']['three-dragon-ante-dev']['switched']
+    record('website-only post-switch guard detects concurrent Suite drift and retains recoverable receipt', switch_drift_guard)
+    def legacy_receipt():
+        directory = evidence / 'legacy-four-receipt'
+        directory.mkdir()
+        deployed, baseline, args = fixture(directory)
+        with mock.patch.object(os, 'chown', create=True, new=lambda *_: None), mock.patch.object(deployed.subprocess, 'run', return_value=types.SimpleNamespace(returncode=0)), contextlib.redirect_stdout(io.StringIO()):
+            deployed.apply_release(args)
+            path = deployed.PRIVATE / args.release_id / 'receipt.json'
+            receipt = json.loads(path.read_text())
+            del receipt['scope'], receipt['releaseTargets']
+            path.write_text(json.dumps(receipt))
+            args.command = 'rollback'
+            deployed.rollback_release(args)
+        assert deployed.snapshot() == baseline
+    record('pre-scope four-target receipts remain valid for rollback', legacy_receipt)
     output = {'pass': len(RESULT), 'fail': 0, 'tests': RESULT, 'evidence': str(evidence),
               'scope': 'Synthetic local filesystem/SQLite; exchange and owner operations are mocked; no remote deployment or actual player data.'}
     (evidence / 'result.json').write_text(json.dumps(output, indent=2) + '\n')

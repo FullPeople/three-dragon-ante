@@ -83,6 +83,7 @@ for (const bytes of [0, 1024 * 1024, 8 * 1024 * 1024]) for (const mode of ['old'
   const value = await probe(mode, bytes, bytes ? 120 : 0); results.push(value);
   if (!value.cleanupHealthy) console.log(JSON.stringify(value));
   assert.equal(value.closeCode, 1008); assert.equal(value.cleanupHealthy, true);
+  assert.equal(value.messageBytes, bytes, 'Normal FIN must preserve the complete application frame.');
   console.log(JSON.stringify({ mode, bytes, closeCode: value.closeCode, messageBytes: value.messageBytes, maxWritableBytes: Math.max(...value.events.map(event => event.writableBytes || 0)), control: value.events.filter(event => event.opcode >= 8) }));
 }
 for (let index = 0; index < 8; index++) for (const mode of ['old', 'graceful']) {

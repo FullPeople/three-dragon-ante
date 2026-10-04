@@ -1,7 +1,7 @@
 # AI_CONTEXT/INDEX.md — 三龙牌 冷启动中枢
 
 > `AI_CONTEXT/` = 本项目跨 AI 事实源**薄指针层**。通用纪律见全局（自动加载）。本文件是项目侧冷启动第一读。
-> 第二读：`AI_CONTEXT/GOAL.md`（当前总目标见 §10：仅在线网站；本轮演出/铭牌/隐藏全能反馈见 §11）。2026-10-04 用户已授权实现、推送、服务与定向部署，无需逐步确认；旧范围以 GOAL §10–11 和 DOMAIN §5–6 为准。新附件特效/性能交接按用户明确要求读取其 AI_CONTEXT 后核验整合。
+> 第二读：`AI_CONTEXT/GOAL.md`（当前总目标见 §10：仅在线网站；本轮演出/铭牌/隐藏全能反馈见 §11；优先 bug 热修复见 §12）。2026-10-04 用户已授权实现、推送、服务与定向部署，无需逐步确认；旧范围以 GOAL §10–12 和 DOMAIN §5–6 为准。新附件特效/性能交接按用户明确要求读取其 AI_CONTEXT 后核验整合。
 
 ## 1. 项目身份
 
@@ -9,7 +9,7 @@
 - 2026-10-03 定调：**独立运行网站为核心，枭熊内置为次要适配**；表现层整体重写为写实风 2.5D，规则/协议/控制器/服务端不动。
 - repo `https://github.com/FullPeople/three-dragon-ante`（GPL-3.0；2026-10-03 从 `FullPeople/obr-suite` dev `5476630` 拆出）。
 - 线上旧入口 `https://obr.dnd.center/three-dragon-ante-dev/`（由 Suite 另行部署，**本仓库 push 不等于上线**）。
-- 当前工作分支：`rebuild/presentation`；`main` 保持拆分时的基线。
+- 主工作分支：`rebuild/presentation`；本次隔离 bug 热修复分支 `release/feedback-hotfix-20261004`。`main` 保持拆分时的基线。最新附件特效在另一隔离分支整合，不进入本次热修复；发布状态见 `RUNBOOKS/2026-10-04_bug-hotfix-deploy.md`。
 
 ## 2. 运行环境（real）
 
