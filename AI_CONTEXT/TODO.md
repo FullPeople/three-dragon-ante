@@ -18,9 +18,10 @@
 - [x] 阶段 2 收尾：六人桌、真实拖拽、减少动态、详视与选择面板位置、favicon / 图标（2026-10-03）。
 - [x] 阶段 4 时序对齐：落地帧 → 说明 → 效果与金币（commit `2c2df3f`）。
 - [x] `test:browser` 改测新 `index.html`；`test:server-browser` 改新选择器。
-- [ ] **push 被拒**：用户 2026-10-03 授权"修复完之后推送"，但 `git push -u origin rebuild/presentation` 返回 403——Git Credential Manager 里的 GitHub 账号 `pzy197684` 对 `FullPeople/three-dragon-ante` 无写权限（本机未装 gh）。需用户：给该账号写权限 / 在凭据管理器换成有权限的账号 / 或改推到自己的 fork；之后重跑 push。是否合并 main 由用户定。
+- [ ] **push / PR 被挡**（用户 2026-10-04 要求帧率修复后提 PR）：`git push` 仍 403（账号 `pzy197684` 无写权限，HTTPS 与 SSH 都是它，且没有 fork）；浏览器面板里 GitHub 未登录，AI 不代登录。PR 标题与正文已备好 `AI_CONTEXT/PR_rebuild-presentation.md`。需用户三选一：给账号写权限 / 在浏览器面板登录 GitHub（AI 可 fork + push + 开 PR）/ 由新机器按启动词 §3 推送并开 PR。
 - [ ] 帧率：探针 `.local-evidence/perf-probe.mjs` 移进 tools/ 自带静态服务；弱机"画质"开关与自动降档随 fx3d 做；真实弱机复测由用户完成（runbook `2026-10-04_perf-compositing.md`）。
-- [ ] **fx3d 设计评审工作流结果待落地**（2026-10-04 会话因用量额度中断）：工作流 `fx3d-understand-design`（run `wf_46b40141-1ba`）已完成 4 位读者与 3 份设计稿，评审与合成在中断时仍在跑；结果（design / judges）在该会话的 workflows 目录 `…\subagents\workflows\wf_46b40141-1ba\journal.jsonl` 与各 `agent-*.jsonl` 里（原机器 scratch 会话）。下一会话：先把合成的设计文档抄进 `RUNBOOKS/2026-10-03_fx3d-kickoff.md` §4，再按 §3 顺序实施。
+- [x] fx3d 设计评审工作流：合成稿已落地 `RUNBOOKS/2026-10-04_fx3d-design.md`（2026-10-04）。
+- [ ] **fx3d 下一期**：W 等待变体（等自己 / 等对手、按 Choice.code 分 demand / destination / order / pick）、G / E 场地按种类（德鲁伊藤蔓 / 祭司暖光 / 龙巫妖磷火 / 大法师）、拼点与特殊牌阵的三种法阵、沙盒 Shell / Collar / Wisps（Volume 仅 high）、画质开关 UI（帮助面板三态）与自适应降档（按 rAF 间隔只降不升）、飘带加粗与头部粒子、落牌尘土按牌类分档；完成后换模型独立审计。
 - [ ] **three.js 特效层 fx3d（用户 2026-10-03 批准）**：地基已交付（runbook `2026-10-03_fx3d-kickoff.md` §2）；待办：设计定稿 → 图元工具箱 → 家族签名 → 单牌变体 → 传说牌定制 → 持续 / 环境 → 尘土与手；MIT 署名文件待随首个移植图元一起加入 `docs/design/ASSETS.md` 与 THIRD_PARTY 说明。
 - [ ] 字体子集化：vendor CSS 约 500 kB 来自 fontsource 全部 unicode-range 子集声明；可改为只保留 chinese-simplified + latin 子集或自建子集。
 - [ ] 枭熊真实房间验收（双账号、紧凑弹窗、全屏模态）；实体手机。
