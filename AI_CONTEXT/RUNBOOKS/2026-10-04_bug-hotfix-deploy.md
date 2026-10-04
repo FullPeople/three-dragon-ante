@@ -140,6 +140,16 @@ python3 /var/tmp/three-dragon-release/deploy-bug-hotfix-801daf5.py rollback --re
 
 ## 当前状态与遗留
 
-**已上线0.9.1/0.9.1-dev，冻结801daf5；一般公网12/12、CI及独立发布核验通过，隐藏权限公网前5/8通过但整体仍待验。** 后续纯留痕/测试诊断提交不改变该线上冻结源。本次没有重新部署Suite/枭熊，没有合并main、force-push或打tag。附件c3960047的完整特效整合/单rAF阴性对照/冷启动桌形、实体手机与弱设备测试仍双落TODO，不属于这次bug热修复发布。
+**已上线0.9.1/0.9.1-dev，冻结801daf5；一般公网12/12、CI及独立发布核验通过，后续默认GPU隐藏权限公网8/8通过，强制软件GL超时仍待查。** 后续纯留痕/测试诊断提交不改变该线上冻结源。本次没有重新部署Suite/枭熊，没有合并main、force-push或打tag。附件c3960047的完整特效整合/单rAF阴性对照/冷启动桌形、实体手机与弱设备测试仍双落TODO，不属于这次bug热修复发布。
 
 特效预览独立运行于 `http://127.0.0.1:4174/?fx3d=1`，使用最新 c3960047 的实际 FxStage/41 家族组件，不创建牌局、连接服务或使用本地机器人宿主。预览 10/10，截图、零失败资源/外部请求记录在隔离快照 `.local-evidence/fx-preview/`；这是本机特效预览，不能算生产牌局性能验收。
+
+## 后续公网控制：默认 GPU 完整8项通过
+
+生产仍冻结801daf5，未重新构建或部署。根任务在ignored副本仅去掉强制SwiftShader的两个launch flags，保留同Edge、同origin、同locale/reduce、同域拦截、原8检查/14现有assert与21wait，另采集有界GPU后端类别。实际控制源码 `.local-evidence/public-hidden-hardware-control/control.mjs` SHA `1c651e27a97ef5d7cad9b243d2afa036eae9009bc47ed1bdd05f20ae25fea7da`；result/control位于 `run-JE9SZo/`，日志 `.local-evidence/hotfix-deploy/public-hidden-hardware-control.log`。
+
+本次实际 **8/8**、exit0：原房间码加入、私手发牌、host主动键序、普通玩家拒绝、关闭恢复、刷新保留主持且inspection关闭、真实WSclose清全部编辑DOM后重连、零私牌泄露/脚本/外域错误全部执行。该结果是已上线产品真实HTTP/WSS控制，不是本地fixture，也没有跳过曾失败的刷新项。默认GPU控制中renderer观测被分类为hardware，但分类器仅排除SwiftShader/llvmpipe/software，尚不足以确认物理适配器；不写“物理硬件已验收”或将单次成功当作软件渲染超时根因。
+
+强制SwiftShader下的历史JSON读取12秒超时与刷新失败继续保留，具体原因未确诊。正式工具新增显式 `--gpu default|software`，默认仍software，软件flags不变；默认模式只移除两个强制flags，真实getContext结果仅保存software/reported-hardware/unknown枚举，不落盘renderer文本，不新增GL context。Node/diff检查exit0，原断言与deadline保持；正式新CLI尚待浏览器窗口释放后验收，不把ignored控制当作新CLI已运行。新FX默认软件GL/减少动态门控与lazy资源的效果仍待候选专项/完整CI/实际发布验证。
+
+遗留双落TODO：完成正式CLI默认模式验证；查证强制软件GL超时，勿扩大deadline凑数；完整FX回归/独立终审/精确CI与发布继续推进。普通默认GPU公网全8已完成，旧“前5/8待验”是更早阶段记录。

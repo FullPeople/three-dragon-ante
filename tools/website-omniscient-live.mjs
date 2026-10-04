@@ -7,15 +7,29 @@ import { chromium, browserLaunchOptions } from './browser-runtime.mjs';
 const originIndex = process.argv.indexOf('--origin');
 const origin = originIndex >= 0 ? process.argv[originIndex + 1] : '';
 assert.equal(origin, 'https://obr.dnd.center', 'Explicit --origin https://obr.dnd.center is required.');
+const gpuIndex = process.argv.indexOf('--gpu'), gpuMode = gpuIndex >= 0 ? process.argv[gpuIndex + 1] : 'software';
+assert.ok(['software', 'default'].includes(gpuMode), 'GPU mode must be software or default.');
 const root = resolve(import.meta.dirname, '..'), evidenceRoot = join(root, '.local-evidence/website-omniscient-live');
 mkdirSync(evidenceRoot, { recursive: true }); const out = mkdtempSync(join(evidenceRoot, 'run-'));
 const checks = [], errors = [], external = [], actors = [];
 let failure, stage = 'startup';
 const pass = label => { checks.push(label); console.log('PASS ' + label); };
-const browser = await chromium.launch({ ...browserLaunchOptions(), headless: true, args: ['--no-proxy-server', '--enable-webgl', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await chromium.launch({ ...browserLaunchOptions(), headless: true, args: ['--no-proxy-server', '--enable-webgl', ...(gpuMode === 'software' ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : [])] });
 async function actor() {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'zh-CN', reducedMotion: 'reduce' });
   await context.addInitScript(() => {
+    window.__liveGpuClasses = [];
+    const nativeContext = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (...args) {
+      const context = nativeContext.apply(this, args);
+      if (context && ['webgl', 'webgl2'].includes(args[0]) && window.__liveGpuClasses.length < 8) {
+        const ext = context.getExtension('WEBGL_debug_renderer_info');
+        const renderer = ext ? String(context.getParameter(ext.UNMASKED_RENDERER_WEBGL)) : '';
+        const kind = /swiftshader|llvmpipe|softpipe|software|microsoft basic render|warp/i.test(renderer) ? 'software' : /nvidia|radeon|intel|apple gpu|adreno|mali/i.test(renderer) ? 'reported-hardware' : 'unknown';
+        window.__liveGpuClasses.push(kind);
+      }
+      return context;
+    };
     const NativeWebSocket = window.WebSocket;
     window.__liveSocketEvents = [];
     window.WebSocket = class extends NativeWebSocket {
@@ -135,15 +149,17 @@ try {
       const error = document.querySelector('.site-room-error')?.textContent?.trim();
       const codes = { '名字须为 1–60 字': 'invalidName', '房间码须为 8 位': 'invalidRoomCode', '名字已占用': 'nameTaken', '房间不存在': 'roomMissing', '重连凭据已失效': 'notAllowed', '连接超时': 'requestTimeout', '连接失败': 'requestFailed', '服务版本不匹配': 'protocolMismatch' };
       const code = document.querySelector('#guest-room-code')?.value, name = document.querySelector('#guest-name')?.value;
-      return { connected: document.querySelector('.site-online-match')?.getAttribute('data-connected') ?? null, homePresent: !!document.querySelector('.site-home'), omniscient: document.querySelector('.tda-shell')?.getAttribute('data-omniscient') ?? null, editorPresent: !!document.querySelector('#table-editor'), newGamePresent: !!document.querySelector('[data-testid=table-new-game]'), errorCode: error == null ? null : codes[error] || 'other', nameLength: name?.length ?? null, roomCodeLength: code?.length ?? null, roomCodeValid: code == null ? null : /^[A-Z0-9]{8}$/.test(code), joinDisabled: document.querySelector('.site-online-form button[type=submit]')?.disabled ?? null, socketEvents: window.__liveSocketEvents || [] };
+      return { connected: document.querySelector('.site-online-match')?.getAttribute('data-connected') ?? null, homePresent: !!document.querySelector('.site-home'), omniscient: document.querySelector('.tda-shell')?.getAttribute('data-omniscient') ?? null, editorPresent: !!document.querySelector('#table-editor'), newGamePresent: !!document.querySelector('[data-testid=table-new-game]'), errorCode: error == null ? null : codes[error] || 'other', nameLength: name?.length ?? null, roomCodeLength: code?.length ?? null, roomCodeValid: code == null ? null : /^[A-Z0-9]{8}$/.test(code), joinDisabled: document.querySelector('.site-online-form button[type=submit]')?.disabled ?? null, socketEvents: window.__liveSocketEvents || [], gpuClasses: window.__liveGpuClasses || [] };
     });
     diagnostics.push({ admissions: actor.admissions, admissionEvents: actor.admissionEvents, viewEvents: actor.viewEvents, ...browser });
   } catch {}
   failure = { stage, kind: ['TimeoutError', 'AssertionError', 'Error'].includes(error.name) ? error.name : 'OtherError', diagnostics, message: 'Public synthetic website validation failed; no private payload, name, room code, token or URL query is written.' };
 }
 finally {
+  const gpuClasses = [];
+  for (const actor of actors) try { gpuClasses.push(await actor.page.evaluate(() => window.__liveGpuClasses || [])); } catch {}
   await browser.close();
-  const stats = { checks: checks.length, completed: !failure, scope: 'Actual public website and authority, one UI-created synthetic room only. No production SQL, existing rooms, account identity or dumps.' };
+  const stats = { checks: checks.length, completed: !failure, gpuMode, gpuClasses, scope: 'Actual public website and authority, one UI-created synthetic room only. No production SQL, existing rooms, account identity or dumps.' };
   writeFileSync(join(out, 'result.json'), JSON.stringify({ checks, stats, errors, external, ...(failure ? { failure } : {}) }, null, 2));
   console.log(JSON.stringify(stats)); console.log(out);
 }

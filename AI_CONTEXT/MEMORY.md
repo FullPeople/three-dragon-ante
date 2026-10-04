@@ -77,5 +77,6 @@
 - 实际双网站各970构建文件+源码ZIP/发布JSON全部SHA匹配，511白名单外旧文件及目录属性保留；Suite-dev4797、Suite2112、card869和nginx/unit/relay/保护服务内容及属性不变。server SHA `f962764212aa4334639b6fa991706aecd5ec3ac2cb6782fd6a2389895dc88c3d`，active且原0644/root:root保持。事务 `20261004-801daf5-bug-hotfix` 的远端receipt applied；原SSH本地等待只终止PID16244、exit-1/stdout1字节，不能写applyexit0，transport原因未知。证据及回滚指针正本 `RUNBOOKS/2026-10-04_bug-hotfix-deploy.md`。
 - 一般公网12/12 `live-website/run-LbkWkp`：2次前注/6次出牌/4次选择/2次可见结算，刷新/断线/交接/空房等通过，脚本/失败资源/外域0。隐藏权限公网专项run-gLOLN8前5/8真实通过，刷新撤权阶段超时；另保留UalXWO/L7sRyY/4RlOqV失败与npm参数提前退出，最新dc4yGB合法8码加入收到201头后仍12秒aborted/响应体未完成，具体原因未证实。权限全8项尚待验，不能用本地13项或一般12项替代；实体手机与弱设备未验收。
 - UNC同名附件再次更新，最新HEAD c39600472d4ab7858f7b43c3548ad975b5d98dbc、mtime13:52:50、ZIP SHA3352e3bbd9a75f444295553626804868796d09eba682e5b9592758542ac18a7c。内部AI_CONTEXT已顺序读取，文档中的历史停止/旧本地机器人方向不覆盖当前用户授权。最新特效整合在隔离分支，不能整包覆盖网站逻辑或混入本次bug发布。
+- 后续默认GPU参数控制真实公网全能8/8（JE9SZo），原刷新/WSclose清场重连与普通玩家拒绝均执行、错误/外域0，独立复核通过；renderer只记录类别，不独立确认物理GPU。强制SwiftShader的历史超时仍待查，正式tool显式--gpu default模式待释放browser后执行，生产仍801；详见热修复runbook后续段。
 - 最新FX隔离候选c7b36be3已含hotfix801，build/tsc及build:server通过，npm test 7/8（controller旁观handCount6 !== 5）停止完整回归，原失败run-KuUEel保留、根因待查；未push/未部署。该候选失败不替代线上801完整CI成功证据，见主工作区fx3d-refresh runbook与TODO。
 - 最新实际组件的41家族特效预览 `http://127.0.0.1:4174/?fx3d=1`，预览验证10/10、零脚本/资源/外域错误；预览不连接服务或创建牌局。相机/生命周期/实际单rAF与冷启动桌形回归、弱设备/实体手机仍须完成，见热修复runbook遗留。

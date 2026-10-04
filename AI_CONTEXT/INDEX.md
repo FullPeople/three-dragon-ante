@@ -10,7 +10,7 @@
 - repo `https://github.com/FullPeople/three-dragon-ante`（GPL-3.0；2026-10-03 从 `FullPeople/obr-suite` dev `5476630` 拆出）。
 - 线上独立网站 stable `https://obr.dnd.center/three-dragon-ante/`、dev `https://obr.dnd.center/three-dragon-ante-dev/`；**本仓库 push 不等于上线**，Suite既有链接本轮不重发。
 - 主工作分支：`rebuild/presentation`；本次隔离 bug 热修复分支 `release/feedback-hotfix-20261004`。`main` 保持拆分时的基线。最新附件特效在另一隔离分支整合，不进入本次热修复；发布状态见 `RUNBOOKS/2026-10-04_bug-hotfix-deploy.md`。
-- 当前线上0.9.1/0.9.1-dev，2026-10-04 16:07:25冻结源801daf580e9505a377dc97a544c4ad051ea029ac；完整CI37187336604、独立发布核验与一般公网12项通过。隐藏权限公网前5/8通过但整体待验；新附件特效未上线，实体手机未验收。当前状态以MEMORY §E、TODO与上述发布runbook为准，不能把后续留痕提交当线上源码。
+- 当前线上0.9.1/0.9.1-dev，2026-10-04 16:07:25冻结源801daf580e9505a377dc97a544c4ad051ea029ac；完整CI37187336604、独立发布核验与一般公网12项通过。隐藏权限公网默认GPU8/8通过，强制软件GL超时仍待查；新附件特效未上线，实体手机未验收。当前状态以MEMORY §E、TODO与上述发布runbook为准，不能把后续留痕提交当线上源码。
 
 ## 2. 运行环境（real）
 
