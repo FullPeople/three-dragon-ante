@@ -37,7 +37,7 @@ const overlays = websiteOnly ? null : JSON.parse(readFileSync(join(overlay, 'ove
 if (overlays) {
   if (overlays.tdaSource !== head || overlays.api !== api) throw Error('Suite overlay must match the exact frozen source and same-origin API.');
   if (JSON.stringify([...overlays.targets].sort()) !== JSON.stringify(['suite', 'suite-dev'])) throw Error('Both Suite overlays are required.');
-  if (overlays.hostOverlay && (overlays.hostOverlay.mode !== 'website-link-only' || overlays.hostOverlay.website !== 'https://obr.dnd.center/three-dragon-ante/')) throw Error('Only the reviewed website-link host overlay is allowed.');
+  if (overlays.hostOverlay && (overlays.hostOverlay.mode !== 'website-link-only' || overlays.hostOverlay.website !== 'https://dnd.center/3-dragon/')) throw Error('Only the reviewed website-link host overlay is allowed.');
 }
 const hostOutputs = new Map((overlays?.hostOverlay?.outputs || []).map(item => [item.path, item]));
 const slash = value => value.replaceAll('\\', '/');
