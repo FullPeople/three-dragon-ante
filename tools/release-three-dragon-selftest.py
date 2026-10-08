@@ -71,7 +71,7 @@ def make_archive(module, destination, defect=None, target_names=None, scope=None
         outputs = [record]
         if defect == 'host-missing':
             outputs.append({'path': 'suite/assets/missing-a.js', 'sha256': 'b' * 64, 'beforeSha256': None})
-        manifest['hostOverlay'] = {'mode': 'website-link-only', 'website': 'https://obr.dnd.center/three-dragon-ante/', 'outputs': outputs}
+        manifest['hostOverlay'] = {'mode': 'website-link-only', 'website': 'https://dnd.center/3-dragon/', 'outputs': outputs}
     contents['release-manifest.json'] = json.dumps(manifest).encode()
     if defect == 'extra':
         contents['unlisted.txt'] = b'not allowed'

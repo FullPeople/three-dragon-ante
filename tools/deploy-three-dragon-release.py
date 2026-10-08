@@ -286,7 +286,7 @@ def package_manifest(archive, destination):
         manifest_targets(manifest)
         records = {}
         host = manifest.get('hostOverlay') or {}
-        if host and (host.get('mode') != 'website-link-only' or host.get('website') != 'https://obr.dnd.center/three-dragon-ante/'):
+        if host and (host.get('mode') != 'website-link-only' or host.get('website') != 'https://dnd.center/3-dragon/'):
             raise ValueError('Unsupported host overlay')
         host_records = {}
         for record in host.get('outputs', []):
