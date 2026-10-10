@@ -6,7 +6,7 @@ import { chromium, browserLaunchOptions } from './browser-runtime.mjs';
 
 const originIndex = process.argv.indexOf('--origin');
 const origin = originIndex >= 0 ? process.argv[originIndex + 1] : '';
-assert.equal(origin, 'https://obr.dnd.center', 'Explicit --origin https://obr.dnd.center is required.');
+assert.equal(origin, 'https://dnd.center', 'Explicit --origin https://dnd.center is required.');
 const root = resolve(import.meta.dirname, '..'), evidenceRoot = join(root, '.local-evidence/website-omniscient-live');
 mkdirSync(evidenceRoot, { recursive: true }); const out = mkdtempSync(join(evidenceRoot, 'run-'));
 const checks = [], errors = [], external = [], actors = [];
@@ -32,7 +32,7 @@ async function actor() {
     // Called only for the ordinary player: record a boolean, never any payload.
     socket.on('framereceived', event => { if (value.watchPrivacy && /"(?:privateHands|privateDeck|privateExcluded|privateCommittedAntes)"\s*:|"omniscient"\s*:\s*true/.test(event.payload.toString())) value.privateLeak = true; });
   });
-  await page.goto(origin + '/three-dragon-ante/');
+  await page.goto(origin + '/3-dragon/');
   const name = page.locator('#guest-name'); await name.click(); await name.fill('验收-' + crypto.randomUUID().slice(0, 8));
   return value;
 }

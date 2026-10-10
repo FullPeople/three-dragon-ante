@@ -7,7 +7,7 @@ import { chromium, browserLaunchOptions } from './browser-runtime.mjs';
 
 const root = resolve(import.meta.dirname, '..');
 const dist = join(root, 'extensions/three-dragon-ante/dist');
-const base = '/three-dragon-ante-dev/', onlineURL = 'https://obr.dnd.center/three-dragon-ante/';
+const base = '/three-dragon-ante-dev/', onlineURL = 'https://dnd.center/3-dragon/';
 assert.ok(existsSync(join(dist, 'index.html')), 'Run npm run build first.');
 const manifest = JSON.parse(readFileSync(join(dist, 'manifest.json'), 'utf8'));
 assert.equal(manifest.background_url, base + 'background.html', 'manifest keeps the published background entry');

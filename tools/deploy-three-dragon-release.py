@@ -24,14 +24,26 @@ import urllib.request
 import uuid
 
 BASE = pathlib.Path('/var/www/obr-plugins')
+CANONICAL_ROOT = pathlib.Path('/var/www/dnd-center')
 SERVER = pathlib.Path('/opt/obr-three-dragon/server.mjs')
 DATABASE = pathlib.Path('/var/lib/obr-three-dragon/game.sqlite')
 PRIVATE = pathlib.Path('/var/backups/three-dragon-releases')
 UPLOAD = pathlib.Path('/var/tmp/three-dragon-release')
 TARGETS = ('three-dragon-ante-dev', 'three-dragon-ante', 'suite-dev', 'suite')
 WEBSITE_TARGETS = ('three-dragon-ante-dev', 'three-dragon-ante')
+CANONICAL_TARGETS = ('3-dragon',)
+ALL_TARGETS = TARGETS + CANONICAL_TARGETS
+
+
+def target_path(name):
+    if name not in ALL_TARGETS:
+        raise ValueError('Unknown static target')
+    return (CANONICAL_ROOT if name == '3-dragon' else BASE) / name
+
 PROTECTED_FILES = (
     '/etc/nginx/sites-enabled/obr-plugins',
+    '/etc/nginx/sites-enabled/dnd-center',
+    '/etc/nginx/sites-available/dnd-center',
     '/etc/systemd/system/obr-three-dragon.service',
     '/opt/obr-workbench-relay-dev/server.mjs',
     '/opt/obr-workbench-relay-dev/documents.mjs',
@@ -122,7 +134,7 @@ def require_real_ancestry(path):
 
 
 def validate_control_paths():
-    for path in (BASE, BASE / '.three-dragon-releases', PRIVATE, UPLOAD, SERVER):
+    for path in (BASE, CANONICAL_ROOT, BASE / '.three-dragon-releases', PRIVATE, UPLOAD, SERVER):
         require_real_ancestry(path)
     if SERVER.exists() and not SERVER.is_file():
         raise ValueError('Server bundle must be a regular file')
@@ -134,9 +146,13 @@ def snapshot():
         raise ValueError('Static root is not a real directory')
     return {
         'format': 1, 'staticRoot': str(BASE),
-        'targets': {name: tree_digest(BASE / name) for name in TARGETS},
+        'canonicalRoot': str(CANONICAL_ROOT),
+        'targets': {name: tree_digest(target_path(name)) for name in ALL_TARGETS},
         'protected': {
             'card': tree_digest(BASE / 'card'),
+            'canonicalUnselected': {path.name: tree_digest(path) if path.is_dir() else file_state(path)
+                                    for path in sorted(CANONICAL_ROOT.iterdir()) if path.name != '3-dragon'}
+                                   if CANONICAL_ROOT.is_dir() else {},
             'files': {name: file_state(pathlib.Path(name)) for name in PROTECTED_FILES},
             'services': {name: command('systemctl', 'show', name, '-p', 'ActiveState', '-p', 'ActiveEnterTimestampMonotonic', '-p', 'MainPID') for name in PROTECTED_SERVICES},
         },
@@ -232,10 +248,12 @@ def backup_database(destination):
 
 
 def selected_targets(scope, names):
-    expected = WEBSITE_TARGETS if scope == 'website-only' else TARGETS if scope == 'all-four' else None
+    expected = (CANONICAL_TARGETS if scope == 'canonical-website' else
+                CANONICAL_TARGETS + ('suite-dev', 'suite') if scope == 'canonical-with-suite' else
+                WEBSITE_TARGETS if scope == 'website-only' else TARGETS if scope == 'all-four' else None)
     if expected is None or not isinstance(names, list) or len(names) != len(expected) or any(not isinstance(name, str) for name in names) or set(names) != set(expected):
-        raise ValueError('Release must select all four known targets, or explicitly website-only with both independent targets')
-    return tuple(name for name in TARGETS if name in names)
+        raise ValueError('Release targets must exactly match the selected canonical or historical scope')
+    return tuple(name for name in ALL_TARGETS if name in names)
 
 
 def manifest_targets(manifest):
@@ -243,7 +261,7 @@ def manifest_targets(manifest):
     if not isinstance(targets, list) or any(not isinstance(target, dict) for target in targets):
         raise ValueError('Invalid release targets')
     names = selected_targets(manifest.get('scope', 'all-four'), [target.get('name') for target in targets])
-    if manifest.get('scope') == 'website-only' and manifest.get('hostOverlay') is not None:
+    if manifest.get('scope') in ('website-only', 'canonical-website') and manifest.get('hostOverlay') is not None:
         raise ValueError('Website-only release cannot include a Suite host overlay')
     return names
 
@@ -260,9 +278,11 @@ def receipt_targets(receipt):
 
 
 def require_preserved_targets(baseline, selected, description, current=None):
-    for name in TARGETS:
+    for name in ALL_TARGETS:
+        if name == '3-dragon' and name not in baseline['targets']:
+            continue  # Historical receipts cannot select or mutate this newer target.
         if name not in selected:
-            actual = current['targets'][name] if current is not None else tree_digest(BASE / name)
+            actual = current['targets'][name] if current is not None else tree_digest(target_path(name))
             require_equal(actual, baseline['targets'][name], description + ': ' + name)
 
 
@@ -286,7 +306,7 @@ def package_manifest(archive, destination):
         manifest_targets(manifest)
         records = {}
         host = manifest.get('hostOverlay') or {}
-        if host and (host.get('mode') != 'website-link-only' or host.get('website') != 'https://obr.dnd.center/three-dragon-ante/'):
+        if host and (host.get('mode') != 'website-link-only' or host.get('website') != 'https://dnd.center/3-dragon/'):
             raise ValueError('Unsupported host overlay')
         host_records = {}
         for record in host.get('outputs', []):
@@ -359,7 +379,10 @@ def space_guard(archive, baseline):
         expanded = sum(entry.size for entry in entries)
         source_size = sum(entry.size for entry in entries if re.fullmatch(r'three-dragon-source-[0-9a-f]{12}\.zip', entry.name))
         selected = manifest_targets(json.load(package.extractfile('release-manifest.json')))
-    old_size = sum(path.stat().st_size for name in selected if baseline['targets'][name] is not None for path in (BASE / name).rglob('*') if path.is_file())
+    if '3-dragon' in selected:
+        if not CANONICAL_ROOT.is_dir() or existing_parent(CANONICAL_ROOT).stat().st_dev != existing_parent(BASE).stat().st_dev:
+            raise RuntimeError('Canonical root must exist on the staging filesystem before release')
+    old_size = sum(path.stat().st_size for name in selected if baseline['targets'][name] is not None for path in (target_path(name)).rglob('*') if path.is_file())
     old_entries = sum(len(baseline['targets'][name]['files']) + len(baseline['targets'][name]['directories']) for name in selected if baseline['targets'][name] is not None)
     static_needed = expanded + 2 * old_size + len(selected) * source_size + (len(entries) + 2 * old_entries) * 4096
     wal = DATABASE.with_name(DATABASE.name + '-wal')
@@ -489,8 +512,8 @@ def apply_release(args):
             stage.mkdir()
             os.chmod(stage, 0o755)
         else:
-            clone_tree(BASE / name, stage)
-            clone_tree(BASE / name, rollback_root / name)
+            clone_tree(target_path(name), stage)
+            clone_tree(target_path(name), rollback_root / name)
         copy_overlay(payload, stage, target, manifest['source'], manifest)
         receipt['targets'][name] = {'previouslyAbsent': baseline['targets'][name] is None, 'newFiles': tree_digest(stage), 'switched': False}
     shutil.copy2(SERVER, private / 'server.mjs.previous')
@@ -510,18 +533,18 @@ def apply_release(args):
         for target in manifest['targets']:
             name = target['name']
             require_preserved_targets(baseline, selected, 'Unselected targets before switching')
-            require_equal(tree_digest(BASE / name), baseline['targets'][name], name + ' before switching')
+            require_equal(tree_digest(target_path(name)), baseline['targets'][name], name + ' before switching')
             stage = stage_root / name
             # Backups are already complete; persist intent before the atomic
             # change. Recovery compares current hashes with old/new snapshots.
             receipt['targets'][name]['switched'] = True
             atomic_json(receipt_file, receipt, private=True)
             if receipt['targets'][name]['previouslyAbsent']:
-                os.replace(stage, BASE / name)
+                os.replace(stage, target_path(name))
             else:
-                exchange(stage, BASE / name)
+                exchange(stage, target_path(name))
             atomic_json(receipt_file, receipt, private=True)
-            require_equal(tree_digest(BASE / name), receipt['targets'][name]['newFiles'], name + ' after switching')
+            require_equal(tree_digest(target_path(name)), receipt['targets'][name]['newFiles'], name + ' after switching')
             require_preserved_targets(baseline, selected, 'Unselected targets after switching')
         current = snapshot()
         require_preserved_targets(baseline, selected, 'Unselected targets after release', current)
@@ -542,26 +565,26 @@ def apply_release(args):
 def restore(receipt, work, private, automatic=False):
     selected = receipt_targets(receipt)
     require_preserved_targets(receipt['baseline'], selected, 'Unselected targets before restoring')
-    require_equal(snapshot()['protected'], receipt['baseline']['protected'], 'Protected card/nginx/unit/relay before restoring')
+    require_equal(snapshot_for_receipt(receipt)['protected'], receipt['baseline']['protected'], 'Protected card/nginx/unit/relay before restoring')
     if not automatic:
         require_equal(file_state(SERVER), receipt['serverNewState'], 'Server bundle/permissions before rollback')
         for name, item in receipt['targets'].items():
-            require_equal(tree_digest(BASE / name), item['newFiles'], name + ' before rollback')
+            require_equal(tree_digest(target_path(name)), item['newFiles'], name + ' before rollback')
     failed = work / 'retained-candidate'
     failed.mkdir(exist_ok=True)
     for name, item in reversed(list(receipt['targets'].items())):
         if not item['switched']:
             continue
-        current = tree_digest(BASE / name)
+        current = tree_digest(target_path(name))
         if current == receipt['baseline']['targets'][name]:
             item['switched'] = False
             continue
         require_equal(current, item['newFiles'], name + ' before restoring')
         if item['previouslyAbsent']:
-            os.replace(BASE / name, failed / name)
+            os.replace(target_path(name), failed / name)
         else:
             backup = work / 'rollback' / name
-            exchange(BASE / name, backup)
+            exchange(target_path(name), backup)
             os.replace(backup, failed / name)
         item['switched'] = False
     if receipt['serverInstalled']:
@@ -572,10 +595,20 @@ def restore(receipt, work, private, automatic=False):
             replace_server(private / 'server.mjs.previous')
         restart_and_check()
         receipt['serverInstalled'] = False
-    require_equal(snapshot(), receipt['baseline'], 'Restored static/protected/server baseline')
+    require_equal(snapshot_for_receipt(receipt), receipt['baseline'], 'Restored static/protected/server baseline')
     receipt['status'] = 'rolled-back-after-failure' if automatic else 'rolled-back'
     receipt['finishedUTC'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
     atomic_json(private / 'receipt.json', receipt, private=True)
+
+
+def snapshot_for_receipt(receipt):
+    current = snapshot()
+    if 'canonicalRoot' not in receipt['baseline']:
+        # Historical receipts predate the new target and cannot select it.
+        current.pop('canonicalRoot')
+        current['targets'].pop('3-dragon')
+        current['protected'].pop('canonicalUnselected')
+    return current
 
 
 def rollback_release(args):

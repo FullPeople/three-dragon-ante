@@ -1,6 +1,6 @@
 import "./website-link.css";
 
-export const ONLINE_WEBSITE = "https://obr.dnd.center/three-dragon-ante/";
+export const ONLINE_WEBSITE = "https://dnd.center/3-dragon/";
 
 /** A native link works before SDK readiness and leaves the host navigation intact. */
 export function mountWebsiteLink(root: HTMLElement): void {
@@ -14,6 +14,6 @@ export function mountWebsiteLink(root: HTMLElement): void {
   link.rel = "noopener noreferrer";
   link.textContent = "打开线上网站 / Open website";
   const address = document.createElement("p");
-  address.textContent = "obr.dnd.center/three-dragon-ante/";
+  address.textContent = "dnd.center/3-dragon/";
   root.replaceChildren(title, link, address);
 }

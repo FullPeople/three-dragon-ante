@@ -1,6 +1,6 @@
 {
   "name": "three-dragon-ante",
-  "version": "0.9.3-dev",
+  "version": "0.9.4-dev",
   "private": true,
   "description": "三龙牌独立网页、Owlbear Rodeo 扩展及权威游戏服务",
   "type": "module",
@@ -13,6 +13,7 @@
     "dev": "vite --host 127.0.0.1 --port 5173",
     "typecheck": "tsc --noEmit",
     "build": "npm run typecheck && vite build",
+    "build:website": "node tools/build-website.mjs",
     "build:three-dragon": "npm run build",
     "build:server": "node tools/build-three-dragon-server.mjs",
     "dev:server": "node tools/start-server.mjs",

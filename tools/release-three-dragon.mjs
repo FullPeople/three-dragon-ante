@@ -37,7 +37,7 @@ const overlays = websiteOnly ? null : JSON.parse(readFileSync(join(overlay, 'ove
 if (overlays) {
   if (overlays.tdaSource !== head || overlays.api !== api) throw Error('Suite overlay must match the exact frozen source and same-origin API.');
   if (JSON.stringify([...overlays.targets].sort()) !== JSON.stringify(['suite', 'suite-dev'])) throw Error('Both Suite overlays are required.');
-  if (overlays.hostOverlay && (overlays.hostOverlay.mode !== 'website-link-only' || overlays.hostOverlay.website !== 'https://obr.dnd.center/three-dragon-ante/')) throw Error('Only the reviewed website-link host overlay is allowed.');
+  if (overlays.hostOverlay && (overlays.hostOverlay.mode !== 'website-link-only' || overlays.hostOverlay.website !== 'https://dnd.center/3-dragon/')) throw Error('Only the reviewed website-link host overlay is allowed.');
 }
 const hostOutputs = new Map((overlays?.hostOverlay?.outputs || []).map(item => [item.path, item]));
 const slash = value => value.replaceAll('\\', '/');
@@ -64,14 +64,14 @@ const payload = join(out, 'payload');
 mkdirSync(payload);
 run('node_modules/typescript/bin/tsc', {}); // tsconfig contains noEmit.
 const targets = [];
-for (const channel of ['dev', 'stable']) {
-  const name = channel === 'dev' ? 'three-dragon-ante-dev' : 'three-dragon-ante';
+for (const channel of ['website']) {
+  const name = '3-dragon';
   const directory = join(payload, name);
   execFileSync(process.execPath, [join(root, 'node_modules/vite/bin/vite.js'), 'build', '--outDir', directory, '--logLevel', 'warn'], {
     cwd: root, env: { ...process.env, THREE_DRAGON_CHANNEL: channel, VITE_TDA_API: api }, stdio: 'inherit',
   });
   const manifest = JSON.parse(readFileSync(join(directory, 'manifest.json'), 'utf8'));
-  if (manifest.version !== version + (channel === 'dev' ? '-dev' : '') || manifest.background_url !== `/${name}/background.html`) throw Error('Manifest version/base does not match target.');
+  if (manifest.version !== version || manifest.background_url !== `/${name}/background.html`) throw Error('Manifest version/base does not match target.');
   for (const file of ['index.html', 'table.html', 'background.html', 'launcher.html', 'manifest.json']) if (!existsSync(join(directory, file))) throw Error('Missing entry: ' + file);
   targets.push({ name, kind: 'independent', version: manifest.version, files: walk(directory).map(file => ({ path: safeRelative(slash(relative(directory, file))), sha256: sha(file), size: statSync(file).size })) });
 }
@@ -102,7 +102,7 @@ for (const name of websiteOnly ? [] : ['suite-dev', 'suite']) {
 }
 run('tools/build-three-dragon-server.mjs', { TDA_SERVER_OUT: join(payload, 'server') });
 const server = { path: 'server/server.mjs', sha256: sha(join(payload, 'server/server.mjs')), size: statSync(join(payload, 'server/server.mjs')).size };
-const scope = websiteOnly ? 'website-only' : 'all-four';
+const scope = websiteOnly ? 'canonical-website' : 'canonical-with-suite';
 const manifest = { format: 1, repository: 'FullPeople/three-dragon-ante', source: head, version, api, scope, sourceArchive: sourceInfo, server, targets, hostOverlay: overlays?.hostOverlay || null,
   preservation: 'Merge compiled files only; preserve existing cached assets, Suite manifests/runtime/legacy modules, nginx, unit, relay, card and live SQLite.' };
 writeFileSync(join(payload, 'release-manifest.json'), JSON.stringify(manifest, null, 2) + '\n');

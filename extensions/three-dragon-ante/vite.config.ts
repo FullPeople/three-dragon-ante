@@ -3,11 +3,12 @@ import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = dirname(fileURLToPath(import.meta.url));
-const dev = process.env.THREE_DRAGON_CHANNEL !== "stable";
-const base = `/three-dragon-ante${dev ? "-dev" : ""}/`;
+const website = process.env.THREE_DRAGON_CHANNEL === "website";
+const dev = !website && process.env.THREE_DRAGON_CHANNEL !== "stable";
+const base = website ? "/3-dragon/" : `/three-dragon-ante${dev ? "-dev" : ""}/`;
 // Injected so the running build identifies itself on screen: a stale cached
 // bundle is otherwise indistinguishable from a code defect.
-const version = "0.9.3" + (dev ? "-dev" : "");
+const version = "0.9.4" + (dev && !website ? "-dev" : "");
 export default defineConfig({
   root, base,
   define: { __TDA_BUILD__: JSON.stringify(`v${version}`) },
