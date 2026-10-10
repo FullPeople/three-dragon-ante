@@ -97,6 +97,8 @@ def make_archive(module, destination, defect=None, target_names=None, scope=None
 def fixture(directory, defect=None, website_only=False):
     module = load()
     module.BASE = directory / 'sites'
+    module.CANONICAL_ROOT = directory / 'canonical-sites'
+    module.CANONICAL_ROOT.mkdir()
     module.SERVER = directory / 'server' / 'server.mjs'
     module.DATABASE = directory / 'private-game.sqlite'
     module.PRIVATE = directory / 'private-backups'
@@ -218,7 +220,7 @@ def transaction(directory, point=None, interrupted=False, host=False, website_on
             assert (module.BASE / 'three-dragon-ante').is_dir()
             if website_only:
                 after = module.snapshot()
-                assert set(after['targets']) == set(module.TARGETS)
+                assert set(after['targets']) == set(module.ALL_TARGETS)
                 assert all(after['targets'][name] == baseline['targets'][name] for name in ('suite', 'suite-dev'))
                 work, private = module.release_paths(args.release_id)
                 receipt = json.loads((private / 'receipt.json').read_text())
@@ -261,9 +263,9 @@ def package_cli_fixture(directory, website_only):
     (vite / 'vite.js').write_text("""import {appendFileSync,mkdirSync,writeFileSync} from 'node:fs';
 import {join} from 'node:path';
 const out=process.argv[process.argv.indexOf('--outDir')+1],channel=process.env.THREE_DRAGON_CHANNEL,api=process.env.VITE_TDA_API;
-if(!['dev','stable'].includes(channel)||api!=='/three-dragon-api/v1')throw Error('Unexpected build target/API');
+if(channel!=='website'||api!=='/three-dragon-api/v1')throw Error('Unexpected build target/API');
 appendFileSync('.local-evidence/build-calls.txt',channel+' '+api+'\\n');mkdirSync(out,{recursive:true});
-const name=channel==='dev'?'three-dragon-ante-dev':'three-dragon-ante';
+const name='3-dragon';
 for(const path of ['index.html','table.html','background.html','launcher.html'])writeFileSync(join(out,path),'synthetic '+channel+' '+api);
 writeFileSync(join(out,'manifest.json'),JSON.stringify({version:'0.9.1'+(channel==='dev'?'-dev':''),background_url:'/'+name+'/background.html'}));
 """)
@@ -298,10 +300,10 @@ mkdirSync(process.env.TDA_SERVER_OUT,{recursive:true});writeFileSync(join(proces
         command += ['--overlay', str(overlay)]
     subprocess.run(command, cwd=repository, check=True, capture_output=True, text=True)
     receipt = json.loads((out / 'release-preparation.json').read_text())
-    expected = set(load().WEBSITE_TARGETS if website_only else load().TARGETS)
+    expected = {'3-dragon'} if website_only else {'3-dragon', 'suite-dev', 'suite'}
     assert {target['name'] for target in receipt['targets']} == expected
-    assert receipt['scope'] == ('website-only' if website_only else 'all-four')
-    assert (evidence / 'build-calls.txt').read_text().splitlines() == ['typecheck', 'dev /three-dragon-api/v1', 'stable /three-dragon-api/v1', 'server']
+    assert receipt['scope'] == ('canonical-website' if website_only else 'canonical-with-suite')
+    assert (evidence / 'build-calls.txt').read_text().splitlines() == ['typecheck', 'website /three-dragon-api/v1', 'server']
     with tarfile.open(receipt['archive']['path'], 'r:gz') as archive:
         names = archive.getnames()
         manifest = json.load(archive.extractfile('release-manifest.json'))
@@ -420,7 +422,7 @@ def main():
             make_archive(module, archive, target_names=targets, scope=scope, host_overlay=host)
             expect_error(lambda archive=archive, index=index: module.package_manifest(archive, evidence / ('selection-' + str(index) + '-extracted')))
     record('only explicit website pairs or all four targets are accepted; Suite subsets and website host overlays rejected', selection_guards)
-    for name, website_only in (('real packager website-only needs no overlay and retains exact API/full GPL source', True), ('real packager default remains compatible with all four targets', False)):
+    for name, website_only in (('real packager website-only needs no overlay and retains exact API/full GPL source', True), ('real packager canonical site and Suite overlays preserve legacy website targets', False)):
         directory = evidence / ('packager-website' if website_only else 'packager-default')
         directory.mkdir()
         record(name, lambda directory=directory, website_only=website_only: package_cli_fixture(directory, website_only))
@@ -496,11 +498,66 @@ def main():
             path = deployed.PRIVATE / args.release_id / 'receipt.json'
             receipt = json.loads(path.read_text())
             del receipt['scope'], receipt['releaseTargets']
+            del receipt['baseline']['canonicalRoot'], receipt['baseline']['targets']['3-dragon'], receipt['baseline']['protected']['canonicalUnselected']
             path.write_text(json.dumps(receipt))
             args.command = 'rollback'
             deployed.rollback_release(args)
         assert deployed.snapshot() == baseline
     record('pre-scope four-target receipts remain valid for rollback', legacy_receipt)
+    def canonical_transaction(existing=False, failure=False):
+        directory = evidence / ('canonical-' + str(existing) + '-' + str(failure))
+        directory.mkdir()
+        deployed, _, args = fixture(directory)
+        for name in ('card', 'library'):
+            path = deployed.CANONICAL_ROOT / name
+            path.mkdir()
+            (path / 'index.html').write_text('protected current ' + name)
+        (deployed.CANONICAL_ROOT / 'index.html').write_text('protected home')
+        if existing:
+            deployed.target_path('3-dragon').mkdir()
+            (deployed.target_path('3-dragon') / 'index.html').write_text('old canonical site')
+        baseline = deployed.snapshot()
+        pathlib.Path(args.baseline).write_text(json.dumps(baseline))
+        make_archive(deployed, pathlib.Path(args.archive), target_names=('3-dragon',), scope='canonical-website')
+        args.sha256 = deployed.digest(pathlib.Path(args.archive))
+        if failure:
+            original = deployed.exchange
+            switches = 0
+            def interrupted(a, b):
+                nonlocal switches
+                switches += 1
+                original(a, b)
+                if switches == 1:
+                    raise RuntimeError('synthetic failure after canonical switch')
+            deployed.exchange = interrupted
+        with mock.patch.object(os, 'chown', create=True, new=lambda *_: None), mock.patch.object(deployed.subprocess, 'run', return_value=types.SimpleNamespace(returncode=0)), contextlib.redirect_stdout(io.StringIO()):
+            if failure:
+                expect_error(lambda: deployed.apply_release(args))
+            else:
+                deployed.apply_release(args)
+                assert (deployed.target_path('3-dragon') / 'index.html').read_text() == 'new 3-dragon'
+                assert all(deployed.snapshot()['targets'][name] == baseline['targets'][name] for name in deployed.TARGETS)
+                with sqlite3.connect(deployed.DATABASE) as database:
+                    database.execute("UPDATE synthetic SET value = 'new gameplay after release'")
+                args.command = 'rollback'
+                deployed.rollback_release(args)
+        assert deployed.snapshot() == baseline
+        with sqlite3.connect(deployed.DATABASE) as database:
+            assert database.execute('SELECT value FROM synthetic').fetchone()[0] == ('synthetic private fixture' if failure else 'new gameplay after release')
+    record('canonical website creation and rollback preserve legacy launchers, other sites and new gameplay', lambda: canonical_transaction())
+    record('canonical website replacement and rollback preserve legacy launchers and protected roots', lambda: canonical_transaction(True))
+    record('canonical post-switch failure automatically restores the canonical site and protected roots', lambda: canonical_transaction(True, True))
+    def canonical_filesystem_guard():
+        directory = evidence / 'canonical-filesystem-guard'
+        directory.mkdir()
+        deployed, baseline, args = fixture(directory)
+        make_archive(deployed, pathlib.Path(args.archive), target_names=('3-dragon',), scope='canonical-website')
+        parent = lambda path: types.SimpleNamespace(stat=lambda: types.SimpleNamespace(st_dev=2 if path == deployed.CANONICAL_ROOT else 1))
+        with mock.patch.object(deployed, 'existing_parent', side_effect=parent):
+            expect_error(lambda: deployed.space_guard(pathlib.Path(args.archive), baseline))
+        assert deployed.snapshot() == baseline
+        assert not deployed.PRIVATE.exists() and not (deployed.BASE / '.three-dragon-releases').exists()
+    record('canonical cross-filesystem release is rejected before staging or backup writes', canonical_filesystem_guard)
     output = {'pass': len(RESULT), 'fail': 0, 'tests': RESULT, 'evidence': str(evidence),
               'scope': 'Synthetic local filesystem/SQLite; exchange and owner operations are mocked; no remote deployment or actual player data.'}
     (evidence / 'result.json').write_text(json.dumps(output, indent=2) + '\n')

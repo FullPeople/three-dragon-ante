@@ -12,7 +12,7 @@ export interface OnlineMatchOptions {
   language: TableLanguage;
   onClose(): void;
   onLanguage(language: TableLanguage): void;
-  onStatus(connected: boolean, message: string | undefined, inProgress: boolean, spectating: boolean, playerCount: number): void;
+  onStatus(connected: boolean, message: string | undefined, inProgress: boolean, spectating: boolean, playerCount: number | null): void;
 }
 
 /** A lost website connection immediately discards the host-only projection. */
@@ -63,7 +63,7 @@ export function createOnlineMatch(parent: HTMLElement, options: OnlineMatchOptio
     inProgress = !saved.spectating && !!view.game && view.game.phase !== "ended";
     if (!view.connected || !view.isHost) inspectionRequested = false;
     const visible = { ...websiteView(view, inspectionRequested), spectating: saved.spectating === true };
-    surface.update(visible); options.onStatus(view.connected, view.message, inProgress, saved.spectating === true, view.table?.seats.length ?? 0);
+    surface.update(visible); options.onStatus(view.connected, view.message, inProgress, saved.spectating === true, view.table?.seats.length ?? null);
     if (!restored && view.game) {
       restored = true;
       try { const draft = readUIDraft(JSON.parse(sessionStorage.getItem(draftKey) || "null")); if (draft) surface.restore(draft); } catch {}

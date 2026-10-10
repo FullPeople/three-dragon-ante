@@ -8,12 +8,12 @@ import { randomBytes } from 'node:crypto';
 import { chromium, browserLaunchOptions } from './browser-runtime.mjs';
 
 const args = process.argv.slice(2);
-if (args.length !== 2 || args[0] !== '--origin') throw Error('Use --origin http://127.0.0.1:4173 or --origin https://obr.dnd.center. Creates a synthetic test room.');
+if (args.length !== 2 || args[0] !== '--origin') throw Error('Use --origin http://127.0.0.1:4173 or --origin https://dnd.center. Creates a synthetic test room.');
 const origin = args[1];
-assert.ok(['http://127.0.0.1:4173', 'https://obr.dnd.center'].includes(origin), 'Only the dedicated preview and authorized server are allowed');
+assert.ok(['http://127.0.0.1:4173', 'https://dnd.center'].includes(origin), 'Only the dedicated preview and authorized server are allowed');
 const online = origin.startsWith('https:');
-const stable = online ? '/three-dragon-ante/' : '/three-dragon-ante-dev/';
-const dev = '/three-dragon-ante-dev/';
+const stable = online ? '/3-dragon/' : '/three-dragon-ante-dev/';
+const dev = online ? '/3-dragon/' : '/three-dragon-ante-dev/';
 const checks = [], actors = [], errors = [], external = [], resourceFailures = [];
 const gameplay = { antes: 0, plays: 0, choices: 0, visibleSettlements: 0 };
 const prefix = 'qa-tda-' + new Date().toISOString().replace(/[^0-9]/g, '').slice(0, 14) + '-' + randomBytes(3).toString('hex');

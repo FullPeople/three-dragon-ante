@@ -241,8 +241,30 @@ try {
   const invitation = await owner.page.getByRole('textbox', { name: '邀请链接', exact: true }).inputValue();
   assert.equal(new URL(invitation).search, '?room=' + roomCode); assert.ok(!invitation.includes(originalOwner.session.token));
   pass('online-only website creates a unique coded room and a token-free invite without a local game');
+  await player.context.addInitScript(() => {
+    const NativeSocket = window.WebSocket;
+    window.WebSocket = class extends NativeSocket {
+      constructor(...args) {
+        super(...args); const queue = []; let hold = sessionStorage.getItem('invitation-view-verified') !== 'yes';
+        this.addEventListener('message', event => {
+          if (hold) { event.stopImmediatePropagation(); queue.push(event.data); }
+        });
+        window.__releaseInvitationView = () => { hold = false; sessionStorage.setItem('invitation-view-verified', 'yes'); for (const data of queue.splice(0)) this.dispatchEvent(new MessageEvent('message', { data })); };
+      }
+    };
+  });
   await player.page.goto(invitation); assert.equal(await player.page.locator('#guest-room-code').inputValue(), roomCode);
-  await fillName(player, '乙'); await player.page.getByRole('button', { name: '加入房间', exact: true }).click(); await connected(player);
+  await fillName(player, '乙'); await player.page.getByRole('button', { name: '加入房间', exact: true }).click();
+  await player.page.locator('.site-online-match').waitFor();
+  const copyInvite = player.page.getByRole('button', { name: '复制邀请', exact: true });
+  assert.equal(await copyInvite.isDisabled(), true, 'an unreceived table view cannot supply a guessed invitation count');
+  await player.page.waitForFunction(() => typeof window.__releaseInvitationView === 'function');
+  await player.page.evaluate(() => window.__releaseInvitationView()); await connected(player);
+  assert.equal(await copyInvite.isEnabled(), true);
+  await player.page.evaluate(() => Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async () => { throw Error('synthetic clipboard denial'); } } }));
+  await copyInvite.click();
+  assert.equal(await player.page.getByRole('textbox', { name: '邀请链接', exact: true }).inputValue(), `乙邀请你来一把三龙牌！（2 人）（${invitation}）`);
+  pass('invitation copying waits for the authoritative table view and uses the actual joined player count');
   await wait(() => state()?.table.seats.length === 2, 'both named seats'); const originalPlayer = await active(player);
   await duplicate.page.goto(invitation); await fillName(duplicate, ' 甲 '); const beforeDuplicate = JSON.stringify(state());
   await duplicate.page.getByRole('button', { name: '加入房间', exact: true }).click(); await duplicate.page.getByRole('alert').filter({ hasText: '名字已占用' }).waitFor();
@@ -334,8 +356,12 @@ try {
     assert.ok(expiredSession); const attemptsBeforeRefresh = owner.wsAttempts;
     await owner.page.evaluate(saved => sessionStorage.setItem('three-dragon-site-active.v1', JSON.stringify(saved)), expiredSession); await owner.page.reload();
     await owner.page.locator('.site-room-identity [role="status"]').filter({ hasText: '连接已失效，请返回首页重连' }).waitFor();
-    assert.equal(await owner.page.getByRole('button', { name: '重试连接', exact: true }).count(), 0); await owner.page.waitForTimeout(1600);
-    assert.equal(owner.wsAttempts, attemptsBeforeRefresh + 1); assert.equal(JSON.stringify(state()), beforeStaleReconnect);
+    assert.equal(await owner.page.getByRole('button', { name: '重试连接', exact: true }).count(), 0);
+    // A temporary pre-authentication timeout can retry before the terminal denial.
+    // Once the stored session is rejected, no further socket may be opened.
+    const attemptsAfterDenial = owner.wsAttempts; assert.ok(attemptsAfterDenial > attemptsBeforeRefresh);
+    await owner.page.waitForTimeout(1600);
+    assert.equal(owner.wsAttempts, attemptsAfterDenial); assert.equal(JSON.stringify(state()), beforeStaleReconnect);
     await leaveRoom(owner);
     await owner.page.getByRole('button', { name: '重连房间', exact: true }).click();
     await owner.page.getByRole('alert').filter({ hasText: '名字已占用' }).waitFor(); assert.equal(JSON.stringify(state()), beforeStaleReconnect);
@@ -344,7 +370,7 @@ try {
     const recovered = await active(owner); assert.equal(recovered.session.memberId, originalOwner.session.memberId); assert.notEqual(recovered.session.token, rotatingSession.session.token);
     await rejectedOldToken(originalOwner.room.id, rotatingSession.session.token); assert.equal(JSON.stringify(state()), beforeStaleReconnect);
     finalActor = owner;
-    pass('refresh with an expired stored session stops after one rejected WebSocket auth, shows the expiry and recovers through an explicit home reconnect');
+    pass('refresh with an expired stored session stops retrying after terminal WebSocket rejection, shows the expiry and recovers through an explicit home reconnect');
     pass('explicit reconnect with an expired saved token falls back once to an offline name and still rejects an online name without changing the seat');
   }
   const replacing = await actor('replacing'), sameCapability = await active(finalActor);

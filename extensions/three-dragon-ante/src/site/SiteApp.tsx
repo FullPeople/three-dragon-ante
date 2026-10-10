@@ -71,7 +71,7 @@ function OnlineScreen({ lang, admission, onClose, onLanguage }: { lang: Language
   const playing = useRef(false), leaveTrigger = useRef<HTMLElement | null>(null), leaveDialog = useRef<HTMLDivElement>(null);
   const [connected, setConnected] = useState(false), [message, setMessage] = useState(""), [copied, setCopied] = useState(false), [leaveOpen, setLeaveOpen] = useState(false);
   const [spectating, setSpectating] = useState(admission.spectating === true);
-  const [playerCount, setPlayerCount] = useState(admission.spectating ? 0 : 1);
+  const [playerCount, setPlayerCount] = useState<number | null>(null);
   const [manualInvite, setManualInvite] = useState("");
   const requestClose = () => {
     if (!playing.current) { onClose(); return; }
@@ -81,12 +81,13 @@ function OnlineScreen({ lang, admission, onClose, onLanguage }: { lang: Language
   const cancelLeave = () => { setLeaveOpen(false); };
   useEffect(() => {
     if (!host.current) return;
-    handle.current = createOnlineMatch(host.current, { admission, language: lang, onClose: requestClose, onLanguage, onStatus: (value, status, inProgress, watching, count) => { playing.current = inProgress; setSpectating(watching); setPlayerCount(count); setConnected(value); setMessage(status || ""); } });
+    handle.current = createOnlineMatch(host.current, { admission, language: lang, onClose: requestClose, onLanguage, onStatus: (value, status, inProgress, watching, count) => { playing.current = inProgress; setSpectating(watching); setPlayerCount(value ? count : null); setConnected(value); setMessage(status || ""); } });
     return () => { handle.current?.destroy(); handle.current = null; };
   }, []);
   useEffect(() => { handle.current?.setLanguage(lang); }, [lang]);
   useEffect(() => { if (leaveOpen) leaveDialog.current?.querySelector<HTMLButtonElement>("[data-testid=leave-cancel]")?.focus(); else leaveTrigger.current?.focus(); }, [leaveOpen]);
   const copy = async () => {
+    if (!connected || playerCount === null) return;
     const invitation = `${admission.name}邀请你来一把三龙牌！（${playerCount} 人）（${inviteURL(admission.room.code)}）`;
     setCopied(false);
     try { await navigator.clipboard.writeText(invitation); setManualInvite(""); setCopied(true); }
@@ -100,7 +101,7 @@ function OnlineScreen({ lang, admission, onClose, onLanguage }: { lang: Language
       <div className="site-room-identity"><span>{lang === "zh" ? "房间" : "Room"} <strong data-testid="online-room-code">{admission.room.code}</strong></span><span>{admission.name}</span>{spectating ? <span data-testid="spectator-status">{lang === "zh" ? "观战" : "Watching"}</span> : null}<span role="status">{connected ? (lang === "zh" ? "已连接" : "Connected") : message === "sessionReplaced" ? (lang === "zh" ? "座位已在其他窗口连接" : "Seat connected in another window") : message === "notAllowed" ? (lang === "zh" ? "连接已失效，请返回首页重连" : "Session expired; return home to reconnect") : message === "requestFailed" ? (lang === "zh" ? "连接失败" : "Connection failed") : (lang === "zh" ? "重连中" : "Reconnecting")}</span></div>
       <div className="site-room-tools">
         <input ref={link} readOnly autoComplete="off" aria-label={lang === "zh" ? "邀请链接" : "Invite link"} value={manualInvite || inviteURL(admission.room.code)} />
-        <button type="button" className="tda-btn tda-btn--quiet" onClick={() => void copy()}>{copied ? (lang === "zh" ? "已复制" : "Copied") : (lang === "zh" ? "复制邀请" : "Copy invite")}</button>
+        <button type="button" className="tda-btn tda-btn--quiet" disabled={!connected || playerCount === null} onClick={() => void copy()}>{copied ? (lang === "zh" ? "已复制" : "Copied") : (lang === "zh" ? "复制邀请" : "Copy invite")}</button>
         {!connected && !["sessionReplaced", "notAllowed"].includes(message) ? <button type="button" className="tda-btn tda-btn--quiet" onClick={() => handle.current?.retry()}>{lang === "zh" ? "重试连接" : "Retry connection"}</button> : null}
         <button type="button" className="tda-btn tda-btn--quiet" data-testid="leave-room" onClick={requestClose}>{lang === "zh" ? "返回首页" : "Home"}</button>
       </div>
